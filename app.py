@@ -807,7 +807,7 @@ def browse_bucket(connection_id, bucket_name):
     direction = request.args.get('direction', 'asc')
     
     mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
-    is_public = mapping and mapping.access_type == 'public'
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
     
     # Require login if the bucket is not public
     if not is_public and g.user is None:
@@ -1116,7 +1116,7 @@ def view_file(connection_id, bucket_name):
     key = request.args.get('key')
     
     mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
-    is_public = mapping and mapping.access_type == 'public'
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
     
     if not is_public and g.user is None:
         flash('Please log in to continue.', 'error')
@@ -1211,11 +1211,16 @@ def view_file(connection_id, bucket_name):
 from flask import Response, stream_with_context
 
 @app.route('/connection/<connection_id>/bucket/<bucket_name>/proxy-file')
-@login_required
 def proxy_s3_file(connection_id, bucket_name):
     conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
     key = request.args.get('key')
     
+    mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    
+    if not is_public and g.user is None:
+        return "Authentication required", 401
+        
     if not check_bucket_access(g.user, conn, bucket_name):
         return "Permission Denied", 403
         
@@ -1734,9 +1739,15 @@ def update_bucket_general_access():
     return jsonify({'status': 'success'})
 
 @app.route('/api/connection/<connection_id>/bucket/<bucket_name>/files')
-@login_required
 def api_bucket_files(connection_id, bucket_name):
     conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    
+    mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    
+    if not is_public and g.user is None:
+        return jsonify({'status': 'error', 'message': 'Authentication required'}), 401
+        
     if not check_bucket_access(g.user, conn, bucket_name):
         return jsonify({'status': 'error', 'message': 'Permission Denied'}), 403
     try:
@@ -1745,16 +1756,18 @@ def api_bucket_files(connection_id, bucket_name):
         pages = paginator.paginate(Bucket=bucket_name)
         
         # Load progress records for the user
-        progresses = VideoProgress.query.filter_by(
-            user_id=g.user.id,
-            connection_name=conn.name,
-            bucket_name=bucket_name
-        ).all()
-        progress_map = {p.file_key: {
-            'seconds': p.seconds_watched,
-            'duration': p.duration,
-            'pct': round(p.seconds_watched / p.duration * 100, 1) if p.duration > 0 else 0
-        } for p in progresses}
+        progress_map = {}
+        if g.user:
+            progresses = VideoProgress.query.filter_by(
+                user_id=g.user.id,
+                connection_name=conn.name,
+                bucket_name=bucket_name
+            ).all()
+            progress_map = {p.file_key: {
+                'seconds': p.seconds_watched,
+                'duration': p.duration,
+                'pct': round(p.seconds_watched / p.duration * 100, 1) if p.duration > 0 else 0
+            } for p in progresses}
         
         files = []
         for page in pages:
