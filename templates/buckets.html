@@ -165,7 +165,8 @@
                     <div class="general-access-title-row">
                         <select id="general-access-select" class="general-access-select">
                             <option value="restricted">Hạn chế</option>
-                            <option value="public">Bất kỳ ai có đường liên kết</option>
+                            <option value="public_view">Bất kỳ ai đều có thể xem</option>
+                            <option value="public_edit">Bất kỳ ai đều có thể chỉnh sửa</option>
                         </select>
                     </div>
                     <span class="general-access-desc" id="general-access-desc">Chỉ những người có quyền truy cập mới có thể mở bằng đường liên kết này</span>
@@ -339,9 +340,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     function updateGeneralAccessUI(access) {
-        if (access === 'public') {
+        if (access === 'public' || access === 'public_view') {
             generalDesc.textContent = 'Bất kỳ ai có kết nối Internet và có đường liên kết này đều có thể xem';
             generalIcon.className = 'general-access-icon public';
+            generalIcon.innerHTML = '<i class="fa-solid fa-earth-americas"></i>';
+        } else if (access === 'public_edit') {
+            generalDesc.textContent = 'Bất kỳ ai đã đăng nhập có đường liên kết đều có thể chỉnh sửa';
+            generalIcon.className = 'general-access-icon public-edit';
             generalIcon.innerHTML = '<i class="fa-solid fa-earth-americas"></i>';
         } else {
             generalDesc.textContent = 'Chỉ những người có quyền truy cập mới có thể mở bằng đường liên kết này';

@@ -73,6 +73,7 @@
                             </a>
                         </th>
                         <th>Progress</th>
+                        <th>Created by</th>
                         <th>
                             <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix, sort='last_modified', direction='desc' if sort_by == 'last_modified' and direction == 'asc' else 'asc') }}" style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem;">
                                 Last Modified
@@ -97,6 +98,7 @@
                                     {{ folder_name }}
                                 </a>
                             </td>
+                            <td style="color: var(--text-muted);">—</td>
                             <td style="color: var(--text-muted);">—</td>
                             <td style="color: var(--text-muted);">—</td>
                             <td style="color: var(--text-muted);">—</td>
@@ -137,6 +139,9 @@
                                 {% else %}
                                     {{ (file.size / 1048576) | round(1) }} MB
                                 {% endif %}
+                            </td>
+                            <td style="color: var(--text-secondary);">
+                                {{ file.created_by }}
                             </td>
                             <td>
                                 {% if file.progress %}

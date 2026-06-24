@@ -127,6 +127,17 @@ class AuditLog(db.Model):
     actor = db.relationship('User', foreign_keys=[user_id], backref=db.backref('actions_logged', lazy=True))
     target_owner = db.relationship('User', foreign_keys=[target_user_id], backref=db.backref('target_logs', lazy=True))
 
+class UploadedFile(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    connection_id = db.Column(db.Integer, db.ForeignKey('s3_connection.id'), nullable=False)
+    bucket_name = db.Column(db.String(100), nullable=False)
+    file_key = db.Column(db.String(255), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('uploaded_files', lazy=True))
+    connection = db.relationship('S3Connection', backref=db.backref('uploaded_files', lazy=True))
+
 # Helper: Fix S3 URL for Mixed Content issues (HTTPS -> HTTPS)
 def fix_s3_url(url):
     if not url:
@@ -211,7 +222,7 @@ def get_user_storage_used(user):
 def check_bucket_access(user, connection, bucket_name):
     # Check if bucket is public (Anyone with the link)
     mapping = UserBucket.query.filter_by(connection_id=connection.id, bucket_name=bucket_name).first()
-    if mapping and mapping.access_type == 'public':
+    if mapping and mapping.access_type in ['public', 'public_view', 'public_edit']:
         return True
         
     if not user:
@@ -239,6 +250,9 @@ def check_bucket_edit_access(user, connection, bucket_name):
     # Check ownership mapping
     mapping = UserBucket.query.filter_by(connection_id=connection.id, bucket_name=bucket_name).first()
     if mapping and mapping.user_id == user.id:
+        return True
+    # If bucket general access is set to public_edit, any logged-in user can edit
+    if mapping and mapping.access_type == 'public_edit':
         return True
     # Check shared access mapping with role 'Editor'
     shared = BucketAccess.query.filter_by(
@@ -799,6 +813,13 @@ def browse_bucket(connection_id, bucket_name):
             ).all()
             progress_map = {p.file_key: p for p in progresses}
         
+        # Fetch file creators
+        uploaded_files = UploadedFile.query.filter_by(
+            connection_id=conn.id,
+            bucket_name=bucket_name
+        ).all()
+        creator_map = {uf.file_key: uf.user.name for uf in uploaded_files}
+        
         for page in pages:
             for cp in page.get('CommonPrefixes', []):
                 folders.append(cp.get('Prefix'))
@@ -812,6 +833,7 @@ def browse_bucket(connection_id, bucket_name):
                     'key': key,
                     'name': key.split('/')[-1],
                     'size': obj.get('Size'),
+                    'created_by': creator_map.get(key, 'Unknown'),
                     'last_modified': obj.get('LastModified'),
                     'progress': {
                         'seconds': prog.seconds_watched,
@@ -943,6 +965,25 @@ def confirm_upload(connection_id, bucket_name):
             f"Uploaded file '{filename}' ({actual_size} bytes) directly to S3"
         )
         
+        # Save or update file uploader/creator metadata
+        existing_upload = UploadedFile.query.filter_by(
+            connection_id=conn.id,
+            bucket_name=bucket_name,
+            file_key=key
+        ).first()
+        if existing_upload:
+            existing_upload.user_id = g.user.id
+            existing_upload.created_at = datetime.utcnow()
+        else:
+            uploaded_file = UploadedFile(
+                connection_id=conn.id,
+                bucket_name=bucket_name,
+                file_key=key,
+                user_id=g.user.id
+            )
+            db.session.add(uploaded_file)
+        db.session.commit()
+        
         return jsonify({'status': 'success', 'size': actual_size})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -975,6 +1016,14 @@ def delete_object(connection_id, bucket_name):
             bucket_name=bucket_name,
             file_key=key
         ).delete()
+        
+        # Clean up uploader metadata
+        UploadedFile.query.filter_by(
+            connection_id=conn.id,
+            bucket_name=bucket_name,
+            file_key=key
+        ).delete()
+        
         db.session.commit()
         
         # Log action
@@ -1570,12 +1619,12 @@ def update_bucket_general_access():
     data = request.get_json() or {}
     connection_id = data.get('connection_id')
     bucket_name = data.get('bucket_name')
-    access_type = data.get('access_type') # 'restricted' or 'public'
+    access_type = data.get('access_type') # 'restricted', 'public', 'public_view' or 'public_edit'
     
     if not all([connection_id, bucket_name, access_type]):
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
         
-    if access_type not in ['restricted', 'public']:
+    if access_type not in ['restricted', 'public', 'public_view', 'public_edit']:
         return jsonify({'status': 'error', 'message': 'Invalid access type'}), 400
         
     conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
