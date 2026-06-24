@@ -99,6 +99,14 @@
             </h2>
             
             <form action="{{ url_for('add_connection') }}" method="POST">
+                <div class="form-group" style="background: rgba(59, 130, 246, 0.05); border: 1px dashed rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.5rem; text-align: center;">
+                    <label for="import_json" style="cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; color: #93c5fd; font-weight: 600; font-size: 0.9rem;">
+                        <i class="fa-solid fa-file-import"></i> Nhập cấu hình từ File JSON
+                    </label>
+                    <input type="file" id="import_json" accept=".json" style="display: none;">
+                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Chọn file JSON chứa url, accessKey, secretKey để điền tự động.</span>
+                </div>
+
                 <div class="form-group">
                     <label for="connection_id">Connection ID (slug)</label>
                     <input type="text" id="connection_id" name="connection_id" class="form-control" placeholder="e.g. aws-midso (leave blank to auto-generate)">
@@ -224,6 +232,54 @@
                 openModal('editConnectionModal');
             });
         });
+
+        // Handle JSON config file import
+        const importInput = document.getElementById('import_json');
+        if (importInput) {
+            importInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const config = JSON.parse(event.target.result);
+                        if (!config.accessKey || !config.secretKey) {
+                            showToast('File JSON không đúng định dạng S3 Connection.', 'error');
+                            return;
+                        }
+
+                        // Fill inputs
+                        const endpoint = config.url || '';
+                        document.getElementById('endpoint_url').value = endpoint;
+                        document.getElementById('access_key').value = config.accessKey;
+                        document.getElementById('secret_key').value = config.secretKey;
+
+                        // Derive friendly name & slug from endpoint URL
+                        let friendlyName = 'Imported S3';
+                        let slugName = '';
+                        if (endpoint) {
+                            try {
+                                const urlObj = new URL(endpoint);
+                                friendlyName = urlObj.hostname;
+                                slugName = urlObj.hostname.replace(/\./g, '-').replace(/\:/g, '-');
+                            } catch (pErr) {
+                                friendlyName = endpoint;
+                            }
+                        }
+                        document.getElementById('name').value = friendlyName;
+                        document.getElementById('connection_id').value = slugName;
+
+                        showToast('Đã điền thông tin từ file JSON thành công!', 'success');
+                    } catch (parseErr) {
+                        showToast('Lỗi đọc file JSON: ' + parseErr.message, 'error');
+                    }
+                };
+                reader.readAsText(file);
+                // Reset input value so it triggers change again if same file is re-selected
+                importInput.value = '';
+            });
+        }
 
         // Intercept Add Connection form submission
         const addForm = document.querySelector('#addConnectionModal form');
