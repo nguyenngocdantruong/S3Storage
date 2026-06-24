@@ -1025,7 +1025,7 @@ def view_file(connection_id, bucket_name):
  
         is_https_site = request.is_secure or request.headers.get('X-Forwarded-Proto', '').lower() == 'https'
         is_http_s3 = conn.endpoint_url and conn.endpoint_url.startswith('http://')
-        use_proxy = is_https_site and is_http_s3 and file_type == 'pdf'
+        use_proxy = is_https_site and is_http_s3 and file_type in ['pdf', 'video', 'audio']
         
         if use_proxy:
             file_url = url_for('proxy_s3_file', connection_id=connection_id, bucket_name=bucket_name, key=key)
@@ -1063,20 +1063,31 @@ def proxy_s3_file(connection_id, bucket_name):
         
     try:
         s3 = get_s3_client(conn)
-        s3_object = s3.get_object(Bucket=bucket_name, Key=key)
+        kwargs = {'Bucket': bucket_name, 'Key': key}
+        
+        range_header = request.headers.get('Range')
+        if range_header:
+            kwargs['Range'] = range_header
+            
+        s3_object = s3.get_object(**kwargs)
+        status_code = 206 if range_header else 200
         
         headers = {
             'Content-Type': s3_object.get('ContentType', 'application/octet-stream'),
             'Content-Length': str(s3_object.get('ContentLength', '')),
+            'Accept-Ranges': 'bytes',
             'Content-Disposition': f'inline; filename="{urllib.parse.quote(key.split("/")[-1])}"'
         }
         
+        if 'ContentRange' in s3_object:
+            headers['Content-Range'] = s3_object['ContentRange']
+            
         def generate():
             body = s3_object['Body']
             for chunk in body.iter_chunks(chunk_size=1024*64):
                 yield chunk
                 
-        return Response(stream_with_context(generate()), headers=headers)
+        return Response(stream_with_context(generate()), status=status_code, headers=headers)
     except Exception as e:
         return f"Error proxying file: {str(e)}", 500
 
