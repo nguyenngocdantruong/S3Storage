@@ -508,11 +508,20 @@ def add_connection():
             region_name=region_name
         )
         s3 = get_s3_client(conn_temp)
-        s3.list_buckets()
         
-        db.session.add(conn_temp)
-        db.session.commit()
-        flash('S3 Connection added successfully!', 'success')
+        try:
+            s3.list_buckets()
+            db.session.add(conn_temp)
+            db.session.commit()
+            flash('S3 Connection added successfully!', 'success')
+        except ClientError as ce:
+            # Code 403 Forbidden / AccessDenied means credentials are correct, but policy restricts ListBuckets
+            if ce.response.get('Error', {}).get('Code') in ['AccessDenied', '403'] or 'Forbidden' in str(ce):
+                db.session.add(conn_temp)
+                db.session.commit()
+                flash('S3 Connection added! Note: Lacking global ListAllMyBuckets permission (403 Forbidden). Buckets must be accessed or mapped manually.', 'warning')
+            else:
+                raise ce
     except Exception as e:
         flash(f'Failed to connect to S3: {str(e)}', 'error')
 
@@ -540,8 +549,26 @@ def view_connection(connection_id):
     conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
     try:
         s3 = get_s3_client(conn)
-        response = s3.list_buckets()
-        raw_buckets = response.get('Buckets', [])
+        
+        raw_buckets = []
+        try:
+            response = s3.list_buckets()
+            raw_buckets = response.get('Buckets', [])
+        except ClientError as ce:
+            # Catch s3:ListAllMyBuckets Forbidden (AccessDenied) and fall back to mapped/shared buckets
+            if ce.response.get('Error', {}).get('Code') in ['AccessDenied', '403'] or 'Forbidden' in str(ce):
+                if g.user.role == 'Admin':
+                    mappings = UserBucket.query.filter_by(connection_id=conn.id).all()
+                    shared = BucketAccess.query.filter_by(connection_id=conn.id).all()
+                else:
+                    mappings = UserBucket.query.filter_by(connection_id=conn.id, user_id=g.user.id).all()
+                    shared = BucketAccess.query.filter_by(connection_id=conn.id, user_id=g.user.id).all()
+                
+                mapped_names = set([m.bucket_name for m in mappings] + [s.bucket_name for s in shared])
+                raw_buckets = [{'Name': name, 'CreationDate': None} for name in mapped_names]
+                flash('Không thể liệt kê toàn bộ Buckets (403 Forbidden). Chỉ hiển thị các Buckets bạn sở hữu hoặc được phân quyền truy cập.', 'warning')
+            else:
+                raise ce
         
         # Load bucket maps to determine owner
         mappings = UserBucket.query.filter_by(connection_id=conn.id).all()
@@ -556,7 +583,7 @@ def view_connection(connection_id):
             if check_bucket_access(g.user, conn, name):
                 buckets.append({
                     'Name': name,
-                    'CreationDate': b['CreationDate'],
+                    'CreationDate': b.get('CreationDate'),
                     'owner': owner
                 })
                 
