@@ -1103,6 +1103,7 @@ def view_file(connection_id, bucket_name):
         pdf_exts = ['pdf']
         ppt_exts = ['ppt', 'pptx']
         docx_exts = ['doc', 'docx']
+        image_exts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']
         
         file_type = 'unknown'
         if ext in video_exts:
@@ -1115,6 +1116,8 @@ def view_file(connection_id, bucket_name):
             file_type = 'powerpoint'
         elif ext in docx_exts:
             file_type = 'docx'
+        elif ext in image_exts:
+            file_type = 'image'
  
         is_local_endpoint = False
         if conn.endpoint_url:
@@ -1135,7 +1138,7 @@ def view_file(connection_id, bucket_name):
  
         is_https_site = request.is_secure or request.headers.get('X-Forwarded-Proto', '').lower() == 'https'
         is_http_s3 = conn.endpoint_url and conn.endpoint_url.startswith('http://')
-        use_proxy = is_https_site and is_http_s3 and file_type in ['pdf', 'video', 'audio']
+        use_proxy = is_https_site and is_http_s3 and file_type in ['pdf', 'video', 'audio', 'image']
         
         if use_proxy:
             file_url = url_for('proxy_s3_file', connection_id=connection_id, bucket_name=bucket_name, key=key)

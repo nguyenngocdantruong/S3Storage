@@ -113,7 +113,7 @@
                     <!-- Files -->
                     {% for file in files %}
                         {% set ext = file.name.split('.')[-1].lower() if '.' in file.name else '' %}
-                        {% set is_viewable = ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'mp3', 'wav', 'aac', 'flac', 'pdf', 'ppt', 'pptx'] %}
+                        {% set is_viewable = ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'mp3', 'wav', 'aac', 'flac', 'pdf', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] %}
                         <tr>
                             <td>
                                 <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="file-item-name">
@@ -125,6 +125,8 @@
                                         <i class="fa-solid fa-file-pdf file-icon pdf"></i>
                                     {% elif ext in ['ppt', 'pptx'] %}
                                         <i class="fa-solid fa-file-powerpoint file-icon pptx"></i>
+                                    {% elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] %}
+                                        <i class="fa-solid fa-file-image file-icon image"></i>
                                     {% else %}
                                         <i class="fa-solid fa-file file-icon"></i>
                                     {% endif %}
