@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+
+{% block title %}Browse: {{ bucket_name }} - {{ connection.name }}{% endblock %}
+
+{% block content %}
+<!-- Breadcrumbs -->
+<div class="breadcrumbs">
+    <a href="/">Dashboard</a>
+    <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
+    <a href="{{ url_for('view_connection', connection_id=connection.connection_id) }}">{{ connection.name }}</a>
+    <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
+    <span>{{ bucket_name }}</span>
+</div>
+
+<!-- Header -->
+<div class="header-actions">
+    <div>
+        <h1 class="page-title" style="display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-bucket" style="color: var(--accent-blue);"></i>
+            {{ bucket_name }}
+        </h1>
+        <p style="color: var(--text-secondary); margin-top: 0.25rem;">
+            Path: <code>/{{ prefix }}</code>
+        </p>
+    </div>
+    
+    <div style="display: flex; gap: 0.75rem;">
+        {% if prefix %}
+            {% set parent_parts = prefix.rstrip('/').split('/')[:-1] %}
+            {% if parent_parts %}
+                {% set parent_prefix = parent_parts | join('/') + '/' %}
+            {% else %}
+                {% set parent_prefix = '' %}
+            {% endif %}
+            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=parent_prefix) }}" class="btn btn-secondary">
+                <i class="fa-solid fa-arrow-left"></i> Up one folder
+            </a>
+        {% endif %}
+        
+        {% if can_edit %}
+            <button class="btn btn-primary" onclick="openModal('uploadModal')">
+                <i class="fa-solid fa-upload"></i> Upload File
+            </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- File Browser List -->
+<div class="glass-card">
+    {% if folders or files %}
+        <div class="data-table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Size</th>
+                        <th>Progress</th>
+                        <th>Last Modified</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Folders (Prefixes) -->
+                    {% for folder in folders %}
+                        {% set folder_name = folder.rstrip('/').split('/')[-1] + '/' %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder) }}" class="file-item-name">
+                                    <i class="fa-solid fa-folder file-icon folder"></i>
+                                    {{ folder_name }}
+                                </a>
+                            </td>
+                            <td style="color: var(--text-muted);">—</td>
+                            <td style="color: var(--text-muted);">—</td>
+                            <td style="color: var(--text-muted);">—</td>
+                            <td style="text-align: right;">
+                                <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
+                                    Open
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    
+                    <!-- Files -->
+                    {% for file in files %}
+                        {% set ext = file.name.split('.')[-1].lower() if '.' in file.name else '' %}
+                        {% set is_viewable = ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'mp3', 'wav', 'aac', 'flac', 'pdf', 'ppt', 'pptx'] %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="file-item-name">
+                                    {% if ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov'] %}
+                                        <i class="fa-solid fa-film file-icon video"></i>
+                                    {% elif ext in ['mp3', 'wav', 'aac', 'flac'] %}
+                                        <i class="fa-solid fa-music file-icon audio"></i>
+                                    {% elif ext == 'pdf' %}
+                                        <i class="fa-solid fa-file-pdf file-icon pdf"></i>
+                                    {% elif ext in ['ppt', 'pptx'] %}
+                                        <i class="fa-solid fa-file-powerpoint file-icon pptx"></i>
+                                    {% else %}
+                                        <i class="fa-solid fa-file file-icon"></i>
+                                    {% endif %}
+                                    {{ file.name }}
+                                </a>
+                            </td>
+                            <td style="color: var(--text-secondary);">
+                                {% if file.size < 1024 %}
+                                    {{ file.size }} B
+                                {% elif file.size < 1048576 %}
+                                    {{ (file.size / 1024) | round(1) }} KB
+                                {% else %}
+                                    {{ (file.size / 1048576) | round(1) }} MB
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if file.progress %}
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; max-width: 150px;">
+                                        <div style="flex-grow: 1; height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 999px; overflow: hidden; border: 1px solid var(--glass-border);">
+                                            <div style="width: {{ file.progress.pct }}%; height: 100%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));"></div>
+                                        </div>
+                                        <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">{{ file.progress.pct }}%</span>
+                                    </div>
+                                {% else %}
+                                    <span style="color: var(--text-muted); font-size: 0.85rem;">—</span>
+                                {% endif %}
+                            </td>
+                            <td style="color: var(--text-secondary); font-size: 0.85rem;">
+                                {{ file.last_modified.strftime('%Y-%m-%d %H:%M:%S UTC') if file.last_modified else '—' }}
+                            </td>
+                            <td style="text-align: right;">
+                                <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
+                                    {% if is_viewable %}
+                                        <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); color: #93c5fd;">
+                                            <i class="fa-solid fa-play"></i> Play/View
+                                        </a>
+                                    {% else %}
+                                        <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
+                                            <i class="fa-solid fa-download"></i> Download
+                                        </a>
+                                    {% endif %}
+                                    {% if can_edit %}
+                                        <form action="{{ url_for('delete_object', connection_id=connection.connection_id, bucket_name=bucket_name) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete &quot;{{ file.name }}&quot;?');" style="display: inline;">
+                                            <input type="hidden" name="key" value="{{ file.key }}">
+                                            <input type="hidden" name="prefix" value="{{ prefix }}">
+                                            <button class="btn btn-danger" style="padding: 0.35rem; border-radius: var(--radius-md);" title="Delete File">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 4rem 2rem;">
+            <i class="fa-solid fa-folder-open" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1.5rem;"></i>
+            <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem;">Folder is Empty</h3>
+            {% if can_edit %}
+                <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto 1.5rem auto;">
+                    There are no files or subfolders here. Upload your video, audio, PDF, or PowerPoint files to view them.
+                </p>
+                <button class="btn btn-primary" onclick="openModal('uploadModal')">
+                    <i class="fa-solid fa-upload"></i> Upload Your First File
+                </button>
+            {% else %}
+                <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto;">
+                    There are no files or subfolders in this directory.
+                </p>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+{% if can_edit %}
+    <!-- Upload File Modal -->
+    <div id="uploadModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <span>Upload File</span>
+                <button onclick="closeModal('uploadModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </h2>
+            
+            <form id="upload-form">
+                <input type="hidden" id="upload-prefix" value="{{ prefix }}">
+                
+                <div class="form-group">
+                    <label for="file">Select File</label>
+                    <input type="file" id="file" class="form-control" required style="padding: 0.5rem;">
+                </div>
+                
+                <!-- Progress Bar container -->
+                <div id="progress-container" style="display: none; margin-top: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                        <span id="upload-status">Uploading...</span>
+                        <span id="progress-percent">0%</span>
+                    </div>
+                    <div style="height: 8px; background: rgba(255,255,255,0.05); border-radius: 999px; overflow: hidden; border: 1px solid var(--glass-border);">
+                        <div id="progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue)); transition: width 0.1s ease;"></div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                    <button type="button" id="btn-upload-cancel" class="btn btn-secondary" onclick="closeModal('uploadModal')">Cancel</button>
+                    <button type="submit" id="btn-upload-submit" class="btn btn-primary"><i class="fa-solid fa-upload"></i> Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const uploadForm = document.getElementById('upload-form');
+    if (!uploadForm) return;
+
+    uploadForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('file');
+        if (!fileInput.files.length) return;
+        
+        const file = fileInput.files[0];
+        const prefix = document.getElementById('upload-prefix').value;
+        
+        const submitBtn = document.getElementById('btn-upload-submit');
+        const cancelBtn = document.getElementById('btn-upload-cancel');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercent = document.getElementById('progress-percent');
+        const uploadStatus = document.getElementById('upload-status');
+        
+        submitBtn.disabled = true;
+        cancelBtn.disabled = true;
+        progressContainer.style.display = 'block';
+        uploadStatus.textContent = 'Generating upload signature...';
+
+        // 1. Get presigned POST fields from Flask
+        fetch("{{ url_for('presign_upload', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                filename: file.name,
+                filesize: file.size,
+                filetype: file.type,
+                prefix: prefix
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'error') {
+                throw new Error(data.message);
+            }
+            
+            uploadStatus.textContent = 'Uploading directly to S3...';
+            
+            // 2. Build form data for S3
+            const formData = new FormData();
+            Object.entries(data.fields).forEach(([k, v]) => {
+                formData.append(k, v);
+            });
+            formData.append('file', file);
+            
+            // 3. Perform upload with progress tracking using XMLHttpRequest
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', data.url, true);
+            
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = Math.round((event.loaded / event.total) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    progressPercent.textContent = percentComplete + '%';
+                }
+            };
+            
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    uploadStatus.textContent = 'Confirming upload with server...';
+                    
+                    // 4. Confirm upload with Flask
+                    fetch("{{ url_for('confirm_upload', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ key: data.key })
+                    })
+                    .then(res => res.json())
+                    .then(confirmData => {
+                        if (confirmData.status === 'success') {
+                            uploadStatus.textContent = 'Success!';
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 500);
+                        } else {
+                            throw new Error(confirmData.message || 'Confirm failed');
+                        }
+                    })
+                    .catch(err => {
+                        alert('Confirm failed: ' + err.message);
+                        resetForm();
+                    });
+                } else {
+                    alert('S3 upload failed. Status: ' + xhr.status);
+                    resetForm();
+                }
+            };
+            
+            xhr.onerror = () => {
+                alert('An error occurred during S3 upload.');
+                resetForm();
+            };
+            
+            xhr.send(formData);
+        })
+        .catch(err => {
+            alert('Upload error: ' + err.message);
+            resetForm();
+        });
+        
+        function resetForm() {
+            submitBtn.disabled = false;
+            cancelBtn.disabled = false;
+            progressContainer.style.display = 'none';
+            progressBar.style.width = '0%';
+            progressPercent.textContent = '0%';
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block title %}Access Management - S3 Storage{% endblock %}
+
+{% block content %}
+<div class="header-actions" style="margin-bottom: 2rem;">
+    <div>
+        <h1 class="page-title">Bucket Access Control</h1>
+        <p style="color: var(--text-secondary); margin-top: 0.25rem;">Grant standard users access to S3 Buckets owned by others.</p>
+    </div>
+</div>
+
+<div class="grid-cols-3" style="grid-template-columns: 1fr 2fr; gap: 2rem; display: grid; align-items: start;">
+    <!-- Grant Permission Form Card -->
+    <div class="glass-card">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-key" style="color: var(--accent-purple);"></i>
+            Grant Access Permission
+        </h3>
+        
+        <form action="{{ url_for('bucket_access_grant') }}" method="POST">
+            <div class="form-group">
+                <label for="user_id">Select User</label>
+                <select name="user_id" id="user_id" class="form-control" required style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--glass-border); color: #fff;">
+                    <option value="" disabled selected>-- Select User --</option>
+                    {% for u in users %}
+                        <option value="{{ u.id }}">{{ u.name }} ({{ u.email }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="connection_id">S3 Connection</label>
+                <select name="connection_id" id="connection_id" class="form-control" required style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--glass-border); color: #fff;">
+                    <option value="" disabled selected>-- Select Connection --</option>
+                    {% for conn in connections %}
+                        <option value="{{ conn.id }}">{{ conn.name }} ({{ conn.connection_id }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="bucket_name">Bucket Name</label>
+                <input type="text" name="bucket_name" id="bucket_name" class="form-control" placeholder="e.g. storage-bucket" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                <i class="fa-solid fa-plus"></i> Grant Access
+            </button>
+        </form>
+    </div>
+
+    <!-- Active Grants Card -->
+    <div class="glass-card">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-list-check" style="color: var(--accent-blue);"></i>
+            Active Access Permissions
+        </h3>
+
+        {% if access_list %}
+            <div class="data-table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Connection</th>
+                            <th>Bucket Name</th>
+                            <th>Granted At</th>
+                            <th style="text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for access in access_list %}
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 500; color: #fff;">{{ access.user.name }}</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ access.user.email }}</div>
+                                </td>
+                                <td>
+                                    <div style="font-weight: 500; color: #fff;">{{ access.connection.name }}</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{ access.connection.connection_id }}</div>
+                                </td>
+                                <td style="font-family: monospace; color: var(--accent-blue); font-weight: 600;">
+                                    {{ access.bucket_name }}
+                                </td>
+                                <td style="font-size: 0.85rem; color: var(--text-secondary);">
+                                    {{ access.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </td>
+                                <td style="text-align: right;">
+                                    <form action="{{ url_for('bucket_access_revoke', access_id=access.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Bạn có chắc muốn thu hồi quyền truy cập bucket {{ access.bucket_name }} của {{ access.user.name }}?');">
+                                        <button type="submit" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-color: rgba(239, 68, 68, 0.3); color: #f87171; min-height: auto;">
+                                            <i class="fa-solid fa-ban" style="margin-right: 0.25rem;"></i> Revoke
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div style="text-align: center; padding: 3rem 0; color: var(--text-secondary);">
+                <i class="fa-solid fa-key" style="font-size: 2.5rem; color: var(--text-muted); margin-bottom: 1rem; display: block;"></i>
+                No active access grants found.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}User Management - S3 Storage{% endblock %}
+
+{% block content %}
+<div class="header-actions">
+    <div>
+        <h1 class="page-title">User Quota Management</h1>
+        <p style="color: var(--text-secondary); margin-top: 0.25rem;">Configure storage quotas and check space usage for all registered users.</p>
+    </div>
+</div>
+
+<div class="glass-card">
+    <div class="data-table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>User Profile</th>
+                    <th>Email / Role</th>
+                    <th>Quota Space Used</th>
+                    <th>Set Limit (GB)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in user_stats %}
+                    {% set used_mb = (stat.storage_used / 1048576) | round(1) %}
+                    {% set limit_gb = (stat.quota_limit / 1073741824) | round(2) %}
+                    {% set pct = 0 %}
+                    {% if stat.quota_limit > 0 %}
+                        {% set pct = (stat.storage_used / stat.quota_limit * 100) | round(1) %}
+                    {% endif %}
+                    <tr>
+                        <td>
+                            <div style="font-weight: 600; color: #fff; margin-bottom: 0.25rem;">{{ stat.user.name }}</div>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">Joined: {{ stat.user.created_at.strftime('%Y-%m-%d') if stat.user.created_at else 'Unknown' }}</span>
+                        </td>
+                        <td>
+                            <div style="color: var(--text-primary); font-size: 0.9rem; margin-bottom: 0.25rem;">{{ stat.user.email }}</div>
+                            <span class="badge" style="background: {% if stat.user.role == 'Admin' %}rgba(139, 92, 246, 0.2){% else %}rgba(59, 130, 246, 0.2){% endif %}; color: {% if stat.user.role == 'Admin' %}#c084fc{% else %}#93c5fd{% endif %};">
+                                {{ stat.user.role }}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 1rem; min-width: 200px;">
+                                <div style="flex-grow: 1; height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 999px; overflow: hidden; border: 1px solid var(--glass-border);">
+                                    <div style="width: {{ pct }}%; height: 100%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));"></div>
+                                </div>
+                                <span style="font-size: 0.85rem; font-weight: 600; color: #fff;">{{ pct }}%</span>
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                                Used: {{ used_mb }} MB / {{ limit_gb }} GB
+                            </div>
+                        </td>
+                        <td>
+                            <form action="{{ url_for('update_user_quota', user_id=stat.user.id) }}" method="POST" style="display: flex; gap: 0.5rem; align-items: center; max-width: 200px;">
+                                <input type="number" name="quota_gb" class="form-control" value="{{ limit_gb }}" step="0.1" min="0.1" required style="padding: 0.4rem 0.75rem; font-size: 0.875rem;">
+                                <button type="submit" class="btn btn-primary" style="padding: 0.45rem 0.75rem; font-size: 0.85rem;" title="Save Limit">
+                                    <i class="fa-solid fa-save"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

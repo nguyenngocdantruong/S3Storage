@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}Audit Logs - S3 Storage{% endblock %}
+
+{% block content %}
+<div class="header-actions">
+    <div>
+        <h1 class="page-title">Audit Logs</h1>
+        <p style="color: var(--text-secondary); margin-top: 0.25rem;">
+            {% if g.user.role == 'Admin' %}
+                System-wide history of S3 connection, bucket, and file operations.
+            {% else %}
+                Your activity logs and updates regarding your S3 resources.
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<div class="glass-card">
+    {% if logs %}
+        <div class="data-table-container">
+            <table class="data-table" style="font-size: 0.9rem;">
+                <thead>
+                    <tr>
+                        <th>Time (UTC)</th>
+                        <th>User (Actor)</th>
+                        <th>Connection</th>
+                        <th>Bucket</th>
+                        <th>Action</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                        <tr>
+                            <td style="color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap;">
+                                {{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else '—' }}
+                            </td>
+                            <td>
+                                <div style="font-weight: 500; color: #fff;">{{ log.actor.name }}</div>
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">{{ log.actor.role }}</span>
+                            </td>
+                            <td style="color: var(--text-secondary);">
+                                {{ log.connection_name or '—' }}
+                            </td>
+                            <td style="color: var(--text-secondary);">
+                                {% if log.bucket_name %}
+                                    <code style="background: rgba(255, 255, 255, 0.03); padding: 0.2rem 0.4rem; border-radius: 4px; border: 1px solid var(--glass-border);">{{ log.bucket_name }}</code>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge" style="
+                                    {% if log.action_type == 'CREATE_BUCKET' %}
+                                        background: rgba(16, 185, 129, 0.15); color: #6ee7b7;
+                                    {% elif log.action_type == 'DELETE_BUCKET' %}
+                                        background: rgba(244, 63, 94, 0.15); color: #fca5a5;
+                                    {% elif log.action_type == 'UPLOAD_FILE' %}
+                                        background: rgba(59, 130, 246, 0.15); color: #93c5fd;
+                                    {% else %}
+                                        background: rgba(234, 88, 12, 0.15); color: #fdba74;
+                                    {% endif %}
+                                    text-transform: uppercase; font-size: 0.7rem; padding: 0.2rem 0.5rem;
+                                ">
+                                    {{ log.action_type.replace('_', ' ') }}
+                                </span>
+                            </td>
+                            <td style="color: var(--text-primary); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ log.details }}">
+                                {{ log.details }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination Controls -->
+        {% if pagination and pagination.pages > 1 %}
+            <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 2rem; align-items: center;">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('view_logs', page=pagination.prev_num) }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                        <i class="fa-solid fa-angle-left"></i> Trước
+                    </a>
+                {% else %}
+                    <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem; opacity: 0.5; cursor: not-allowed;" disabled>
+                        <i class="fa-solid fa-angle-left"></i> Trước
+                    </button>
+                {% endif %}
+
+                <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                    Trang <strong>{{ pagination.page }}</strong> / {{ pagination.pages }}
+                </span>
+
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('view_logs', page=pagination.next_num) }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                        Sau <i class="fa-solid fa-angle-right"></i>
+                    </a>
+                {% else %}
+                    <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem; opacity: 0.5; cursor: not-allowed;" disabled>
+                        Sau <i class="fa-solid fa-angle-right"></i>
+                    </button>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% else %}
+        <div style="text-align: center; padding: 4rem 2rem;">
+            <i class="fa-solid fa-receipt" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1.5rem;"></i>
+            <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem;">No Logs Found</h3>
+            <p style="color: var(--text-secondary);">There is no logged activity recorded in the database yet.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

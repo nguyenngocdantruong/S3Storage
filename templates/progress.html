@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}Video Progress - S3 Storage{% endblock %}
+
+{% block content %}
+<div class="header-actions">
+    <div>
+        <h1 class="page-title">Video Progress Tracking</h1>
+        <p style="color: var(--text-secondary); margin-top: 0.25rem;">Grouped by bucket, sorted by file name.</p>
+    </div>
+</div>
+
+{% if grouped_progress %}
+    {% for bucket, records in grouped_progress.items() %}
+        <div class="glass-card" style="margin-bottom: 2.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <h2 style="font-size: 1.25rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                    <i class="fa-solid fa-bucket" style="color: var(--accent-blue);"></i>
+                    Bucket: {{ bucket }}
+                </h2>
+                <form action="{{ url_for('delete_progress_bucket', bucket_name=bucket) }}" method="POST" style="margin: 0;" onsubmit="return confirm('Bạn có chắc chắn muốn xoá toàn bộ tiến trình của bucket {{ bucket }} không?');">
+                    <button type="submit" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171; min-height: auto;">
+                        <i class="fa-solid fa-trash-can" style="margin-right: 0.25rem;"></i> Xóa tiến trình Bucket
+                    </button>
+                </form>
+            </div>
+            
+            <div class="data-table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Connection</th>
+                            <th>Progress</th>
+                            <th>Last Watched</th>
+                            <th style="text-align: right; width: 80px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                            {% set pct = 0 %}
+                            {% if record.duration > 0 %}
+                                {% set pct = (record.seconds_watched / record.duration * 100) | round(1) %}
+                            {% endif %}
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 500; color: #fff; margin-bottom: 0.25rem;">{{ record.file_name }}</div>
+                                    <span style="font-size: 0.75rem; color: var(--text-muted); word-break: break-all;">{{ record.file_key }}</span>
+                                </td>
+                                <td style="color: var(--text-secondary); font-size: 0.9rem;">
+                                    {{ record.connection_name }}
+                                </td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 1rem; min-width: 200px;">
+                                        <div style="flex-grow: 1; height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 999px; overflow: hidden; border: 1px solid var(--glass-border);">
+                                            <div style="width: {{ pct }}%; height: 100%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue)); border-radius: 999px;"></div>
+                                        </div>
+                                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); white-space: nowrap;">
+                                            {{ pct }}%
+                                        </span>
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                                        {% if record.file_name.lower().endswith('.pdf') %}
+                                            Read: Page {{ record.seconds_watched | int }} / {{ record.duration | int }}
+                                        {% else %}
+                                            {% set cur_m = (record.seconds_watched / 60) | int %}
+                                            {% set cur_s = (record.seconds_watched % 60) | int %}
+                                            {% set dur_m = (record.duration / 60) | int %}
+                                            {% set dur_s = (record.duration % 60) | int %}
+                                            Watched: {{ "%02d" | format(cur_m) }}:{{ "%02d" | format(cur_s) }} / {{ "%02d" | format(dur_m) }}:{{ "%02d" | format(dur_s) }}
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td style="color: var(--text-secondary); font-size: 0.85rem;">
+                                    {{ record.last_watched_at.strftime('%Y-%m-%d %H:%M UTC') if record.last_watched_at else '—' }}
+                                </td>
+                                <td style="text-align: right;">
+                                    <form action="{{ url_for('delete_progress_item', progress_id=record.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Bạn có chắc muốn xoá tiến trình của video này?');">
+                                        <button type="submit" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; border-color: rgba(239, 68, 68, 0.3); color: #f87171; font-size: 0.8rem; min-height: auto;" title="Xóa tiến trình">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endfor %}
+{% else %}
+    <div class="glass-card" style="text-align: center; padding: 4rem 2rem;">
+        <i class="fa-solid fa-play" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1.5rem;"></i>
+        <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem;">No Videos Watched Yet</h3>
+        <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto;">
+            Start playing S3 videos to automatically track your viewing progress.
+        </p>
+    </div>
+{% endif %}
+{% endblock %}

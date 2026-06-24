@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}S3 Storage{% endblock %}</title>
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for premium icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    <!-- Flash Messages -->
+    <div class="flash-messages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">
+                        <span>
+                            {% if category == 'success' %}
+                                <i class="fa-solid fa-circle-check" style="color: var(--accent-emerald); margin-right: 8px;"></i>
+                            {% else %}
+                                <i class="fa-solid fa-circle-exclamation" style="color: var(--accent-rose); margin-right: 8px;"></i>
+                            {% endif %}
+                            {{ message }}
+                        </span>
+                        <button onclick="this.parentElement.remove()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <a href="/" class="logo-container">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" style="width: 42px; height: 42px; object-fit: contain; border-radius: var(--radius-md);">
+            <span class="logo-text">S3 Storage</span>
+        </a>
+        <nav style="flex-grow: 1;">
+            <ul class="nav-links">
+                {% if g.user %}
+                    <li class="nav-item {% if request.path == '/' or '/connection/' in request.path %}active{% endif %}">
+                        <a href="/">
+                            <i class="fa-solid fa-server"></i>
+                            <span>S3 Connections</span>
+                        </a>
+                    </li>
+                    <li class="nav-item {% if request.path == '/progress' %}active{% endif %}">
+                        <a href="{{ url_for('list_progress') }}">
+                            <i class="fa-solid fa-chart-line"></i>
+                            <span>Video Progress</span>
+                        </a>
+                    </li>
+                    <li class="nav-item {% if request.path == '/logs' %}active{% endif %}">
+                        <a href="{{ url_for('view_logs') }}">
+                            <i class="fa-solid fa-receipt"></i>
+                            <span>Audit Logs</span>
+                        </a>
+                    </li>
+                    {% if g.user.role == 'Admin' %}
+                        <li class="nav-item {% if request.path == '/admin/users' %}active{% endif %}">
+                            <a href="{{ url_for('manage_users') }}">
+                                <i class="fa-solid fa-users-gear"></i>
+                                <span>Manage Users</span>
+                            </a>
+                        </li>
+                        <li class="nav-item {% if request.path == '/admin/bucket-access' %}active{% endif %}">
+                            <a href="{{ url_for('bucket_access_list') }}">
+                                <i class="fa-solid fa-key"></i>
+                                <span>Bucket Access</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    <li class="nav-item {% if request.path == '/profile' %}active{% endif %}">
+                        <a href="{{ url_for('profile') }}">
+                            <i class="fa-solid fa-user-gear"></i>
+                            <span>My Profile</span>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="nav-item {% if request.path == '/login' %}active{% endif %}">
+                        <a href="{{ url_for('login') }}">
+                            <i class="fa-solid fa-right-to-bracket"></i>
+                            <span>Login</span>
+                        </a>
+                    </li>
+                    <li class="nav-item {% if request.path == '/register' %}active{% endif %}">
+                        <a href="{{ url_for('register') }}">
+                            <i class="fa-solid fa-user-plus"></i>
+                            <span>Register</span>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        
+        {% if g.user %}
+            <!-- Storage Quota Meter -->
+            <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
+                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem; font-weight: 500;">
+                    <span>Storage Quota</span>
+                    <span>{% if quota_is_unlimited %}Vô hạn{% else %}{{ quota_pct }}%{% endif %}</span>
+                </div>
+                {% if not quota_is_unlimited %}
+                    <div style="height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 999px; overflow: hidden; margin-bottom: 0.5rem;">
+                        <div style="width: {{ quota_pct }}%; height: 100%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));"></div>
+                    </div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); text-align: right;">
+                        {{ (quota_used / 1048576) | round(1) }} MB / {{ (quota_limit / 1073741824) | round(1) }} GB
+                    </div>
+                {% else %}
+                    <div style="height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 999px; overflow: hidden; margin-bottom: 0.5rem;">
+                        <div style="width: 100%; height: 100%; background: linear-gradient(90deg, var(--accent-emerald), var(--accent-blue));"></div>
+                    </div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); text-align: right;">
+                        Unlimited Storage (Admin)
+                    </div>
+                {% endif %}
+            </div>
+
+            <div style="border-top: 1px solid var(--glass-border); padding-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">
+                        {{ g.user.name[0] | upper if g.user.name else 'U' }}
+                    </div>
+                    <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px;">
+                        <div style="font-size: 0.9rem; font-weight: 600; color: #fff;">{{ g.user.name }}</div>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">{{ g.user.role }}</span>
+                    </div>
+                </div>
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary" style="width: 100%; font-size: 0.85rem; padding: 0.5rem 1rem;">
+                    <i class="fa-solid fa-right-from-bracket"></i> Log Out
+                </a>
+            </div>
+        {% endif %}
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-wrapper">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Core Scripts -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

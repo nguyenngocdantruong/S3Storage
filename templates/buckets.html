@@ -1,0 +1,453 @@
+{% extends 'base.html' %}
+
+{% block title %}Buckets - {{ connection.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumbs">
+    <a href="/">Dashboard</a>
+    <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
+    <span>{{ connection.name }}</span>
+</div>
+
+<div class="header-actions">
+    <div>
+        <h1 class="page-title">S3 Buckets</h1>
+        <p style="color: var(--text-secondary); margin-top: 0.25rem;">Select or create a bucket in <strong>{{ connection.name }}</strong></p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('createBucketModal')">
+        <i class="fa-solid fa-folder-plus"></i> Create Bucket
+    </button>
+</div>
+
+<div class="glass-card">
+    {% if buckets %}
+        <div class="data-table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Bucket Name</th>
+                        <th>Owner</th>
+                        <th>Created Date</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bucket in buckets %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket.Name) }}" style="display: flex; align-items: center; gap: 0.75rem; color: #fff; text-decoration: none; font-weight: 500;">
+                                    <i class="fa-solid fa-bucket" style="color: var(--accent-blue); font-size: 1.25rem;"></i>
+                                    {{ bucket.Name }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if bucket.owner %}
+                                    <div style="font-weight: 500; color: var(--text-primary);">{{ bucket.owner.name }}</div>
+                                    <span style="font-size: 0.75rem; color: var(--text-muted);">{{ bucket.owner.role }}</span>
+                                {% else %}
+                                    <span style="color: var(--text-muted); font-size: 0.85rem; font-style: italic;">Unassigned (Legacy)</span>
+                                {% endif %}
+                            </td>
+                            <td style="color: var(--text-secondary);">
+                                {{ bucket.CreationDate.strftime('%Y-%m-%d %H:%M:%S UTC') if bucket.CreationDate else 'Unknown' }}
+                            </td>
+                            <td style="text-align: right;">
+                                <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
+                                    <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket.Name) }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                                        <i class="fa-solid fa-folder-open"></i> Browse
+                                    </a>
+                                    {% if g.user.role == 'Admin' or (bucket.owner and bucket.owner.id == g.user.id) %}
+                                        <button class="btn btn-secondary share-btn" 
+                                                data-connection-id="{{ connection.connection_id }}" 
+                                                data-bucket-name="{{ bucket.Name }}"
+                                                style="padding: 0.5rem; border-radius: var(--radius-md);" 
+                                                title="Chia sẻ Bucket">
+                                            <i class="fa-solid fa-share-nodes"></i>
+                                        </button>
+                                        <form action="{{ url_for('delete_bucket', connection_id=connection.connection_id, bucket_name=bucket.Name) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete the bucket &quot;{{ bucket.Name }}&quot;?');" style="display: inline;">
+                                            <button class="btn btn-danger" style="padding: 0.5rem; border-radius: var(--radius-md);" title="Delete Bucket">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 4rem 2rem;">
+            <i class="fa-solid fa-folder-open" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1.5rem;"></i>
+            <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem;">No Buckets Found</h3>
+            <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto 1.5rem auto;">
+                There are no buckets on this connection yet. Go ahead and create one.
+            </p>
+            <button class="btn btn-primary" onclick="openModal('createBucketModal')">
+                <i class="fa-solid fa-folder-plus"></i> Create Your First Bucket
+            </button>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Create Bucket Modal -->
+<div id="createBucketModal" class="modal-overlay">
+    <div class="modal-content">
+        <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+            <span>Create Bucket</span>
+            <button onclick="closeModal('createBucketModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+        </h2>
+        
+        <form action="{{ url_for('create_bucket', connection_id=connection.connection_id) }}" method="POST">
+            <div class="form-group">
+                <label for="bucket_name">Bucket Name (Lowercase, numbers, and hyphens only)</label>
+                <input type="text" id="bucket_name" name="bucket_name" class="form-control" placeholder="my-new-media-bucket" pattern="[a-z0-9.-]+" required>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('createBucketModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Share Modal -->
+<div id="shareModal" class="modal-overlay">
+    <div class="share-modal-content">
+        <div class="share-modal-header">
+            <h2 class="share-modal-title" id="share-modal-title">Chia sẻ</h2>
+            <button class="share-modal-close" onclick="closeModal('shareModal')">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        
+        <!-- Add user field -->
+        <div class="share-input-container">
+            <div class="share-input-wrapper">
+                <i class="fa-solid fa-user-plus" style="color: #64748b; margin-left: 0.5rem; margin-right: 0.25rem;"></i>
+                <input type="text" id="share-user-search" class="share-search-input" placeholder="Thêm người bằng tên hoặc email...">
+            </div>
+            <div id="share-autocomplete-dropdown" class="autocomplete-dropdown"></div>
+        </div>
+        
+        <!-- People with access -->
+        <div class="share-section-title">Những người có quyền truy cập</div>
+        <div class="share-users-list" id="share-users-list">
+            <!-- Dynamically populated -->
+        </div>
+        
+        <!-- General Access -->
+        <div class="share-section-title">Quyền truy cập chung</div>
+        <div class="general-access-box">
+            <div class="general-access-info">
+                <div class="general-access-icon" id="general-access-icon">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <div class="general-access-details">
+                    <div class="general-access-title-row">
+                        <select id="general-access-select" class="general-access-select">
+                            <option value="restricted">Hạn chế</option>
+                            <option value="public">Bất kỳ ai có đường liên kết</option>
+                        </select>
+                    </div>
+                    <span class="general-access-desc" id="general-access-desc">Chỉ những người có quyền truy cập mới có thể mở bằng đường liên kết này</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer actions -->
+        <div class="share-footer-actions">
+            <button class="share-copy-btn" id="share-copy-link-btn">
+                <i class="fa-solid fa-link"></i> Sao chép đường liên kết
+            </button>
+            <button class="share-done-btn" onclick="closeModal('shareModal')">Xong</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let currentConnectionId = null;
+    let currentBucketName = null;
+    let shareLink = null;
+    
+    const searchInput = document.getElementById('share-user-search');
+    const autocompleteDropdown = document.getElementById('share-autocomplete-dropdown');
+    const usersList = document.getElementById('share-users-list');
+    const generalSelect = document.getElementById('general-access-select');
+    const generalDesc = document.getElementById('general-access-desc');
+    const generalIcon = document.getElementById('general-access-icon');
+    const copyLinkBtn = document.getElementById('share-copy-link-btn');
+    
+    // Open Share Modal
+    document.querySelectorAll('.share-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            currentConnectionId = btn.getAttribute('data-connection-id');
+            currentBucketName = btn.getAttribute('data-bucket-name');
+            document.getElementById('share-modal-title').textContent = `Chia sẻ "${currentBucketName}"`;
+            
+            // Reset fields
+            searchInput.value = '';
+            autocompleteDropdown.style.display = 'none';
+            usersList.innerHTML = '<div style="text-align: center; padding: 1rem; color: var(--text-muted);">Đang tải...</div>';
+            
+            // Open modal
+            openModal('shareModal');
+            
+            // Load share info
+            loadShareInfo();
+        });
+    });
+    
+    // Load Sharing Information
+    function loadShareInfo() {
+        fetch(`/api/bucket-share/info?connection_id=${currentConnectionId}&bucket_name=${currentBucketName}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    shareLink = data.share_link;
+                    
+                    // Render General Access
+                    generalSelect.value = data.access_type;
+                    updateGeneralAccessUI(data.access_type);
+                    
+                    // Render Users
+                    usersList.innerHTML = '';
+                    
+                    // 1. Owner
+                    if (data.owner) {
+                        const ownerItem = document.createElement('div');
+                        ownerItem.className = 'share-user-item';
+                        ownerItem.innerHTML = `
+                            <div class="share-user-info">
+                                <div class="share-user-avatar">${data.owner.name[0].toUpperCase()}</div>
+                                <div class="share-user-details">
+                                    <div class="share-user-name">${data.owner.name} ${data.owner.id === {{ g.user.id }} ? '(bạn)' : ''}</div>
+                                    <div class="share-user-email">${data.owner.email}</div>
+                                </div>
+                            </div>
+                            <div class="share-user-role-static">Chủ sở hữu</div>
+                        `;
+                        usersList.appendChild(ownerItem);
+                    }
+                    
+                    // 2. Shared users
+                    data.shared_users.forEach(u => {
+                        const userItem = document.createElement('div');
+                        userItem.className = 'share-user-item';
+                        userItem.innerHTML = `
+                            <div class="share-user-info">
+                                <div class="share-user-avatar">${u.name[0].toUpperCase()}</div>
+                                <div class="share-user-details">
+                                    <div class="share-user-name">${u.name}</div>
+                                    <div class="share-user-email">${u.email}</div>
+                                </div>
+                            </div>
+                            <div>
+                                <select class="share-user-role-select" data-user-id="${u.id}">
+                                    <option value="Viewer" ${u.role === 'Viewer' ? 'selected' : ''}>Người xem</option>
+                                    <option value="Editor" ${u.role === 'Editor' ? 'selected' : ''}>Người chỉnh sửa</option>
+                                    <option value="remove" style="color: var(--accent-rose);">Gỡ bỏ</option>
+                                </select>
+                            </div>
+                        `;
+                        usersList.appendChild(userItem);
+                    });
+                    
+                    // Bind change event to role dropdowns
+                    usersList.querySelectorAll('.share-user-role-select').forEach(sel => {
+                        sel.addEventListener('change', (e) => {
+                            const userId = sel.getAttribute('data-user-id');
+                            const newRole = sel.value;
+                            updateUserRole(userId, newRole);
+                        });
+                    });
+                } else {
+                    alert('Lỗi tải thông tin chia sẻ: ' + data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Không thể tải thông tin chia sẻ.');
+            });
+    }
+    
+    // Update User Role / Revoke Access
+    function updateUserRole(userId, role) {
+        fetch('/api/bucket-share/update-role', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                connection_id: currentConnectionId,
+                bucket_name: currentBucketName,
+                user_id: parseInt(userId),
+                role: role
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                loadShareInfo();
+            } else {
+                alert('Lỗi cập nhật quyền: ' + data.message);
+                loadShareInfo();
+            }
+        });
+    }
+    
+    // Update General Access select
+    generalSelect.addEventListener('change', () => {
+        const newAccess = generalSelect.value;
+        fetch('/api/bucket-share/update-general-access', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                connection_id: currentConnectionId,
+                bucket_name: currentBucketName,
+                access_type: newAccess
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                updateGeneralAccessUI(newAccess);
+            } else {
+                alert('Lỗi cập nhật quyền truy cập chung: ' + data.message);
+                loadShareInfo();
+            }
+        });
+    });
+    
+    function updateGeneralAccessUI(access) {
+        if (access === 'public') {
+            generalDesc.textContent = 'Bất kỳ ai có kết nối Internet và có đường liên kết này đều có thể xem';
+            generalIcon.className = 'general-access-icon public';
+            generalIcon.innerHTML = '<i class="fa-solid fa-earth-americas"></i>';
+        } else {
+            generalDesc.textContent = 'Chỉ những người có quyền truy cập mới có thể mở bằng đường liên kết này';
+            generalIcon.className = 'general-access-icon';
+            generalIcon.innerHTML = '<i class="fa-solid fa-lock"></i>';
+        }
+    }
+    
+    // User Autocomplete Search
+    let searchTimeout = null;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        const query = searchInput.value.trim();
+        
+        if (query.length < 2) {
+            autocompleteDropdown.style.display = 'none';
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`/api/users/search?q=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(users => {
+                    if (users.length === 0) {
+                        autocompleteDropdown.style.display = 'none';
+                        return;
+                    }
+                    
+                    autocompleteDropdown.innerHTML = '';
+                    users.forEach(u => {
+                        const item = document.createElement('div');
+                        item.className = 'autocomplete-item';
+                        item.innerHTML = `
+                            <span class="name">${u.name}</span>
+                            <span class="email">${u.email}</span>
+                        `;
+                        item.addEventListener('click', () => {
+                            // Add user
+                            addShareUser(u.id);
+                            autocompleteDropdown.style.display = 'none';
+                            searchInput.value = '';
+                        });
+                        autocompleteDropdown.appendChild(item);
+                    });
+                    autocompleteDropdown.style.display = 'block';
+                });
+        }, 200);
+    });
+    
+    // Close search dropdown on click outside
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !autocompleteDropdown.contains(e.target)) {
+            autocompleteDropdown.style.display = 'none';
+        }
+    });
+    
+    // Add Share User
+    function addShareUser(userIdOrEmail) {
+        fetch('/api/bucket-share/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                connection_id: currentConnectionId,
+                bucket_name: currentBucketName,
+                user_id_or_email: userIdOrEmail,
+                role: 'Viewer'
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                loadShareInfo();
+            } else {
+                alert('Lỗi thêm người chia sẻ: ' + data.message);
+            }
+        });
+    }
+    
+    // Copy Share Link
+    copyLinkBtn.addEventListener('click', () => {
+        if (!shareLink) return;
+        
+        function showSuccess() {
+            const originalText = copyLinkBtn.innerHTML;
+            copyLinkBtn.innerHTML = '<i class="fa-solid fa-check"></i> Đã sao chép!';
+            setTimeout(() => {
+                copyLinkBtn.innerHTML = originalText;
+            }, 2000);
+        }
+        
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(shareLink)
+                .then(showSuccess)
+                .catch(err => {
+                    fallbackCopyText(shareLink);
+                });
+        } else {
+            fallbackCopyText(shareLink);
+        }
+        
+        function fallbackCopyText(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showSuccess();
+                } else {
+                    alert('Không thể sao chép link: ' + text);
+                }
+            } catch (err) {
+                alert('Không thể sao chép: ' + err);
+            }
+            document.body.removeChild(textArea);
+        }
+    });
+});
+</script>
+{% endblock %}
