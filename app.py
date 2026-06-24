@@ -170,6 +170,19 @@ def configure_bucket_cors(s3_client, bucket_name):
     except Exception as e:
         print(f"Error configuring CORS for bucket {bucket_name}: {e}")
 
+# Helper to get size of a single bucket
+def get_bucket_size(s3_client, bucket_name):
+    total_size = 0
+    try:
+        paginator = s3_client.get_paginator('list_objects_v2')
+        pages = paginator.paginate(Bucket=bucket_name)
+        for page in pages:
+            for obj in page.get('Contents', []):
+                total_size += obj.get('Size', 0)
+    except Exception:
+        return None
+    return total_size
+
 # Storage calculator
 def get_user_storage_used(user):
     user_buckets = UserBucket.query.filter_by(user_id=user.id).all()
@@ -659,10 +672,12 @@ def view_connection(connection_id):
             
             # Use check_bucket_access helper
             if check_bucket_access(g.user, conn, name):
+                size = get_bucket_size(s3, name)
                 buckets.append({
                     'Name': name,
                     'CreationDate': b.get('CreationDate'),
-                    'owner': owner
+                    'owner': owner,
+                    'Size': size
                 })
                 
         return render_template('buckets.html', connection=conn, buckets=buckets)
@@ -749,6 +764,8 @@ def delete_bucket(connection_id, bucket_name):
 def browse_bucket(connection_id, bucket_name):
     conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
     prefix = request.args.get('prefix', '')
+    sort_by = request.args.get('sort', 'name')
+    direction = request.args.get('direction', 'asc')
     
     mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
     is_public = mapping and mapping.access_type == 'public'
@@ -803,6 +820,19 @@ def browse_bucket(connection_id, bucket_name):
                     } if prog else None
                 })
                 
+        # Sort folders & files
+        reverse_sort = (direction == 'desc')
+        folders.sort(key=lambda x: x.lower(), reverse=reverse_sort)
+        
+        if sort_by == 'size':
+            files.sort(key=lambda x: x.get('size') or 0, reverse=reverse_sort)
+        elif sort_by == 'last_modified':
+            from datetime import datetime, timezone
+            min_dt = datetime.min.replace(tzinfo=timezone.utc)
+            files.sort(key=lambda x: x.get('last_modified') or min_dt, reverse=reverse_sort)
+        else: # default: name
+            files.sort(key=lambda x: x.get('name', '').lower(), reverse=reverse_sort)
+            
         can_edit = check_bucket_edit_access(g.user, conn, bucket_name)
                 
         return render_template(
@@ -813,7 +843,9 @@ def browse_bucket(connection_id, bucket_name):
             folders=folders,
             files=files,
             bucket_owner_id=owner_id,
-            can_edit=can_edit
+            can_edit=can_edit,
+            sort_by=sort_by,
+            direction=direction
         )
     except Exception as e:
         flash(f'Failed to browse bucket contents: {str(e)}', 'error')

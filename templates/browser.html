@@ -32,7 +32,7 @@
             {% else %}
                 {% set parent_prefix = '' %}
             {% endif %}
-            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=parent_prefix) }}" class="btn btn-secondary">
+            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=parent_prefix, sort=sort_by, direction=direction) }}" class="btn btn-secondary">
                 <i class="fa-solid fa-arrow-left"></i> Up one folder
             </a>
         {% endif %}
@@ -52,10 +52,37 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Size</th>
+                        <th>
+                            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix, sort='name', direction='desc' if sort_by == 'name' and direction == 'asc' else 'asc') }}" style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem;">
+                                Name
+                                {% if sort_by == 'name' %}
+                                    <i class="fa-solid fa-sort-{{ 'up' if direction == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-sort" style="opacity: 0.4;"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix, sort='size', direction='desc' if sort_by == 'size' and direction == 'asc' else 'asc') }}" style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem;">
+                                Size
+                                {% if sort_by == 'size' %}
+                                    <i class="fa-solid fa-sort-{{ 'up' if direction == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-sort" style="opacity: 0.4;"></i>
+                                {% endif %}
+                            </a>
+                        </th>
                         <th>Progress</th>
-                        <th>Last Modified</th>
+                        <th>
+                            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix, sort='last_modified', direction='desc' if sort_by == 'last_modified' and direction == 'asc' else 'asc') }}" style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem;">
+                                Last Modified
+                                {% if sort_by == 'last_modified' %}
+                                    <i class="fa-solid fa-sort-{{ 'up' if direction == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-sort" style="opacity: 0.4;"></i>
+                                {% endif %}
+                            </a>
+                        </th>
                         <th style="text-align: right;">Actions</th>
                     </tr>
                 </thead>
@@ -65,7 +92,7 @@
                         {% set folder_name = folder.rstrip('/').split('/')[-1] + '/' %}
                         <tr>
                             <td>
-                                <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder) }}" class="file-item-name">
+                                <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="file-item-name">
                                     <i class="fa-solid fa-folder file-icon folder"></i>
                                     {{ folder_name }}
                                 </a>
@@ -74,7 +101,7 @@
                             <td style="color: var(--text-muted);">—</td>
                             <td style="color: var(--text-muted);">—</td>
                             <td style="text-align: right;">
-                                <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
+                                <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
                                     Open
                                 </a>
                             </td>

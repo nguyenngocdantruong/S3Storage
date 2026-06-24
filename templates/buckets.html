@@ -27,6 +27,7 @@
                     <tr>
                         <th>Bucket Name</th>
                         <th>Owner</th>
+                        <th>Capacity</th>
                         <th>Created Date</th>
                         <th style="text-align: right;">Actions</th>
                     </tr>
@@ -46,6 +47,21 @@
                                     <span style="font-size: 0.75rem; color: var(--text-muted);">{{ bucket.owner.role }}</span>
                                 {% else %}
                                     <span style="color: var(--text-muted); font-size: 0.85rem; font-style: italic;">Unassigned (Legacy)</span>
+                                {% endif %}
+                            </td>
+                            <td style="color: var(--text-secondary);">
+                                {% if bucket.Size is not none %}
+                                    {% if bucket.Size < 1024 %}
+                                        {{ bucket.Size }} B
+                                    {% elif bucket.Size < 1048576 %}
+                                        {{ (bucket.Size / 1024) | round(1) }} KB
+                                    {% elif bucket.Size < 1073741824 %}
+                                        {{ (bucket.Size / 1048576) | round(1) }} MB
+                                    {% else %}
+                                        {{ (bucket.Size / 1073741824) | round(1) }} GB
+                                    {% endif %}
+                                {% else %}
+                                    —
                                 {% endif %}
                             </td>
                             <td style="color: var(--text-secondary);">
