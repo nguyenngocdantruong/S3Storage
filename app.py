@@ -1065,6 +1065,51 @@ def delete_object(connection_id, bucket_name):
 
     return redirect(url_for('browse_bucket', connection_id=connection_id, bucket_name=bucket_name, prefix=prefix))
 
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/delete-objects-bulk', methods=['POST'])
+@login_required
+def delete_objects_bulk(connection_id, bucket_name):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    
+    if not check_bucket_edit_access(g.user, conn, bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied.'}), 403
+        
+    mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
+    owner_id = mapping.user_id if mapping else None
+
+    data = request.get_json() or {}
+    keys = data.get('keys', [])
+    
+    if not keys:
+        return jsonify({'status': 'error', 'message': 'No object keys specified.'}), 400
+
+    try:
+        s3 = get_s3_client(conn)
+        objects_to_delete = [{'Key': key} for key in keys]
+        
+        for i in range(0, len(objects_to_delete), 1000):
+            chunk = objects_to_delete[i:i+1000]
+            s3.delete_objects(Bucket=bucket_name, Delete={'Objects': chunk})
+            
+        VideoProgress.query.filter_by(
+            connection_name=conn.name,
+            bucket_name=bucket_name
+        ).filter(VideoProgress.file_key.in_(keys)).delete(synchronize_session=False)
+        
+        UploadedFile.query.filter_by(
+            connection_id=conn.id,
+            bucket_name=bucket_name
+        ).filter(UploadedFile.file_key.in_(keys)).delete(synchronize_session=False)
+        
+        db.session.commit()
+        
+        count = len(keys)
+        details = f"Bulk deleted {count} files" if g.user.id == owner_id else f"Admin {g.user.name} bulk deleted {count} files"
+        log_action(g.user.id, owner_id, conn.name, bucket_name, 'DELETE_FILE', details)
+        
+        return jsonify({'status': 'success', 'message': f'Successfully deleted {count} files.'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Failed to delete files: {str(e)}'}), 500
+
 @app.route('/connection/<connection_id>/bucket/<bucket_name>/viewer')
 def view_file(connection_id, bucket_name):
     conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()

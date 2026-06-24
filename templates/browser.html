@@ -41,6 +41,9 @@
             <button class="btn btn-primary" onclick="openModal('uploadModal')">
                 <i class="fa-solid fa-upload"></i> Upload File
             </button>
+            <button id="btn-bulk-delete" class="btn btn-danger" style="display: none; align-items: center; gap: 0.5rem;" onclick="performBulkDelete()">
+                <i class="fa-solid fa-trash-can"></i> Xóa đã chọn (<span id="bulk-delete-count">0</span>)
+            </button>
         {% endif %}
     </div>
 </div>
@@ -52,6 +55,9 @@
             <table class="data-table">
                 <thead>
                     <tr>
+                        {% if can_edit %}
+                            <th style="width: 45px; text-align: center;"><input type="checkbox" id="select-all-files" style="cursor: pointer;"></th>
+                        {% endif %}
                         <th>
                             <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix, sort='name', direction='desc' if sort_by == 'name' and direction == 'asc' else 'asc') }}" style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem;">
                                 Name
@@ -92,6 +98,9 @@
                     {% for folder in folders %}
                         {% set folder_name = folder.rstrip('/').split('/')[-1] + '/' %}
                         <tr>
+                            {% if can_edit %}
+                                <td></td>
+                            {% endif %}
                             <td>
                                 <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="file-item-name">
                                     <i class="fa-solid fa-folder file-icon folder"></i>
@@ -115,6 +124,11 @@
                         {% set ext = file.name.split('.')[-1].lower() if '.' in file.name else '' %}
                         {% set is_viewable = ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'mp3', 'wav', 'aac', 'flac', 'pdf', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] %}
                         <tr>
+                            {% if can_edit %}
+                                <td style="text-align: center;">
+                                    <input type="checkbox" class="file-checkbox" data-key="{{ file.key }}" data-name="{{ file.name }}" style="cursor: pointer;">
+                                </td>
+                            {% endif %}
                             <td>
                                 <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="file-item-name" title="{{ file.name }}">
                                     {% if ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov'] %}
@@ -414,6 +428,28 @@
             </form>
         </div>
     </div>
+
+    <!-- Upload Queue Widget (Bubble / Minimize-able Panel) -->
+    <div id="upload-queue-widget" style="position: fixed; bottom: 20px; right: 20px; width: 350px; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--glass-border); border-radius: 1rem; z-index: 2000; box-shadow: 0 20px 40px rgba(0,0,0,0.6); display: none; flex-direction: column; overflow: hidden; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: #fff;">
+        <div id="upload-queue-header" style="padding: 1rem; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: rgba(30, 41, 59, 0.7); cursor: pointer; user-select: none;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-cloud-arrow-up fa-bounce" style="color: var(--accent-purple);" id="upload-widget-icon"></i>
+                <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600;">Đang tải lên (<span id="upload-queue-count">0/0</span>)</h4>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <button id="btn-minimize-upload-widget" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size: 0.85rem;"><i class="fa-solid fa-chevron-down"></i></button>
+            </div>
+        </div>
+        <div id="upload-queue-body" style="max-height: 280px; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; scrollbar-width: thin;">
+            <!-- Filled dynamically -->
+        </div>
+    </div>
+
+    <!-- Upload Queue Trigger Bubble (only shown when minimized and upload is active) -->
+    <div id="upload-queue-bubble" style="position: fixed; bottom: 20px; right: 20px; background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); color: #fff; padding: 0.75rem 1.25rem; border-radius: 9999px; box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4); display: none; align-items: center; gap: 0.5rem; cursor: pointer; z-index: 1999; font-weight: 600; font-size: 0.9rem; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        <i class="fa-solid fa-cloud-arrow-up fa-spin-pulse"></i>
+        <span>Đang tải lên <span id="upload-bubble-count">0</span> file...</span>
+    </div>
 {% endif %}
 {% endblock %}
 
@@ -512,22 +548,57 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = false;
     }
 
-    // Perform uploads sequentially
+    // Perform uploads sequentially using background widget
     uploadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!selectedFiles.length) return;
 
-        submitBtn.disabled = true;
-        cancelBtn.disabled = true;
-        fileInput.disabled = true;
+        const widgetBody = document.getElementById('upload-queue-body');
+        const widget = document.getElementById('upload-queue-widget');
+        const widgetCount = document.getElementById('upload-queue-count');
+        const bubble = document.getElementById('upload-queue-bubble');
+        const bubbleCount = document.getElementById('upload-bubble-count');
+        
+        widgetBody.innerHTML = '';
+        
+        selectedFiles.forEach((file, index) => {
+            const item = document.createElement('div');
+            item.className = 'preview-item';
+            item.id = `widget-item-${index}`;
+            
+            let sizeStr = '';
+            if (file.size < 1024) sizeStr = `${file.size} B`;
+            else if (file.size < 1048576) sizeStr = `${(file.size / 1024).toFixed(1)} KB`;
+            else sizeStr = `${(file.size / 1048576).toFixed(1)} MB`;
+
+            item.innerHTML = `
+                <div class="preview-item-header">
+                    <span class="preview-item-name" title="${file.name}">${file.name} (${sizeStr})</span>
+                    <span class="preview-item-status pending" id="widget-status-${index}">Pending</span>
+                </div>
+                <div class="preview-item-progress-bar-container">
+                    <div class="preview-item-progress-bar" id="widget-progress-bar-${index}"></div>
+                </div>
+            `;
+            widgetBody.appendChild(item);
+        });
+
+        // Close upload modal immediately so it runs in background
+        closeModal('uploadModal');
+        
+        // Show widget
+        widget.style.display = 'flex';
+        bubble.style.display = 'none';
+        widgetCount.textContent = `0/${selectedFiles.length}`;
+        bubbleCount.textContent = selectedFiles.length;
 
         const prefix = document.getElementById('upload-prefix').value;
         let successCount = 0;
 
         for (let i = 0; i < selectedFiles.length; i++) {
             const file = selectedFiles[i];
-            const statusEl = document.getElementById(`status-${i}`);
-            const barEl = document.getElementById(`progress-bar-${i}`);
+            const statusEl = document.getElementById(`widget-status-${i}`);
+            const barEl = document.getElementById(`widget-progress-bar-${i}`);
 
             statusEl.textContent = 'Uploading...';
             statusEl.className = 'preview-item-status uploading';
@@ -596,23 +667,118 @@ document.addEventListener('DOMContentLoaded', () => {
                 successCount++;
             } catch (err) {
                 console.error(err);
-                statusEl.textContent = 'Error: ' + err.message;
+                statusEl.textContent = 'Error';
                 statusEl.className = 'preview-item-status error';
                 barEl.style.backgroundColor = 'var(--accent-rose)';
             }
+            
+            widgetCount.textContent = `${successCount}/${selectedFiles.length}`;
+            bubbleCount.textContent = selectedFiles.length - successCount;
         }
 
         if (successCount === selectedFiles.length) {
             setTimeout(() => {
                 window.location.reload();
-            }, 800);
+            }, 1200);
         } else {
-            // Re-enable elements if there were errors
-            submitBtn.disabled = false;
-            cancelBtn.disabled = false;
-            fileInput.disabled = false;
+            // Keep widget open if there was an error
+            document.getElementById('upload-widget-icon').className = 'fa-solid fa-triangle-exclamation';
+            document.getElementById('upload-widget-icon').style.color = 'var(--accent-rose)';
         }
     });
+
+    // Widget Minimize / Expand logic
+    const widget = document.getElementById('upload-queue-widget');
+    const bubble = document.getElementById('upload-queue-bubble');
+    const minimizeBtn = document.getElementById('btn-minimize-upload-widget');
+    const widgetHeader = document.getElementById('upload-queue-header');
+
+    const minimizeWidget = () => {
+        widget.style.display = 'none';
+        bubble.style.display = 'flex';
+    };
+
+    const expandWidget = () => {
+        widget.style.display = 'flex';
+        bubble.style.display = 'none';
+    };
+
+    if (minimizeBtn) minimizeBtn.addEventListener('click', (e) => { e.stopPropagation(); minimizeWidget(); });
+    if (widgetHeader) widgetHeader.addEventListener('click', minimizeWidget);
+    if (bubble) bubble.addEventListener('click', expandWidget);
+
+    // Bulk Delete Checkbox Logic
+    const selectAllCheckbox = document.getElementById('select-all-files');
+    const fileCheckboxes = document.querySelectorAll('.file-checkbox');
+    const bulkDeleteBtn = document.getElementById('btn-bulk-delete');
+    const bulkDeleteCount = document.getElementById('bulk-delete-count');
+
+    const updateBulkDeleteVisibility = () => {
+        const checkedBoxes = document.querySelectorAll('.file-checkbox:checked');
+        if (checkedBoxes.length > 0) {
+            bulkDeleteBtn.style.display = 'inline-flex';
+            bulkDeleteCount.textContent = checkedBoxes.length;
+        } else {
+            bulkDeleteBtn.style.display = 'none';
+        }
+    };
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', () => {
+            fileCheckboxes.forEach(cb => {
+                cb.checked = selectAllCheckbox.checked;
+            });
+            updateBulkDeleteVisibility();
+        });
+    }
+
+    fileCheckboxes.forEach(cb => {
+        cb.addEventListener('change', () => {
+            const allChecked = Array.from(fileCheckboxes).every(c => c.checked);
+            const someChecked = Array.from(fileCheckboxes).some(c => c.checked);
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = someChecked && !allChecked;
+            }
+            updateBulkDeleteVisibility();
+        });
+    });
+
+    window.performBulkDelete = async () => {
+        const checkedBoxes = document.querySelectorAll('.file-checkbox:checked');
+        if (checkedBoxes.length === 0) return;
+
+        const count = checkedBoxes.length;
+        const keys = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-key'));
+        const names = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-name'));
+
+        const confirmMsg = `Bạn có chắc chắn muốn xóa ${count} tệp tin đã chọn?\n\n` + names.slice(0, 5).join('\n') + (names.length > 5 ? '\n...' : '');
+        if (!confirm(confirmMsg)) return;
+
+        bulkDeleteBtn.disabled = true;
+        bulkDeleteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xóa...';
+
+        try {
+            const response = await fetch("{{ url_for('delete_objects_bulk', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keys: keys })
+            });
+            const data = await response.json();
+            if (data.status === 'success') {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Xóa tệp tin thất bại.');
+                bulkDeleteBtn.disabled = false;
+                updateBulkDeleteVisibility();
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Có lỗi xảy ra trong quá trình xóa.');
+            bulkDeleteBtn.disabled = false;
+            updateBulkDeleteVisibility();
+        }
+    };
 });
 </script>
 {% endblock %}
