@@ -26,6 +26,11 @@ file_handler.setLevel(logging.INFO)
 app.logger.addHandler(file_handler)
 app.logger.setLevel(logging.INFO)
 
+# Also capture server requests (werkzeug) and general root logs
+logging.getLogger('werkzeug').addHandler(file_handler)
+logging.getLogger().addHandler(file_handler)
+logging.getLogger().setLevel(logging.INFO)
+
 @app.errorhandler(Exception)
 def handle_exception(e):
     app.logger.error("System Exception: %s\n%s", str(e), traceback.format_exc())
