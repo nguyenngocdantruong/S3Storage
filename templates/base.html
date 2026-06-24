@@ -13,7 +13,7 @@
     <!-- Font Awesome for premium icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom Style -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=1.2.0">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -38,6 +38,18 @@
             {% endif %}
         {% endwith %}
     </div>
+
+    <!-- Mobile Header -->
+    <div class="mobile-header" style="display: none;">
+        <button id="mobileMenuBtn" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 0.5rem; display: flex; align-items: center; justify-content: center;">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+        <span style="font-weight: 700; font-size: 1.25rem; background: linear-gradient(to right, #ffffff, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">S3 Storage</span>
+        <div style="width: 40px;"></div>
+    </div>
+
+    <!-- Mobile Sidebar Overlay -->
+    <div id="mobileSidebarOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 98; backdrop-filter: blur(4px);"></div>
 
     <!-- Sidebar -->
     <aside class="sidebar" id="mainSidebar">
@@ -197,11 +209,31 @@
                 }
             });
         }
+
+        // Mobile sidebar drawer logic
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileSidebarOverlay = document.getElementById('mobileSidebarOverlay');
+
+        if (mobileMenuBtn) {
+            mobileMenuBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('mobile-open');
+                if (mobileSidebarOverlay) {
+                    mobileSidebarOverlay.classList.toggle('active');
+                }
+            });
+        }
+
+        if (mobileSidebarOverlay) {
+            mobileSidebarOverlay.addEventListener('click', () => {
+                sidebar.classList.remove('mobile-open');
+                mobileSidebarOverlay.classList.remove('active');
+            });
+        }
     });
     </script>
 
     <!-- Core Scripts -->
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=1.2.0"></script>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
