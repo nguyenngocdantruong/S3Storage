@@ -206,15 +206,181 @@
 </div>
 
 {% if can_edit %}
+    <style>
+    /* Modern Upload Modal Styles overriding any cache */
+    .upload-modal-content {
+        background: #0f172a !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 1.25rem !important;
+        max-width: 600px !important;
+        width: 95% !important;
+        padding: 2rem !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8) !important;
+        color: #f1f5f9 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+    }
+
+    .upload-drop-zone {
+        border: 2px dashed rgba(59, 130, 246, 0.3) !important;
+        border-radius: 0.75rem !important;
+        background: rgba(15, 23, 42, 0.6) !important;
+        padding: 2.5rem 1.5rem !important;
+        text-align: center !important;
+        cursor: pointer !important;
+        transition: all 0.25s ease !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.75rem !important;
+        position: relative !important;
+        margin-top: 0.5rem !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .upload-drop-zone:hover, .upload-drop-zone.dragover {
+        border-color: #3b82f6 !important;
+        background: rgba(59, 130, 246, 0.08) !important;
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.15) !important;
+    }
+
+    .upload-drop-zone i {
+        font-size: 3.25rem !important;
+        background: linear-gradient(135deg, #a855f7, #3b82f6) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        transition: transform 0.2s ease !important;
+        display: inline-block !important;
+    }
+
+    .upload-drop-zone:hover i {
+        transform: translateY(-5px) !important;
+    }
+
+    .upload-drop-zone-text {
+        font-size: 0.95rem !important;
+        color: #94a3b8 !important;
+        line-height: 1.5 !important;
+    }
+
+    .upload-drop-zone-text strong {
+        color: #fff !important;
+        font-weight: 600 !important;
+    }
+
+    .file-input-hidden {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        opacity: 0 !important;
+        cursor: pointer !important;
+        z-index: 10 !important;
+    }
+
+    /* File Preview List */
+    .upload-preview-container {
+        margin-top: 1.25rem !important;
+        max-height: 220px !important;
+        overflow-y: auto !important;
+        display: none !important;
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+        padding-right: 0.5rem !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Scrollbar for preview container */
+    .upload-preview-container::-webkit-scrollbar {
+        width: 6px !important;
+    }
+    .upload-preview-container::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.02) !important;
+        border-radius: 999px !important;
+    }
+    .upload-preview-container::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border-radius: 999px !important;
+    }
+    .upload-preview-container::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2) !important;
+    }
+
+    .preview-item {
+        background: rgba(30, 41, 59, 0.5) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 0.5rem !important;
+        padding: 0.75rem 1rem !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .preview-item-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        font-size: 0.85rem !important;
+        width: 100% !important;
+        gap: 1rem !important;
+    }
+
+    .preview-item-name {
+        font-weight: 500 !important;
+        color: #fff !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        flex-grow: 1 !important;
+        text-align: left !important;
+    }
+
+    .preview-item-status {
+        font-size: 0.75rem !important;
+        font-weight: 600 !important;
+        padding: 0.15rem 0.5rem !important;
+        border-radius: 0.25rem !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        white-space: nowrap !important;
+    }
+
+    .preview-item-status.pending { color: #94a3b8 !important; }
+    .preview-item-status.uploading { color: #3b82f6 !important; background: rgba(59, 130, 246, 0.1) !important; }
+    .preview-item-status.success { color: #10b981 !important; background: rgba(16, 185, 129, 0.1) !important; }
+    .preview-item-status.error { color: #ef4444 !important; background: rgba(239, 68, 68, 0.1) !important; }
+
+    .preview-item-progress-bar-container {
+        height: 4px !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border-radius: 999px !important;
+        overflow: hidden !important;
+        width: 100% !important;
+    }
+
+    .preview-item-progress-bar {
+        height: 100% !important;
+        width: 0%;
+        background: linear-gradient(90deg, #a855f7, #3b82f6) !important;
+        transition: width 0.1s ease !important;
+    }
+    </style>
+
     <!-- Upload File Modal -->
     <div id="uploadModal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 600px;">
-            <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+        <div class="modal-content upload-modal-content">
+            <h2 style="font-size: 1.5rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; width: 100%;">
                 <span>Upload File</span>
                 <button onclick="closeModal('uploadModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
             </h2>
             
-            <form id="upload-form">
+            <form id="upload-form" style="width: 100%; display: flex; flex-direction: column;">
                 <input type="hidden" id="upload-prefix" value="{{ prefix }}">
                 
                 <div class="upload-drop-zone" id="drop-zone">
@@ -226,11 +392,11 @@
                 </div>
 
                 <!-- Preview container -->
-                <div class="upload-preview-container" id="preview-container" style="display: none;">
+                <div class="upload-preview-container" id="preview-container">
                     <!-- Preview items will be appended here dynamically -->
                 </div>
                 
-                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.75rem; width: 100%;">
                     <button type="button" id="btn-upload-cancel" class="btn btn-secondary" onclick="closeModal('uploadModal')">Cancel</button>
                     <button type="submit" id="btn-upload-submit" class="btn btn-primary" disabled><i class="fa-solid fa-upload"></i> Upload</button>
                 </div>
