@@ -298,7 +298,7 @@
         margin-top: 1.25rem !important;
         max-height: 220px !important;
         overflow-y: auto !important;
-        display: none !important;
+        display: none;
         flex-direction: column !important;
         gap: 0.75rem !important;
         padding-right: 0.5rem !important;
@@ -388,7 +388,7 @@
         <div class="modal-content upload-modal-content">
             <h2 style="font-size: 1.5rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; width: 100%;">
                 <span>Upload File</span>
-                <button onclick="closeModal('uploadModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="closeModalAndReset()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
             </h2>
             
             <form id="upload-form" style="width: 100%; display: flex; flex-direction: column;">
@@ -399,7 +399,7 @@
                     <div class="upload-drop-zone-text">
                         <strong>Kéo thả tệp vào đây</strong> hoặc click để chọn tệp tin
                     </div>
-                    <input type="file" id="file" class="file-input-hidden" multiple required>
+                    <input type="file" id="file" class="file-input-hidden" multiple>
                 </div>
 
                 <!-- Preview container -->
@@ -408,7 +408,7 @@
                 </div>
                 
                 <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.75rem; width: 100%;">
-                    <button type="button" id="btn-upload-cancel" class="btn btn-secondary" onclick="closeModal('uploadModal')">Cancel</button>
+                    <button type="button" id="btn-upload-cancel" class="btn btn-secondary" onclick="closeModalAndReset()">Cancel</button>
                     <button type="submit" id="btn-upload-submit" class="btn btn-primary" disabled><i class="fa-solid fa-upload"></i> Upload</button>
                 </div>
             </form>
@@ -430,6 +430,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const cancelBtn = document.getElementById('btn-upload-cancel');
 
     let selectedFiles = [];
+
+    window.closeModalAndReset = () => {
+        closeModal('uploadModal');
+        selectedFiles = [];
+        fileInput.value = '';
+        previewContainer.innerHTML = '';
+        previewContainer.style.display = 'none';
+        submitBtn.disabled = true;
+        cancelBtn.disabled = false;
+        fileInput.disabled = false;
+    };
+
+    const uploadModalEl = document.getElementById('uploadModal');
+    if (uploadModalEl) {
+        uploadModalEl.addEventListener('click', (e) => {
+            if (e.target === uploadModalEl) {
+                closeModalAndReset();
+            }
+        });
+    }
 
     // Drag-and-drop event handlers
     const preventDefaults = (e) => {
