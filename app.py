@@ -970,9 +970,13 @@ def confirm_upload(connection_id, bucket_name):
 
     try:
         s3 = get_s3_client(conn)
-        response = s3.head_object(Bucket=bucket_name, Key=key)
-        actual_size = response.get('ContentLength', 0)
-        
+        actual_size = 0
+        try:
+            response = s3.head_object(Bucket=bucket_name, Key=key)
+            actual_size = response.get('ContentLength', 0)
+        except Exception as e:
+            print(f"Warning: Failed to get object size via HeadObject: {e}")
+            
         filename = key.split('/')[-1]
         quota_owner_id = owner_id if owner_id else g.user.id
         
