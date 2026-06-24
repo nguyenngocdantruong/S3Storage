@@ -536,6 +536,8 @@ def add_connection():
     region_name = request.form.get('region_name', 'us-east-1')
 
     if not all([name, access_key, secret_key]):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json or 'application/json' in request.headers.get('Accept', ''):
+            return jsonify({'status': 'error', 'message': 'Please fill in Name, Access Key, and Secret Key.'}), 400
         flash('Please fill in Name, Access Key, and Secret Key.', 'error')
         return redirect(url_for('dashboard'))
 
@@ -565,23 +567,22 @@ def add_connection():
         )
         s3 = get_s3_client(conn_temp)
         
-        connection_ok = False
-        error_msg = ""
-        try:
-            s3.list_buckets()
-            connection_ok = True
-        except Exception as e:
-            error_msg = str(e)
-            
+        # Test connection first before saving
+        s3.list_buckets()
+        
         db.session.add(conn_temp)
         db.session.commit()
         
-        if connection_ok:
-            flash('S3 Connection added successfully!', 'success')
-        else:
-            flash(f'Đã lưu cấu hình kết nối! Cảnh báo lỗi kết nối thử nghiệm S3: {error_msg}. Bạn vẫn có thể truy cập các Bucket được ánh xạ thủ công.', 'warning')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json or 'application/json' in request.headers.get('Accept', ''):
+            return jsonify({'status': 'success', 'message': 'S3 Connection added successfully!'})
+            
+        flash('S3 Connection added successfully!', 'success')
     except Exception as e:
-        flash(f'Failed to save S3 connection configuration: {str(e)}', 'error')
+        db.session.rollback()
+        error_msg = str(e)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json or 'application/json' in request.headers.get('Accept', ''):
+            return jsonify({'status': 'error', 'message': f'Lỗi kết nối thử nghiệm S3: {error_msg}'}), 400
+        flash(f'Lỗi kết nối thử nghiệm S3: {error_msg}', 'error')
 
     return redirect(url_for('dashboard'))
 
@@ -612,38 +613,45 @@ def edit_connection(connection_id):
     region_name = request.form.get('region_name', 'us-east-1')
 
     if not all([name, access_key, secret_key]):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json or 'application/json' in request.headers.get('Accept', ''):
+            return jsonify({'status': 'error', 'message': 'Please fill in Name, Access Key, and Secret Key.'}), 400
         flash('Please fill in Name, Access Key, and Secret Key.', 'error')
         return redirect(url_for('dashboard'))
 
     try:
         old_name = conn.name
+        
+        # Test connection first using a temporary object with new credentials
+        conn_test = S3Connection(
+            name=name, endpoint_url=endpoint_url,
+            access_key=access_key, secret_key=secret_key,
+            region_name=region_name
+        )
+        s3 = get_s3_client(conn_test)
+        s3.list_buckets()
+        
+        # Apply updates
         conn.name = name
         conn.endpoint_url = endpoint_url
         conn.access_key = access_key
         conn.secret_key = secret_key
         conn.region_name = region_name
 
-        s3 = get_s3_client(conn)
-        connection_ok = False
-        error_msg = ""
-        try:
-            s3.list_buckets()
-            connection_ok = True
-        except Exception as e:
-            error_msg = str(e)
-
         if old_name != name:
             VideoProgress.query.filter_by(connection_name=old_name).update({VideoProgress.connection_name: name})
             
         db.session.commit()
 
-        if connection_ok:
-            flash('S3 Connection updated successfully!', 'success')
-        else:
-            flash(f'Đã lưu thay đổi! Cảnh báo lỗi kết nối thử nghiệm S3: {error_msg}. Bạn vẫn có thể truy cập các Bucket được ánh xạ thủ công.', 'warning')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json or 'application/json' in request.headers.get('Accept', ''):
+            return jsonify({'status': 'success', 'message': 'S3 Connection updated successfully!'})
+            
+        flash('S3 Connection updated successfully!', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Failed to update S3 connection configuration: {str(e)}', 'error')
+        error_msg = str(e)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json or 'application/json' in request.headers.get('Accept', ''):
+            return jsonify({'status': 'error', 'message': f'Lỗi kết nối thử nghiệm S3: {error_msg}'}), 400
+        flash(f'Lỗi kết nối thử nghiệm S3: {error_msg}', 'error')
 
     return redirect(url_for('dashboard'))
 

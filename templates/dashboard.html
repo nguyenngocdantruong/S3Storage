@@ -180,6 +180,28 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // Toast helper matching base.html flash-messages container
+        function showToast(message, category = 'error') {
+            const container = document.querySelector('.flash-messages');
+            if (!container) return;
+            const msgEl = document.createElement('div');
+            msgEl.className = `flash-message ${category}`;
+            msgEl.innerHTML = `
+                <span>
+                    ${category === 'success' 
+                        ? '<i class="fa-solid fa-circle-check" style="color: var(--accent-emerald); margin-right: 8px;"></i>' 
+                        : '<i class="fa-solid fa-circle-exclamation" style="color: var(--accent-rose); margin-right: 8px;"></i>'}
+                    ${message}
+                </span>
+                <button onclick="this.parentElement.remove()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            `;
+            container.appendChild(msgEl);
+            setTimeout(() => {
+                msgEl.remove();
+            }, 6000);
+        }
+
+        // Edit connection button logic
         const editButtons = document.querySelectorAll('.edit-conn-btn');
         editButtons.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -202,6 +224,76 @@
                 openModal('editConnectionModal');
             });
         });
+
+        // Intercept Add Connection form submission
+        const addForm = document.querySelector('#addConnectionModal form');
+        if (addForm) {
+            addForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const submitBtn = addForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting...';
+
+                const formData = new FormData(addForm);
+                try {
+                    const response = await fetch(addForm.action || "/connection/add", {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.status === 'success') {
+                        window.location.reload();
+                    } else {
+                        showToast(data.message || 'Lỗi kiểm tra kết nối S3', 'error');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast('Không thể gửi yêu cầu kết nối đến máy chủ S3.', 'error');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            });
+        }
+
+        // Intercept Edit Connection form submission
+        const editForm = document.getElementById('editConnectionForm');
+        if (editForm) {
+            editForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const submitBtn = editForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting...';
+
+                const formData = new FormData(editForm);
+                try {
+                    const response = await fetch(editForm.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.status === 'success') {
+                        window.location.reload();
+                    } else {
+                        showToast(data.message || 'Lỗi cập nhật cấu hình kết nối S3', 'error');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast('Không thể gửi yêu cầu chỉnh sửa đến máy chủ S3.', 'error');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            });
+        }
     });
     </script>
 {% endif %}
