@@ -167,9 +167,6 @@
                                     {{ (file.size / 1048576) | round(1) }} MB
                                 {% endif %}
                             </td>
-                            <td style="color: var(--text-secondary);">
-                                {{ file.created_by }}
-                            </td>
                             <td>
                                 {% if file.progress %}
                                     <div style="display: flex; align-items: center; gap: 0.5rem; max-width: 150px;">
@@ -181,6 +178,9 @@
                                 {% else %}
                                     <span style="color: var(--text-muted); font-size: 0.85rem;">—</span>
                                 {% endif %}
+                            </td>
+                            <td style="color: var(--text-secondary);">
+                                {{ file.created_by }}
                             </td>
                             <td style="color: var(--text-secondary); font-size: 0.85rem;">
                                 {{ file.last_modified.strftime('%Y-%m-%d %H:%M:%S UTC') if file.last_modified else '—' }}
