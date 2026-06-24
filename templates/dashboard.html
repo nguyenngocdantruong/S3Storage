@@ -32,11 +32,24 @@
                         </span>
                     </div>
                     {% if g.user.role == 'Admin' %}
-                        <form action="{{ url_for('delete_connection', connection_id=conn.connection_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this connection?');">
-                            <button class="btn btn-danger" style="padding: 0.5rem; border-radius: var(--radius-md);" title="Delete Connection">
-                                <i class="fa-solid fa-trash-can"></i>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-secondary edit-conn-btn" 
+                                    style="padding: 0.5rem; border-radius: var(--radius-md);" 
+                                    title="Edit Connection"
+                                    data-id="{{ conn.connection_id }}"
+                                    data-name="{{ conn.name }}"
+                                    data-endpoint="{{ conn.endpoint_url or '' }}"
+                                    data-access-key="{{ conn.access_key }}"
+                                    data-secret-key="{{ conn.secret_key }}"
+                                    data-region="{{ conn.region_name or 'us-east-1' }}">
+                                <i class="fa-solid fa-pen-to-square"></i>
                             </button>
-                        </form>
+                            <form action="{{ url_for('delete_connection', connection_id=conn.connection_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this connection?');">
+                                <button class="btn btn-danger" style="padding: 0.5rem; border-radius: var(--radius-md);" title="Delete Connection">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        </div>
                     {% endif %}
                 </div>
                 
@@ -123,5 +136,73 @@
             </form>
         </div>
     </div>
+    <!-- Edit Connection Modal -->
+    <div id="editConnectionModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <span>Edit S3 Connection</span>
+                <button onclick="closeModal('editConnectionModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </h2>
+            
+            <form id="editConnectionForm" action="" method="POST">
+                <div class="form-group">
+                    <label for="edit_name">Friendly Name</label>
+                    <input type="text" id="edit_name" name="name" class="form-control" placeholder="e.g. My MinIO Server" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit_endpoint_url">Endpoint URL (leave empty for AWS S3)</label>
+                    <input type="url" id="edit_endpoint_url" name="endpoint_url" class="form-control" placeholder="https://play.min.io">
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit_access_key">Access Key</label>
+                    <input type="text" id="edit_access_key" name="access_key" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit_secret_key">Secret Key</label>
+                    <input type="password" id="edit_secret_key" name="secret_key" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit_region_name">Region Name</label>
+                    <input type="text" id="edit_region_name" name="region_name" class="form-control" value="us-east-1">
+                </div>
+                
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editConnectionModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const editButtons = document.querySelectorAll('.edit-conn-btn');
+        editButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-name');
+                const endpoint = btn.getAttribute('data-endpoint');
+                const accessKey = btn.getAttribute('data-access-key');
+                const secretKey = btn.getAttribute('data-secret-key');
+                const region = btn.getAttribute('data-region');
+
+                const form = document.getElementById('editConnectionForm');
+                form.action = `/connection/${id}/edit`;
+
+                document.getElementById('edit_name').value = name;
+                document.getElementById('edit_endpoint_url').value = endpoint;
+                document.getElementById('edit_access_key').value = accessKey;
+                document.getElementById('edit_secret_key').value = secretKey;
+                document.getElementById('edit_region_name').value = region;
+
+                openModal('editConnectionModal');
+            });
+        });
+    });
+    </script>
 {% endif %}
 {% endblock %}

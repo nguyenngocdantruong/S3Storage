@@ -509,21 +509,23 @@ def add_connection():
         )
         s3 = get_s3_client(conn_temp)
         
+        connection_ok = False
+        error_msg = ""
         try:
             s3.list_buckets()
-            db.session.add(conn_temp)
-            db.session.commit()
+            connection_ok = True
+        except Exception as e:
+            error_msg = str(e)
+            
+        db.session.add(conn_temp)
+        db.session.commit()
+        
+        if connection_ok:
             flash('S3 Connection added successfully!', 'success')
-        except ClientError as ce:
-            # Code 403 Forbidden / AccessDenied means credentials are correct, but policy restricts ListBuckets
-            if ce.response.get('Error', {}).get('Code') in ['AccessDenied', '403'] or 'Forbidden' in str(ce):
-                db.session.add(conn_temp)
-                db.session.commit()
-                flash('S3 Connection added! Note: Lacking global ListAllMyBuckets permission (403 Forbidden). Buckets must be accessed or mapped manually.', 'warning')
-            else:
-                raise ce
+        else:
+            flash(f'Đã lưu cấu hình kết nối! Cảnh báo lỗi kết nối thử nghiệm S3: {error_msg}. Bạn vẫn có thể truy cập các Bucket được ánh xạ thủ công.', 'warning')
     except Exception as e:
-        flash(f'Failed to connect to S3: {str(e)}', 'error')
+        flash(f'Failed to save S3 connection configuration: {str(e)}', 'error')
 
     return redirect(url_for('dashboard'))
 
@@ -542,6 +544,53 @@ def delete_connection(connection_id):
     except Exception as e:
         flash(f'Error: {str(e)}', 'error')
     return redirect(url_for('dashboard'))
+
+@app.route('/connection/<connection_id>/edit', methods=['POST'])
+@admin_required
+def edit_connection(connection_id):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    name = request.form.get('name')
+    endpoint_url = request.form.get('endpoint_url')
+    access_key = request.form.get('access_key')
+    secret_key = request.form.get('secret_key')
+    region_name = request.form.get('region_name', 'us-east-1')
+
+    if not all([name, access_key, secret_key]):
+        flash('Please fill in Name, Access Key, and Secret Key.', 'error')
+        return redirect(url_for('dashboard'))
+
+    try:
+        old_name = conn.name
+        conn.name = name
+        conn.endpoint_url = endpoint_url
+        conn.access_key = access_key
+        conn.secret_key = secret_key
+        conn.region_name = region_name
+
+        s3 = get_s3_client(conn)
+        connection_ok = False
+        error_msg = ""
+        try:
+            s3.list_buckets()
+            connection_ok = True
+        except Exception as e:
+            error_msg = str(e)
+
+        if old_name != name:
+            VideoProgress.query.filter_by(connection_name=old_name).update({VideoProgress.connection_name: name})
+            
+        db.session.commit()
+
+        if connection_ok:
+            flash('S3 Connection updated successfully!', 'success')
+        else:
+            flash(f'Đã lưu thay đổi! Cảnh báo lỗi kết nối thử nghiệm S3: {error_msg}. Bạn vẫn có thể truy cập các Bucket được ánh xạ thủ công.', 'warning')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Failed to update S3 connection configuration: {str(e)}', 'error')
+
+    return redirect(url_for('dashboard'))
+
 
 @app.route('/connection/<connection_id>')
 @login_required
