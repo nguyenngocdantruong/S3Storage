@@ -1023,6 +1023,15 @@ def view_file(connection_id, bucket_name):
             ).first()
             resume_seconds = progress.seconds_watched if (progress and progress.seconds_watched > 0) else 0
  
+        is_https_site = request.is_secure or request.headers.get('X-Forwarded-Proto', '').lower() == 'https'
+        is_http_s3 = conn.endpoint_url and conn.endpoint_url.startswith('http://')
+        use_proxy = is_https_site and is_http_s3 and file_type == 'pdf'
+        
+        if use_proxy:
+            file_url = url_for('proxy_s3_file', connection_id=connection_id, bucket_name=bucket_name, key=key)
+        else:
+            file_url = presigned_url
+
         return render_template(
             'viewer.html',
             connection=conn,
@@ -1030,13 +1039,46 @@ def view_file(connection_id, bucket_name):
             key=key,
             filename=filename,
             file_type=file_type,
-            presigned_url=presigned_url,
+            presigned_url=file_url,
             is_local_endpoint=is_local_endpoint,
             resume_seconds=resume_seconds
         )
     except Exception as e:
         flash(f'Could not view file: {str(e)}', 'error')
         return redirect(url_for('browse_bucket', connection_id=connection_id, bucket_name=bucket_name))
+
+from flask import Response, stream_with_context
+
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/proxy-file')
+@login_required
+def proxy_s3_file(connection_id, bucket_name):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    key = request.args.get('key')
+    
+    if not check_bucket_access(g.user, conn, bucket_name):
+        return "Permission Denied", 403
+        
+    if not key:
+        return "Missing file key", 400
+        
+    try:
+        s3 = get_s3_client(conn)
+        s3_object = s3.get_object(Bucket=bucket_name, Key=key)
+        
+        headers = {
+            'Content-Type': s3_object.get('ContentType', 'application/octet-stream'),
+            'Content-Length': str(s3_object.get('ContentLength', '')),
+            'Content-Disposition': f'inline; filename="{urllib.parse.quote(key.split("/")[-1])}"'
+        }
+        
+        def generate():
+            body = s3_object['Body']
+            for chunk in body.iter_chunks(chunk_size=1024*64):
+                yield chunk
+                
+        return Response(stream_with_context(generate()), headers=headers)
+    except Exception as e:
+        return f"Error proxying file: {str(e)}", 500
 
 # --- Video Playback Tracking Routes ---
 
