@@ -127,6 +127,15 @@ class AuditLog(db.Model):
     actor = db.relationship('User', foreign_keys=[user_id], backref=db.backref('actions_logged', lazy=True))
     target_owner = db.relationship('User', foreign_keys=[target_user_id], backref=db.backref('target_logs', lazy=True))
 
+# Helper: Fix S3 URL for Mixed Content issues (HTTPS -> HTTPS)
+def fix_s3_url(url):
+    if not url:
+        return url
+    is_https = request.is_secure or request.headers.get('X-Forwarded-Proto', '').lower() == 'https'
+    if is_https and url.startswith('http://'):
+        return url.replace('http://', 'https://', 1)
+    return url
+
 # Helper: Get boto3 client
 def get_s3_client(connection):
     config = Config(
@@ -861,7 +870,7 @@ def presign_upload(connection_id, bucket_name):
         
         return jsonify({
             'status': 'success',
-            'url': presigned['url'],
+            'url': fix_s3_url(presigned['url']),
             'fields': presigned['fields'],
             'key': key
         })
@@ -970,11 +979,11 @@ def view_file(connection_id, bucket_name):
         
     try:
         s3 = get_s3_client(conn)
-        presigned_url = s3.generate_presigned_url(
+        presigned_url = fix_s3_url(s3.generate_presigned_url(
             'get_object',
             Params={'Bucket': bucket_name, 'Key': key},
             ExpiresIn=3600
-        )
+        ))
         
         filename = key.split('/')[-1]
         ext = filename.split('.')[-1].lower() if '.' in filename else ''
@@ -1590,11 +1599,11 @@ def api_share_file(connection_id, bucket_name):
         
     try:
         s3 = get_s3_client(conn)
-        presigned_url = s3.generate_presigned_url(
+        presigned_url = fix_s3_url(s3.generate_presigned_url(
             'get_object',
             Params={'Bucket': bucket_name, 'Key': key},
             ExpiresIn=int(expires_in)
-        )
+        ))
         return jsonify({'status': 'success', 'share_link': presigned_url})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
