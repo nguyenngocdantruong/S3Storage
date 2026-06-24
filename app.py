@@ -10,8 +10,28 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+import logging
+from logging.handlers import RotatingFileHandler
+import traceback
 
 app = Flask(__name__)
+
+# Configure Logging to file
+log_file_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'system.log')
+file_handler = RotatingFileHandler(log_file_path, maxBytes=5 * 1024 * 1024, backupCount=5, encoding='utf-8')
+file_handler.setFormatter(logging.Formatter(
+    '[%(asctime)s] %(levelname)s [%(filename)s:%(lineno)d]: %(message)s'
+))
+file_handler.setLevel(logging.INFO)
+app.logger.addHandler(file_handler)
+app.logger.setLevel(logging.INFO)
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    app.logger.error("System Exception: %s\n%s", str(e), traceback.format_exc())
+    if request.path.startswith('/api/'):
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    return e
 secret_key_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), '.secret_key')
 if os.path.exists(secret_key_path):
     with open(secret_key_path, 'rb') as f:
@@ -1216,6 +1236,51 @@ def view_logs():
     logs = pagination.items
     
     return render_template('logs.html', logs=logs, pagination=pagination)
+
+@app.route('/admin/system-logs')
+@admin_required
+def view_system_logs():
+    lines_to_read = request.args.get('limit', 200, type=int)
+    log_level = request.args.get('level', 'ALL').upper()
+    
+    log_lines = []
+    if os.path.exists(log_file_path):
+        try:
+            with open(log_file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                all_lines = f.readlines()
+                
+            for line in all_lines:
+                line = line.strip()
+                if not line:
+                    continue
+                if log_level != 'ALL':
+                    # Log entries look like: [2026-06-24 13:17:55] INFO ...
+                    if f' {log_level} ' not in line:
+                        continue
+                log_lines.append(line)
+                
+            log_lines = log_lines[-lines_to_read:]
+            log_lines.reverse()
+        except Exception as err:
+            log_lines = [f"Error reading log file: {str(err)}"]
+    else:
+        log_lines = ["No log file found yet. System logs will appear as actions occur."]
+        
+    return render_template('system_logs.html', log_lines=log_lines, current_limit=lines_to_read, current_level=log_level)
+
+@app.route('/admin/system-logs/clear', methods=['POST'])
+@admin_required
+def clear_system_logs():
+    try:
+        if os.path.exists(log_file_path):
+            with open(log_file_path, 'w', encoding='utf-8') as f:
+                f.write(f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] INFO [system]: Logs cleared by admin.\n")
+            flash("System logs cleared successfully.", "success")
+        else:
+            flash("Log file does not exist.", "warning")
+    except Exception as e:
+        flash(f"Failed to clear logs: {str(e)}", "error")
+    return redirect(url_for('view_system_logs'))
 
 # --- Bucket Sharing APIs ---
 

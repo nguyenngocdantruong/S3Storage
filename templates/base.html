@@ -79,6 +79,12 @@
                                 <span>Bucket Access</span>
                             </a>
                         </li>
+                        <li class="nav-item {% if request.path == '/admin/system-logs' %}active{% endif %}">
+                            <a href="{{ url_for('view_system_logs') }}">
+                                <i class="fa-solid fa-terminal"></i>
+                                <span>System Logs</span>
+                            </a>
+                        </li>
                     {% endif %}
                     <li class="nav-item {% if request.path == '/profile' %}active{% endif %}">
                         <a href="{{ url_for('profile') }}">

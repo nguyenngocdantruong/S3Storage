@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}System Logs - S3 Storage{% endblock %}
+
+{% block extra_head %}
+<style>
+    .console-container {
+        background: rgba(10, 12, 18, 0.95);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-lg);
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.85rem;
+        line-height: 1.5;
+        padding: 1.5rem;
+        height: 600px;
+        overflow-y: auto;
+        color: #e2e8f0;
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+    
+    .log-line {
+        white-space: pre-wrap;
+        word-break: break-all;
+        margin-bottom: 0.35rem;
+        padding-bottom: 0.35rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    }
+
+    .log-info {
+        color: #818cf8; /* indigo/blue */
+    }
+
+    .log-warning {
+        color: #fbbf24; /* yellow/amber */
+    }
+
+    .log-error {
+        color: #f87171; /* red */
+        font-weight: 500;
+        background: rgba(248, 113, 113, 0.04);
+        padding-left: 4px;
+        border-left: 2px solid #ef4444;
+    }
+
+    .log-traceback {
+        color: #94a3b8; /* gray-slate */
+        padding-left: 1.5rem;
+    }
+
+    .filters-wrapper {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .log-level-badge {
+        display: inline-block;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        margin-right: 0.5rem;
+    }
+
+    .badge-info { background: rgba(129, 140, 248, 0.15); color: #818cf8; }
+    .badge-warning { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+    .badge-error { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-actions">
+    <div>
+        <h1 class="page-title">System Logs</h1>
+        <p style="color: var(--text-secondary); margin-top: 0.25rem;">
+            Real-time Flask server logging, debugging information, and system exception traces.
+        </p>
+    </div>
+    
+    <div style="display: flex; gap: 0.75rem;">
+        <button class="btn btn-secondary" onclick="window.location.reload();">
+            <i class="fa-solid fa-arrows-rotate"></i> Refresh
+        </button>
+        <form action="{{ url_for('clear_system_logs') }}" method="POST" onsubmit="return confirm('Are you sure you want to clear all server log entries? This action cannot be undone.');">
+            <button type="submit" class="btn btn-danger">
+                <i class="fa-solid fa-trash-can"></i> Clear Logs
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="glass-card">
+    <div class="filters-wrapper">
+        <form id="logFilterForm" method="GET" action="{{ url_for('view_system_logs') }}" class="filter-controls">
+            <div>
+                <label for="level" style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 0.35rem;">Log Level</label>
+                <select name="level" id="level" class="form-control" onchange="this.form.submit()" style="background: rgba(20, 25, 35, 0.6); padding: 0.4rem 2rem 0.4rem 1rem; font-size: 0.85rem; width: 140px;">
+                    <option value="ALL" {% if current_level == 'ALL' %}selected{% endif %}>All Levels</option>
+                    <option value="INFO" {% if current_level == 'INFO' %}selected{% endif %}>INFO</option>
+                    <option value="WARNING" {% if current_level == 'WARNING' %}selected{% endif %}>WARNING</option>
+                    <option value="ERROR" {% if current_level == 'ERROR' %}selected{% endif %}>ERROR</option>
+                </select>
+            </div>
+            
+            <div>
+                <label for="limit" style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 0.35rem;">Max Lines</label>
+                <select name="limit" id="limit" class="form-control" onchange="this.form.submit()" style="background: rgba(20, 25, 35, 0.6); padding: 0.4rem 2rem 0.4rem 1rem; font-size: 0.85rem; width: 100px;">
+                    <option value="50" {% if current_limit == 50 %}selected{% endif %}>50</option>
+                    <option value="100" {% if current_limit == 100 %}selected{% endif %}>100</option>
+                    <option value="200" {% if current_limit == 200 %}selected{% endif %}>200</option>
+                    <option value="500" {% if current_limit == 500 %}selected{% endif %}>500</option>
+                    <option value="1000" {% if current_limit == 1000 %}selected{% endif %}>1000</option>
+                </select>
+            </div>
+        </form>
+        
+        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+            Showing last <strong>{{ log_lines|length }}</strong> lines (newest on top)
+        </div>
+    </div>
+
+    <div class="console-container" id="consoleContainer">
+        {% if log_lines %}
+            {% for line in log_lines %}
+                {% set css_class = "" %}
+                {% if ' INFO ' in line %}
+                    {% set css_class = "log-info" %}
+                {% elif ' WARNING ' in line %}
+                    {% set css_class = "log-warning" %}
+                {% elif ' ERROR ' in line or ' CRITICAL ' in line %}
+                    {% set css_class = "log-error" %}
+                {% elif line.startswith('Traceback') or line.startswith('  File') or line.startswith('    ') %}
+                    {% set css_class = "log-traceback" %}
+                {% endif %}
+                
+                <div class="log-line {{ css_class }}">
+                    {# Parse timestamps and formats for better inline styling #}
+                    {% if ' INFO ' in line %}
+                        <span class="log-level-badge badge-info">INFO</span>
+                    {% elif ' WARNING ' in line %}
+                        <span class="log-level-badge badge-warning">WARN</span>
+                    {% elif ' ERROR ' in line %}
+                        <span class="log-level-badge badge-error">ERR</span>
+                    {% endif %}
+                    {{ line }}
+                </div>
+            {% endfor %}
+        {% else %}
+            <div style="color: var(--text-muted); text-align: center; padding-top: 5rem;">
+                No matching logs found.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Keep console scroll at top (since newest is on top) or let users scroll naturally.
+    document.addEventListener('DOMContentLoaded', () => {
+        const consoleBox = document.getElementById('consoleContainer');
+        if (consoleBox) {
+            consoleBox.scrollTop = 0;
+        }
+    });
+</script>
+{% endblock %}
