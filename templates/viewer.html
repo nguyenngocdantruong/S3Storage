@@ -269,6 +269,40 @@
         color: #2b579a;
     }
 
+    /* Custom select style for expiration dropdown */
+    #share-expires-in {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: var(--radius-md);
+        color: #cbd5e1;
+        font-size: 0.9rem;
+        font-weight: 500;
+        outline: none;
+        cursor: pointer;
+        padding: 0.5rem 2.25rem 0.5rem 1rem;
+        transition: all 0.2s;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 12px;
+        width: 100%;
+    }
+
+    #share-expires-in:hover, #share-expires-in:focus {
+        color: #fff;
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
+    }
+    
+    #share-expires-in option {
+        background: #1e293b;
+        color: #fff;
+        padding: 0.5rem;
+    }
+
     /* Sidebar collapse transitions */
     .viewer-layout-container.sidebar-collapsed {
         grid-template-columns: 1fr 0px;
