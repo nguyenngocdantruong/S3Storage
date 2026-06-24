@@ -568,7 +568,13 @@ def add_connection():
         s3 = get_s3_client(conn_temp)
         
         # Test connection first before saving
-        s3.list_buckets()
+        try:
+            s3.list_buckets()
+        except ClientError as ce:
+            status_code = ce.response.get('ResponseMetadata', {}).get('HTTPStatusCode')
+            error_code = ce.response.get('Error', {}).get('Code')
+            if status_code != 403 and error_code not in ['AccessDenied', 'AllAccessDisabled']:
+                raise ce
         
         db.session.add(conn_temp)
         db.session.commit()
@@ -628,7 +634,13 @@ def edit_connection(connection_id):
             region_name=region_name
         )
         s3 = get_s3_client(conn_test)
-        s3.list_buckets()
+        try:
+            s3.list_buckets()
+        except ClientError as ce:
+            status_code = ce.response.get('ResponseMetadata', {}).get('HTTPStatusCode')
+            error_code = ce.response.get('Error', {}).get('Code')
+            if status_code != 403 and error_code not in ['AccessDenied', 'AllAccessDisabled']:
+                raise ce
         
         # Apply updates
         conn.name = name
