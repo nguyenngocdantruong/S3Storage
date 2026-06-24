@@ -122,7 +122,7 @@
                     <!-- Files -->
                     {% for file in files %}
                         {% set ext = file.name.split('.')[-1].lower() if '.' in file.name else '' %}
-                        {% set is_viewable = ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'mp3', 'wav', 'aac', 'flac', 'pdf', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] %}
+                        {% set is_viewable = ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'mp3', 'wav', 'aac', 'flac', 'pdf', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'txt', 'json', 'csv', 'xml', 'log', 'ini', 'cfg', 'yaml', 'yml', 'md', 'html', 'js', 'css'] %}
                         <tr>
                             {% if can_edit %}
                                 <td style="text-align: center;">
@@ -141,6 +141,8 @@
                                         <i class="fa-solid fa-file-powerpoint file-icon pptx"></i>
                                     {% elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] %}
                                         <i class="fa-solid fa-file-image file-icon image"></i>
+                                    {% elif ext in ['txt', 'json', 'csv', 'xml', 'log', 'ini', 'cfg', 'yaml', 'yml', 'md', 'html', 'js', 'css'] %}
+                                        <i class="fa-solid fa-file-lines file-icon text-file"></i>
                                     {% else %}
                                         <i class="fa-solid fa-file file-icon"></i>
                                     {% endif %}

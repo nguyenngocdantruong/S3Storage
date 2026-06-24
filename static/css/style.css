@@ -312,6 +312,10 @@ body {
     color: #a855f7;
 }
 
+.file-icon.text-file {
+    color: #38bdf8;
+}
+
 /* Flash Messages */
 .flash-messages {
     position: fixed;

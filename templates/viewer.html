@@ -382,6 +382,8 @@
                 <i class="fa-solid fa-file-word docx-icon"></i>
             {% elif file_type == 'image' %}
                 <i class="fa-solid fa-file-image" style="color: var(--accent-purple);"></i>
+            {% elif file_type == 'text' %}
+                <i class="fa-solid fa-file-lines" style="color: #38bdf8;"></i>
             {% else %}
                 <i class="fa-solid fa-file" style="color: var(--text-secondary);"></i>
             {% endif %}
@@ -573,6 +575,21 @@
                     <img src="{{ presigned_url }}" alt="{{ filename }}" style="max-width: 100%; max-height: 75vh; object-fit: contain; border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
                 </div>
                 
+            {% elif file_type == 'text' %}
+                <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; min-height: 450px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem;">
+                        <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">
+                            <i class="fa-solid fa-code"></i> File Contents
+                        </span>
+                        <button class="btn btn-secondary" onclick="copyTextContent()" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem;">
+                            <i class="fa-solid fa-copy"></i> Sao chép
+                        </button>
+                    </div>
+                    <div style="flex: 1; overflow: auto; background: #090d16; border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1.25rem; position: relative; max-height: 70vh;">
+                        <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; line-height: 1.5; color: #cbd5e1; white-space: pre-wrap; word-break: break-all; text-align: left;" id="text-viewer-content">Đang tải nội dung...</pre>
+                    </div>
+                </div>
+                
             {% else %}
                 <div class="glass-card" style="text-align: center; padding: 4rem 2rem;">
                     <i class="fa-solid fa-file-circle-question" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1.5rem;"></i>
@@ -679,6 +696,7 @@
             case 'powerpoint': return 'fa-solid fa-file-powerpoint file-icon pptx';
             case 'docx': return 'fa-solid fa-file-word file-icon docx';
             case 'image': return 'fa-solid fa-file-image file-icon image';
+            case 'text': return 'fa-solid fa-file-lines file-icon text-file';
             default: return 'fa-solid fa-file file-icon';
         }
     }
@@ -935,6 +953,12 @@
                 ${progressHtml}
             `;
             filesList.appendChild(item);
+            
+            if (file.key === currentKey) {
+                setTimeout(() => {
+                    item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 200);
+            }
         });
         currentRenderedCount += nextBatch.length;
     }
@@ -1567,6 +1591,42 @@
         });
         window.addEventListener('beforeunload', () => saveProgress(furthestTime));
     });
+    {% endif %}
+
+    {% if file_type == 'text' %}
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const textViewer = document.getElementById('text-viewer-content');
+            try {
+                const res = await fetch("{{ presigned_url }}");
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                const text = await res.text();
+                
+                const filename = "{{ filename }}".toLowerCase();
+                if (filename.endsWith('.json')) {
+                    try {
+                        const parsed = JSON.parse(text);
+                        textViewer.textContent = JSON.stringify(parsed, null, 4);
+                        return;
+                    } catch (e) {}
+                }
+                textViewer.textContent = text;
+            } catch (err) {
+                console.error(err);
+                textViewer.textContent = "Không thể tải nội dung file: " + err.message;
+                textViewer.style.color = "var(--accent-rose)";
+            }
+        });
+
+        window.copyTextContent = () => {
+            const content = document.getElementById('text-viewer-content').textContent;
+            navigator.clipboard.writeText(content).then(() => {
+                alert('Đã sao chép nội dung vào bộ nhớ tạm.');
+            }).catch(err => {
+                console.error('Lỗi sao chép: ', err);
+            });
+        };
+    </script>
     {% endif %}
 </script>
 {% endblock %}
