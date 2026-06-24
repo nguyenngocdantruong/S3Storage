@@ -1,0 +1,14 @@
+config.conf
+s3player.db
+.secret_key
+system.log
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git
+.github
+.gitignore
+.env
+venv/
+.venv/

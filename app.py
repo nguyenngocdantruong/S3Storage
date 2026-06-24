@@ -352,7 +352,14 @@ with app.app_context():
             db.session.rollback()
             print(f"Migration error for bucket_access: {e}")
 
-    if not db_exists:
+    # Check if DB was just created or if there are no users at all
+    db_is_empty = False
+    try:
+        db_is_empty = (User.query.count() == 0)
+    except Exception:
+        db_is_empty = True
+
+    if not db_exists or db_is_empty:
         # Default fallback credentials
         admin_email = 'admin@example.com'
         admin_password = 'admin123'

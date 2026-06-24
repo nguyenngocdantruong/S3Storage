@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: video-s3-player
+    restart: unless-stopped
+    ports:
+      - "7090:7090"
+    volumes:
+      # Mount configuration file
+      - ./config.conf:/app/config.conf
+      # Mount database to persist data on the host
+      - ./s3player.db:/app/s3player.db
+      # Mount secret key file to persist user sessions across container restarts
+      - ./.secret_key:/app/.secret_key
+      # Mount system logs
+      - ./system.log:/app/system.log
