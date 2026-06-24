@@ -41,7 +41,8 @@
                                     data-endpoint="{{ conn.endpoint_url or '' }}"
                                     data-access-key="{{ conn.access_key }}"
                                     data-secret-key="{{ conn.secret_key }}"
-                                    data-region="{{ conn.region_name or 'us-east-1' }}">
+                                    data-region="{{ conn.region_name or 'us-east-1' }}"
+                                    data-upload-endpoint="{{ conn.upload_endpoint or '' }}">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
                             <form action="{{ url_for('delete_connection', connection_id=conn.connection_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this connection?');">
@@ -91,8 +92,16 @@
 
 {% if g.user.role == 'Admin' %}
     <!-- Add Connection Modal -->
+    <style>
+    .adv-details summary::-webkit-details-marker {
+        display: none;
+    }
+    .adv-details summary {
+        list-style: none;
+    }
+    </style>
     <div id="addConnectionModal" class="modal-overlay">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 760px;">
             <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
                 <span>Add S3 Connection</span>
                 <button onclick="closeModal('addConnectionModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
@@ -107,37 +116,54 @@
                     <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Chọn file JSON chứa url, accessKey, secretKey để điền tự động.</span>
                 </div>
 
-                <div class="form-group">
-                    <label for="connection_id">Connection ID (slug)</label>
-                    <input type="text" id="connection_id" name="connection_id" class="form-control" placeholder="e.g. aws-midso (leave blank to auto-generate)">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+                    <div class="form-group">
+                        <label for="name">Friendly Name</label>
+                        <input type="text" id="name" name="name" class="form-control" placeholder="e.g. My MinIO Server" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="connection_id">Connection ID (slug)</label>
+                        <input type="text" id="connection_id" name="connection_id" class="form-control" placeholder="e.g. aws-midso (leave blank to auto-generate)">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="access_key">Access Key</label>
+                        <input type="text" id="access_key" name="access_key" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="secret_key">Secret Key</label>
+                        <input type="password" id="secret_key" name="secret_key" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="endpoint_url">Endpoint URL (leave empty for AWS S3)</label>
+                        <input type="url" id="endpoint_url" name="endpoint_url" class="form-control" placeholder="https://play.min.io">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="region_name">Region Name</label>
+                        <input type="text" id="region_name" name="region_name" class="form-control" value="us-east-1">
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="name">Friendly Name</label>
-                    <input type="text" id="name" name="name" class="form-control" placeholder="e.g. My MinIO Server" required>
-                </div>
+                <details class="adv-details" style="border-top: 1px solid var(--glass-border); padding-top: 1rem; margin-top: 1.5rem; width: 100%;">
+                    <summary style="font-size: 0.9rem; font-weight: 600; color: #93c5fd; cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 0.5rem; outline: none; list-style: none;">
+                        <i class="fa-solid fa-gear"></i> Advanced connection settings
+                    </summary>
+                    <div style="margin-top: 1.25rem;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="upload_endpoint">Upload Endpoint URL (Optional)</label>
+                            <input type="url" id="upload_endpoint" name="upload_endpoint" class="form-control" placeholder="e.g. http://192.168.1.50:9000">
+                            <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                Cấu hình endpoint riêng dành cho Client tải file trực tiếp. Nếu để trống, mặc định dùng Endpoint URL.
+                            </span>
+                        </div>
+                    </div>
+                </details>
                 
-                <div class="form-group">
-                    <label for="endpoint_url">Endpoint URL (leave empty for AWS S3)</label>
-                    <input type="url" id="endpoint_url" name="endpoint_url" class="form-control" placeholder="https://play.min.io">
-                </div>
-                
-                <div class="form-group">
-                    <label for="access_key">Access Key</label>
-                    <input type="text" id="access_key" name="access_key" class="form-control" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="secret_key">Secret Key</label>
-                    <input type="password" id="secret_key" name="secret_key" class="form-control" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="region_name">Region Name</label>
-                    <input type="text" id="region_name" name="region_name" class="form-control" value="us-east-1">
-                </div>
-                
-                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 1.25rem;">
                     <button type="button" class="btn btn-secondary" onclick="closeModal('addConnectionModal')">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Connection</button>
                 </div>
@@ -146,39 +172,61 @@
     </div>
     <!-- Edit Connection Modal -->
     <div id="editConnectionModal" class="modal-overlay">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 760px;">
             <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
                 <span>Edit S3 Connection</span>
                 <button onclick="closeModal('editConnectionModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
             </h2>
             
             <form id="editConnectionForm" action="" method="POST">
-                <div class="form-group">
-                    <label for="edit_name">Friendly Name</label>
-                    <input type="text" id="edit_name" name="name" class="form-control" placeholder="e.g. My MinIO Server" required>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+                    <div class="form-group">
+                        <label for="edit_name">Friendly Name</label>
+                        <input type="text" id="edit_name" name="name" class="form-control" placeholder="e.g. My MinIO Server" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_connection_id_disp">Connection ID (slug)</label>
+                        <input type="text" id="edit_connection_id_disp" class="form-control" disabled style="opacity: 0.6; cursor: not-allowed;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit_access_key">Access Key</label>
+                        <input type="text" id="edit_access_key" name="access_key" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit_secret_key">Secret Key</label>
+                        <input type="password" id="edit_secret_key" name="secret_key" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_endpoint_url">Endpoint URL (leave empty for AWS S3)</label>
+                        <input type="url" id="edit_endpoint_url" name="endpoint_url" class="form-control" placeholder="https://play.min.io">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit_region_name">Region Name</label>
+                        <input type="text" id="edit_region_name" name="region_name" class="form-control" value="us-east-1">
+                    </div>
                 </div>
+
+                <details class="adv-details" style="border-top: 1px solid var(--glass-border); padding-top: 1rem; margin-top: 1.5rem; width: 100%;">
+                    <summary style="font-size: 0.9rem; font-weight: 600; color: #93c5fd; cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 0.5rem; outline: none; list-style: none;">
+                        <i class="fa-solid fa-gear"></i> Advanced connection settings
+                    </summary>
+                    <div style="margin-top: 1.25rem;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="edit_upload_endpoint">Upload Endpoint URL (Optional)</label>
+                            <input type="url" id="edit_upload_endpoint" name="upload_endpoint" class="form-control" placeholder="e.g. http://192.168.1.50:9000">
+                            <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                Cấu hình endpoint riêng dành cho Client tải file trực tiếp. Nếu để trống, mặc định dùng Endpoint URL.
+                            </span>
+                        </div>
+                    </div>
+                </details>
                 
-                <div class="form-group">
-                    <label for="edit_endpoint_url">Endpoint URL (leave empty for AWS S3)</label>
-                    <input type="url" id="edit_endpoint_url" name="endpoint_url" class="form-control" placeholder="https://play.min.io">
-                </div>
-                
-                <div class="form-group">
-                    <label for="edit_access_key">Access Key</label>
-                    <input type="text" id="edit_access_key" name="access_key" class="form-control" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="edit_secret_key">Secret Key</label>
-                    <input type="password" id="edit_secret_key" name="secret_key" class="form-control" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="edit_region_name">Region Name</label>
-                    <input type="text" id="edit_region_name" name="region_name" class="form-control" value="us-east-1">
-                </div>
-                
-                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 1.25rem;">
                     <button type="button" class="btn btn-secondary" onclick="closeModal('editConnectionModal')">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
@@ -219,6 +267,7 @@
                 const accessKey = btn.getAttribute('data-access-key');
                 const secretKey = btn.getAttribute('data-secret-key');
                 const region = btn.getAttribute('data-region');
+                const uploadEndpoint = btn.getAttribute('data-upload-endpoint') || '';
 
                 const form = document.getElementById('editConnectionForm');
                 form.action = `/connection/${id}/edit`;
@@ -228,6 +277,8 @@
                 document.getElementById('edit_access_key').value = accessKey;
                 document.getElementById('edit_secret_key').value = secretKey;
                 document.getElementById('edit_region_name').value = region;
+                document.getElementById('edit_connection_id_disp').value = id;
+                document.getElementById('edit_upload_endpoint').value = uploadEndpoint;
 
                 openModal('editConnectionModal');
             });
@@ -254,6 +305,7 @@
                         document.getElementById('endpoint_url').value = endpoint;
                         document.getElementById('access_key').value = config.accessKey;
                         document.getElementById('secret_key').value = config.secretKey;
+                        document.getElementById('upload_endpoint').value = config.uploadEndpoint || '';
 
                         // Derive friendly name & slug from endpoint URL
                         let friendlyName = 'Imported S3';

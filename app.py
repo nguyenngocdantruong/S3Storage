@@ -79,6 +79,7 @@ class S3Connection(db.Model):
     access_key = db.Column(db.String(255), nullable=False)
     secret_key = db.Column(db.String(255), nullable=False)
     region_name = db.Column(db.String(100), default='us-east-1')
+    upload_endpoint = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
@@ -119,6 +120,18 @@ class VideoProgress(db.Model):
 
     user = db.relationship('User', backref=db.backref('video_progresses', lazy=True))
 
+class VideoNote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    connection_name = db.Column(db.String(100), nullable=False)
+    bucket_name = db.Column(db.String(100), nullable=False)
+    file_key = db.Column(db.String(255), nullable=False)
+    timestamp = db.Column(db.Float, nullable=False)  # The video playback seconds
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('video_notes', lazy=True))
+
 class AuditLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) # Who did it
@@ -153,13 +166,15 @@ def fix_s3_url(url):
     return url
 
 # Helper: Get boto3 client
-def get_s3_client(connection):
+def get_s3_client(connection, endpoint_url=None):
     config = Config(
         signature_version='s3v4',
         retries={'max_attempts': 3},
         s3={'addressing_style': 'path'}
     )
-    endpoint = connection.endpoint_url if connection.endpoint_url.strip() else None
+    if endpoint_url is None:
+        endpoint_url = connection.endpoint_url
+    endpoint = endpoint_url if (endpoint_url and endpoint_url.strip()) else None
     return boto3.client(
         's3',
         endpoint_url=endpoint,
@@ -327,6 +342,18 @@ with app.app_context():
         except Exception as e:
             db.session.rollback()
             print(f"Migration error for s3_connection: {e}")
+
+    # Migration: check if s3_connection table has upload_endpoint column
+    try:
+        db.session.execute(db.text("SELECT upload_endpoint FROM s3_connection LIMIT 1")).fetchone()
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(db.text("ALTER TABLE s3_connection ADD COLUMN upload_endpoint VARCHAR(255)"))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Migration error for upload_endpoint: {e}")
 
     # Migration: check if user_bucket table has access_type column
     try:
@@ -546,6 +573,7 @@ def add_connection():
     access_key = request.form.get('access_key')
     secret_key = request.form.get('secret_key')
     region_name = request.form.get('region_name', 'us-east-1')
+    upload_endpoint = request.form.get('upload_endpoint', '').strip() or None
 
     if not all([name, access_key, secret_key]):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json or 'application/json' in request.headers.get('Accept', ''):
@@ -575,7 +603,8 @@ def add_connection():
             connection_id=connection_id,
             name=name, endpoint_url=endpoint_url,
             access_key=access_key, secret_key=secret_key,
-            region_name=region_name
+            region_name=region_name,
+            upload_endpoint=upload_endpoint
         )
         s3 = get_s3_client(conn_temp)
         
@@ -613,6 +642,7 @@ def delete_connection(connection_id):
         UserBucket.query.filter_by(connection_id=conn.id).delete()
         BucketAccess.query.filter_by(connection_id=conn.id).delete()
         VideoProgress.query.filter_by(connection_name=conn.name).delete()
+        UploadedFile.query.filter_by(connection_id=conn.id).delete()
         db.session.delete(conn)
         db.session.commit()
         flash('Connection deleted successfully.', 'success')
@@ -629,6 +659,7 @@ def edit_connection(connection_id):
     access_key = request.form.get('access_key')
     secret_key = request.form.get('secret_key')
     region_name = request.form.get('region_name', 'us-east-1')
+    upload_endpoint = request.form.get('upload_endpoint', '').strip() or None
 
     if not all([name, access_key, secret_key]):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json or 'application/json' in request.headers.get('Accept', ''):
@@ -643,7 +674,8 @@ def edit_connection(connection_id):
         conn_test = S3Connection(
             name=name, endpoint_url=endpoint_url,
             access_key=access_key, secret_key=secret_key,
-            region_name=region_name
+            region_name=region_name,
+            upload_endpoint=upload_endpoint
         )
         s3 = get_s3_client(conn_test)
         try:
@@ -660,6 +692,7 @@ def edit_connection(connection_id):
         conn.access_key = access_key
         conn.secret_key = secret_key
         conn.region_name = region_name
+        conn.upload_endpoint = upload_endpoint
 
         if old_name != name:
             VideoProgress.query.filter_by(connection_name=old_name).update({VideoProgress.connection_name: name})
@@ -942,7 +975,8 @@ def presign_upload(connection_id, bucket_name):
         filename_secured = secure_filename(filename)
         key = prefix + filename_secured
         
-        s3 = get_s3_client(conn)
+        endpoint_url = conn.upload_endpoint if (conn.upload_endpoint and conn.upload_endpoint.strip()) else conn.endpoint_url
+        s3 = get_s3_client(conn, endpoint_url=endpoint_url)
         presigned = s3.generate_presigned_post(
             Bucket=bucket_name,
             Key=key,
@@ -1263,6 +1297,75 @@ def proxy_s3_file(connection_id, bucket_name):
         return Response(stream_with_context(generate()), status=status_code, headers=headers)
     except Exception as e:
         return f"Error proxying file: {str(e)}", 500
+
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/office-to-pdf')
+def office_to_pdf(connection_id, bucket_name):
+    import os
+    import subprocess
+    import tempfile
+    import shutil
+
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    key = request.args.get('key')
+    
+    mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    
+    if not is_public and g.user is None:
+        return "Authentication required", 401
+        
+    if not check_bucket_access(g.user, conn, bucket_name):
+        return "Permission Denied", 403
+        
+    if not key:
+        return "Missing file key", 400
+
+    temp_dir = tempfile.mkdtemp()
+    try:
+        s3 = get_s3_client(conn)
+        filename = key.split('/')[-1]
+        input_path = os.path.join(temp_dir, filename)
+        
+        # Download file from S3 to temporary directory
+        s3.download_file(bucket_name, key, input_path)
+        
+        # Convert to pdf using libreoffice
+        result = subprocess.run(
+            ['soffice', '--headless', '--convert-to', 'pdf', '--outdir', temp_dir, input_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=60
+        )
+        
+        if result.returncode != 0:
+            return f"LibreOffice conversion failed: {result.stderr}", 500
+            
+        base_name = os.path.splitext(filename)[0]
+        pdf_filename = f"{base_name}.pdf"
+        pdf_path = os.path.join(temp_dir, pdf_filename)
+        
+        if not os.path.exists(pdf_path):
+            return "Converted PDF not found", 500
+            
+        with open(pdf_path, 'rb') as f:
+            pdf_data = f.read()
+            
+        headers = {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': f'inline; filename="{urllib.parse.quote(pdf_filename)}"'
+        }
+        return Response(pdf_data, status=200, headers=headers)
+        
+    except subprocess.TimeoutExpired:
+        return "Conversion timed out", 504
+    except Exception as e:
+        return f"Error converting file: {str(e)}", 500
+    finally:
+        try:
+            shutil.rmtree(temp_dir)
+        except Exception:
+            pass
 
 # --- Video Playback Tracking Routes ---
 
@@ -1846,6 +1949,85 @@ def api_share_file(connection_id, bucket_name):
         ))
         return jsonify({'status': 'success', 'share_link': presigned_url})
     except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/video/notes', methods=['GET'])
+@login_required
+def get_video_notes():
+    connection_name = request.args.get('connection_name')
+    bucket_name = request.args.get('bucket_name')
+    file_key = request.args.get('file_key')
+    
+    if not all([connection_name, bucket_name, file_key]):
+        return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
+        
+    try:
+        notes = VideoNote.query.filter_by(
+            user_id=g.user.id,
+            connection_name=connection_name,
+            bucket_name=bucket_name,
+            file_key=file_key
+        ).order_by(VideoNote.timestamp.asc()).all()
+        
+        notes_list = [{
+            'id': note.id,
+            'timestamp': note.timestamp,
+            'content': note.content,
+            'created_at': note.created_at.isoformat()
+        } for note in notes]
+        
+        return jsonify({'status': 'success', 'notes': notes_list})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/video/notes', methods=['POST'])
+@login_required
+def create_video_note():
+    data = request.get_json() or {}
+    connection_name = data.get('connection_name')
+    bucket_name = data.get('bucket_name')
+    file_key = data.get('file_key')
+    timestamp = data.get('timestamp')
+    content = data.get('content')
+    
+    if not all([connection_name, bucket_name, file_key, content]) or timestamp is None:
+        return jsonify({'status': 'error', 'message': 'Missing fields'}), 400
+        
+    try:
+        note = VideoNote(
+            user_id=g.user.id,
+            connection_name=connection_name,
+            bucket_name=bucket_name,
+            file_key=file_key,
+            timestamp=float(timestamp),
+            content=content.strip()
+        )
+        db.session.add(note)
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'note': {
+                'id': note.id,
+                'timestamp': note.timestamp,
+                'content': note.content,
+                'created_at': note.created_at.isoformat()
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/video/notes/<int:note_id>', methods=['DELETE'])
+@login_required
+def delete_video_note(note_id):
+    note = VideoNote.query.filter_by(id=note_id, user_id=g.user.id).first_or_404()
+    try:
+        db.session.delete(note)
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': 'Note deleted'})
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':

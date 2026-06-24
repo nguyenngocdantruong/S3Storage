@@ -441,7 +441,7 @@
                     <audio src="{{ presigned_url }}" controls autoplay class="custom-audio-player"></audio>
                 </div>
                 
-            {% elif file_type == 'pdf' %}
+            {% elif file_type in ['pdf', 'powerpoint', 'docx'] %}
                 <div class="pdf-viewer-custom" id="pdf-viewer-card">
                     <div class="pdf-toolbar">
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -477,95 +477,7 @@
                         </div>
                         <div id="pdf-loading-overlay" style="position: absolute; inset: 0; background: rgba(30, 41, 59, 0.85); display: flex; justify-content: center; align-items: center; z-index: 10; color: #fff; flex-direction: column; gap: 1rem;">
                             <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
-                            <span>Đang tải PDF...</span>
-                        </div>
-                    </div>
-                </div>
-                
-            {% elif file_type == 'powerpoint' %}
-                <div class="glass-card" style="padding: 1.5rem;">
-                    {% if not is_local_endpoint %}
-                        {% set encoded_url = presigned_url | urlencode %}
-                        <div style="margin-bottom: 1.5rem;">
-                            <div style="border-radius: var(--radius-md); overflow: hidden; background: #fff; border: 1px solid var(--glass-border);">
-                                <iframe src="https://view.officeapps.live.com/op/embed.aspx?src={{ encoded_url }}" width="100%" height="550px" frameborder="0"></iframe>
-                            </div>
-                        </div>
-                    {% endif %}
-
-                    <div style="text-align: center; {% if not is_local_endpoint %}border-top: 1px solid var(--glass-border); padding-top: 1.5rem;{% endif %}">
-                        <i class="fa-solid fa-file-powerpoint" style="font-size: 2.5rem; color: #ea580c; margin-bottom: 1rem;"></i>
-                        <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem;">PowerPoint Document Preview</h3>
-
-                        {% if is_local_endpoint %}
-                            <div class="glass-card" style="background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.3); text-align: left; padding: 1.5rem; margin: 1.5rem auto; max-width: 650px;">
-                                <h4 style="color: var(--accent-rose); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                                    <i class="fa-solid fa-triangle-exclamation"></i> Local Network S3 Detected
-                                </h4>
-                                <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
-                                    Microsoft Office Viewer runs on Microsoft's cloud servers. Since your S3 Compatible Storage is hosted locally (localhost/private IP), Microsoft cannot access it to render the file. 
-                                    Please download the file directly to view it on your machine.
-                                </p>
-                            </div>
-                        {% else %}
-                            <p style="color: var(--text-secondary); max-width: 600px; margin: 0 auto 1.5rem auto; font-size: 0.9rem;">
-                                We render PowerPoint presentations online using Microsoft Office Web Viewer. If the S3 storage is secure or cannot be reached, please download the file directly.
-                            </p>
-                        {% endif %}
-                        
-                        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                            {% if not is_local_endpoint %}
-                                <a href="https://view.officeapps.live.com/op/embed.aspx?src={{ encoded_url }}" target="_blank" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
-                                    <i class="fa-solid fa-paper-plane"></i> View with Office Web Viewer
-                                </a>
-                            {% endif %}
-                            <a href="{{ presigned_url }}" download class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
-                                <i class="fa-solid fa-download"></i> Download File
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                
-            {% elif file_type == 'docx' %}
-                <div class="glass-card" style="padding: 1.5rem;">
-                    {% if not is_local_endpoint %}
-                        {% set encoded_url = presigned_url | urlencode %}
-                        <div style="margin-bottom: 1.5rem;">
-                            <div style="border-radius: var(--radius-md); overflow: hidden; background: #fff; border: 1px solid var(--glass-border);">
-                                <iframe src="https://view.officeapps.live.com/op/embed.aspx?src={{ encoded_url }}" width="100%" height="550px" frameborder="0"></iframe>
-                            </div>
-                        </div>
-                    {% endif %}
-
-                    <div style="text-align: center; {% if not is_local_endpoint %}border-top: 1px solid var(--glass-border); padding-top: 1.5rem;{% endif %}">
-                        <i class="fa-solid fa-file-word docx-icon" style="font-size: 2.5rem; margin-bottom: 1rem;"></i>
-                        <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem;">Word Document Preview</h3>
-
-                        {% if is_local_endpoint %}
-                            <div class="glass-card" style="background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.3); text-align: left; padding: 1.5rem; margin: 1.5rem auto; max-width: 650px;">
-                                <h4 style="color: var(--accent-rose); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                                    <i class="fa-solid fa-triangle-exclamation"></i> Local Network S3 Detected
-                                </h4>
-                                <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
-                                    Microsoft Office Viewer requires public access to fetch your file. Since your S3 Compatible Storage is hosted locally, Microsoft cannot load it. 
-                                    Please download the file to view locally.
-                                </p>
-                            </div>
-                        {% else %}
-                            <p style="color: var(--text-secondary); max-width: 600px; margin: 0 auto 1.5rem auto; font-size: 0.9rem;">
-                                We render Word documents online using Microsoft Office Web Viewer. If the S3 storage is secure or cannot be reached, please download the file directly.
-                            </p>
-                        {% endif %}
-                        
-                        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                            {% if not is_local_endpoint %}
-                                <a href="https://view.officeapps.live.com/op/embed.aspx?src={{ encoded_url }}" target="_blank" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
-                                    <i class="fa-solid fa-paper-plane"></i> View with Office Web Viewer
-                                </a>
-                            {% endif %}
-                            <a href="{{ presigned_url }}" download class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
-                                <i class="fa-solid fa-download"></i> Download File
-                            </a>
+                            <span>Đang tải tài liệu...</span>
                         </div>
                     </div>
                 </div>
@@ -607,20 +519,61 @@
     
     <!-- Right side file list rightbar -->
     <div class="viewer-sidebar">
-        <div class="sidebar-header">
-            <h3>Files in Bucket</h3>
-            <span class="file-count" id="sidebar-file-count">0 files</span>
+        <!-- Sidebar Tabs -->
+        <div class="sidebar-header" style="display: flex; gap: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem; margin-bottom: 0.5rem; justify-content: flex-start; align-items: center;">
+            <div id="tab-files" class="sidebar-tab active" style="font-size: 1rem; font-weight: 700; color: #fff; cursor: pointer; border-bottom: 2px solid var(--accent-purple); padding-bottom: 0.25rem; display: flex; align-items: center; gap: 0.35rem;">
+                <i class="fa-solid fa-folder-open"></i>
+                <span>Tệp tin</span>
+                <span id="sidebar-file-count" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal; margin-left: 0.25rem;"></span>
+            </div>
+            {% if file_type == 'video' %}
+            <div id="tab-notes" class="sidebar-tab" style="font-size: 1rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; padding-bottom: 0.25rem; display: flex; align-items: center; gap: 0.35rem; border-bottom: 2px solid transparent;">
+                <i class="fa-solid fa-note-sticky"></i>
+                <span>Ghi chú</span>
+            </div>
+            {% endif %}
         </div>
-        <div class="sidebar-search">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="sidebar-filter" placeholder="Lọc tệp tin...">
-        </div>
-        <div class="sidebar-file-list" id="sidebar-file-list">
-            <div class="loading-spinner">
-                <i class="fa-solid fa-circle-notch fa-spin"></i>
-                <span>Đang tải danh sách...</span>
+        
+        <!-- Files Tab Content -->
+        <div id="tab-content-files" style="display: flex; flex-direction: column; gap: 1rem; flex: 1; min-height: 0;">
+            <div class="sidebar-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="sidebar-filter" placeholder="Lọc tệp tin...">
+            </div>
+            <div class="sidebar-file-list" id="sidebar-file-list">
+                <div class="loading-spinner">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    <span>Đang tải danh sách...</span>
+                </div>
             </div>
         </div>
+
+        {% if file_type == 'video' %}
+        <!-- Notes Tab Content -->
+        <div id="tab-content-notes" style="display: none; flex-direction: column; gap: 1rem; flex: 1; min-height: 0;">
+            <!-- Scrollable Notes List -->
+            <div id="notes-list" style="overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; flex-grow: 1; padding-right: 0.25rem;">
+                <div style="color: var(--text-muted); text-align: center; padding: 2rem 1rem; font-size: 0.9rem;">
+                    <i class="fa-solid fa-pen-to-square" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--text-muted);"></i>
+                    Chưa có ghi chú nào cho video này.
+                </div>
+            </div>
+            
+            <!-- Note Form -->
+            <div id="note-form" style="border-top: 1px solid var(--glass-border); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary);">
+                    <span>Thời điểm ghi chú: <strong id="note-time-display" style="color: var(--accent-purple);">00:00</strong></span>
+                    <button class="btn btn-secondary" id="note-time-sync-btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; min-height: auto; width: auto; display: flex; align-items: center; gap: 0.25rem;" title="Đồng bộ với thời gian video hiện tại">
+                        <i class="fa-solid fa-arrows-rotate"></i> Sync
+                    </button>
+                </div>
+                <textarea id="note-textarea" class="form-control" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 0.85rem; padding: 0.5rem; resize: none; height: 70px; outline: none; width: 100%;" placeholder="Nhập ghi chú bài học... (video sẽ tự động dừng)"></textarea>
+                <button class="btn btn-primary" id="note-save-btn" style="width: 100%; padding: 0.5rem; font-size: 0.85rem; font-weight: 600;">
+                    <i class="fa-solid fa-save"></i> Lưu ghi chú
+                </button>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -789,6 +742,22 @@
         return root;
     }
 
+    // Helper to check if a node contains the active file recursively
+    function hasActiveFile(node) {
+        if (!node) return false;
+        if (node.files && node.files.some(file => file.key === currentKey)) {
+            return true;
+        }
+        if (node.children) {
+            for (const childName in node.children) {
+                if (hasActiveFile(node.children[childName])) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     // Render tree representation recursively
     function renderTree(node, container, depth = 0) {
         // Render folders first
@@ -800,13 +769,17 @@
             
             const folderId = 'folder-' + Math.random().toString(36).substring(2, 9);
             
+            const isActive = hasActiveFile(folderNode);
+            const displayStyle = isActive ? 'display:flex;' : 'display:none;';
+            const iconStyle = isActive ? 'transform: rotate(90deg);' : '';
+            
             folderEl.innerHTML = `
                 <div class="folder-header" onclick="toggleFolder('${folderId}')" style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem; cursor:pointer; border-radius:var(--radius-md); transition:background 0.2s;">
-                    <i class="fa-solid fa-chevron-right folder-toggle-icon" id="icon-${folderId}" style="font-size:0.7rem; transition:transform 0.2s; color:var(--text-secondary);"></i>
+                    <i class="fa-solid fa-chevron-right folder-toggle-icon" id="icon-${folderId}" style="font-size:0.7rem; transition:transform 0.2s; color:var(--text-secondary); ${iconStyle}"></i>
                     <i class="fa-solid fa-folder" style="color:#fbbf24; font-size:0.95rem;"></i>
                     <span style="font-size:0.85rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#fff; flex:1;">${folderName}</span>
                 </div>
-                <div class="folder-children" id="${folderId}" style="display:none; margin-left:0.5rem; border-left:1px solid var(--glass-border); padding-left:0.5rem; gap: 0.25rem; flex-direction: column;"></div>
+                <div class="folder-children" id="${folderId}" style="${displayStyle} margin-left:0.5rem; border-left:1px solid var(--glass-border); padding-left:0.5rem; gap: 0.25rem; flex-direction: column;"></div>
             `;
             
             container.appendChild(folderEl);
@@ -865,6 +838,12 @@
             `;
             
             container.appendChild(item);
+
+            if (file.key === currentKey) {
+                setTimeout(() => {
+                    item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 300);
+            }
         });
     }
 
@@ -999,7 +978,9 @@
             .then(data => {
                 if (data.status === 'success') {
                     const fileCountSpan = document.getElementById('sidebar-file-count');
-                    fileCountSpan.textContent = `${data.files.length} tệp tin`;
+                    if (fileCountSpan) {
+                        fileCountSpan.textContent = `(${data.files.length})`;
+                    }
                     
                     window.sidebarFiles = data.files;
                     renderFolderTree(data.files);
@@ -1031,7 +1012,9 @@
             .then(data => {
                 if (data.status === 'success') {
                     const fileCountSpan = document.getElementById('sidebar-file-count');
-                    fileCountSpan.textContent = `${data.files.length} tệp tin`;
+                    if (fileCountSpan) {
+                        fileCountSpan.textContent = `(${data.files.length})`;
+                    }
                     
                     window.sidebarFiles = data.files;
                     const query = document.getElementById('sidebar-filter').value.toLowerCase().trim();
@@ -1236,11 +1219,15 @@
     }
 
     // PDF.js Viewer Logic
-    {% if file_type == 'pdf' %}
+    {% if file_type in ['pdf', 'powerpoint', 'docx'] %}
     document.addEventListener('DOMContentLoaded', () => {
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
+        {% if file_type in ['powerpoint', 'docx'] %}
+        const pdfUrl = "{{ url_for('office_to_pdf', connection_id=connection.connection_id, bucket_name=bucket_name, key=key) | safe }}";
+        {% else %}
         const pdfUrl = "{{ presigned_url | safe }}";
+        {% endif %}
         let pdfDoc = null,
             pageNum = parseInt("{{ resume_seconds }}") || 1,
             pageIsRendering = false,
@@ -1590,6 +1577,220 @@
             setTimeout(playNextTrack, 1200);
         });
         window.addEventListener('beforeunload', () => saveProgress(furthestTime));
+
+        // --- Video Lesson Notes Logic ---
+        const tabFiles = document.getElementById('tab-files');
+        const tabNotes = document.getElementById('tab-notes');
+        const tabContentFiles = document.getElementById('tab-content-files');
+        const tabContentNotes = document.getElementById('tab-content-notes');
+
+        if (tabFiles && tabNotes) {
+            tabFiles.addEventListener('click', () => {
+                tabFiles.classList.add('active');
+                tabFiles.style.color = '#fff';
+                tabFiles.style.borderBottomColor = 'var(--accent-purple)';
+                tabFiles.style.fontWeight = '700';
+
+                tabNotes.classList.remove('active');
+                tabNotes.style.color = 'var(--text-secondary)';
+                tabNotes.style.borderBottomColor = 'transparent';
+                tabNotes.style.fontWeight = '600';
+
+                tabContentFiles.style.display = 'flex';
+                tabContentNotes.style.display = 'none';
+            });
+
+            tabNotes.addEventListener('click', () => {
+                tabNotes.classList.add('active');
+                tabNotes.style.color = '#fff';
+                tabNotes.style.borderBottomColor = 'var(--accent-purple)';
+                tabNotes.style.fontWeight = '700';
+
+                tabFiles.classList.remove('active');
+                tabFiles.style.color = 'var(--text-secondary)';
+                tabFiles.style.borderBottomColor = 'transparent';
+                tabFiles.style.fontWeight = '600';
+
+                tabContentFiles.style.display = 'none';
+                tabContentNotes.style.display = 'flex';
+                loadNotes();
+            });
+        }
+
+        const noteTextarea = document.getElementById('note-textarea');
+        const noteTimeDisplay = document.getElementById('note-time-display');
+        const noteTimeSyncBtn = document.getElementById('note-time-sync-btn');
+        const noteSaveBtn = document.getElementById('note-save-btn');
+        const notesList = document.getElementById('notes-list');
+
+        let noteTimestamp = null;
+
+        function formatTime(secs) {
+            const h = Math.floor(secs / 3600);
+            const m = Math.floor((secs % 3600) / 60);
+            const s = Math.floor(secs % 60);
+            return (h > 0 ? h + ":" : "") + 
+                   (m < 10 && h > 0 ? "0" : "") + m + ":" + 
+                   (s < 10 ? "0" : "") + s;
+        }
+
+        function setNoteTimestamp(time) {
+            noteTimestamp = time;
+            noteTimeDisplay.textContent = formatTime(time);
+        }
+
+        if (noteTextarea) {
+            // Auto-pause video and capture time when user starts typing/interacting
+            noteTextarea.addEventListener('focus', () => {
+                if (noteTimestamp === null) {
+                    setNoteTimestamp(video.currentTime);
+                }
+                if (!video.paused) {
+                    video.pause();
+                }
+            });
+
+            noteTextarea.addEventListener('input', () => {
+                if (noteTimestamp === null) {
+                    setNoteTimestamp(video.currentTime);
+                }
+                if (!video.paused) {
+                    video.pause();
+                }
+            });
+        }
+
+        if (noteTimeSyncBtn) {
+            noteTimeSyncBtn.addEventListener('click', () => {
+                setNoteTimestamp(video.currentTime);
+            });
+        }
+
+        async function loadNotes() {
+            if (!notesList) return;
+            notesList.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 1.5rem;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải ghi chú...</div>';
+            
+            try {
+                const params = new URLSearchParams({
+                    connection_name: "{{ connection.name }}",
+                    bucket_name: "{{ bucket_name }}",
+                    file_key: "{{ key }}"
+                });
+                const res = await fetch(`/api/video/notes?${params.toString()}`);
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    if (data.notes.length === 0) {
+                        notesList.innerHTML = `
+                            <div style="color: var(--text-muted); text-align: center; padding: 2rem 1rem; font-size: 0.9rem;">
+                                <i class="fa-solid fa-pen-to-square" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--text-muted);"></i>
+                                Chưa có ghi chú nào cho video này.
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    notesList.innerHTML = '';
+                    data.notes.forEach(note => {
+                        const noteEl = document.createElement('div');
+                        noteEl.style.background = 'rgba(255, 255, 255, 0.02)';
+                        noteEl.style.border = '1px solid var(--glass-border)';
+                        noteEl.style.borderRadius = 'var(--radius-md)';
+                        noteEl.style.padding = '0.75rem';
+                        noteEl.style.display = 'flex';
+                        noteEl.style.flexDirection = 'column';
+                        noteEl.style.gap = '0.35rem';
+                        
+                        noteEl.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--glass-border); padding-bottom: 0.25rem;">
+                                <button class="btn btn-secondary note-seek-btn" data-time="${note.timestamp}" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: auto; width: auto; color: var(--accent-purple); font-weight: 600; border-color: rgba(139, 92, 246, 0.3);">
+                                    <i class="fa-solid fa-play" style="font-size: 0.65rem; margin-right: 2px;"></i> ${formatTime(note.timestamp)}
+                                </button>
+                                <button class="note-delete-btn" data-id="${note.id}" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; padding: 0.25rem; border-radius: 4px;" title="Xóa ghi chú">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                            <div style="font-size: 0.85rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; line-height: 1.4; text-align: left;">${note.content}</div>
+                        `;
+                        notesList.appendChild(noteEl);
+                    });
+
+                    // Add click event for seek buttons
+                    notesList.querySelectorAll('.note-seek-btn').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const time = parseFloat(btn.getAttribute('data-time'));
+                            video.currentTime = time;
+                            video.play().catch(e => console.log(e));
+                        });
+                    });
+
+                    // Add click event for delete buttons
+                    notesList.querySelectorAll('.note-delete-btn').forEach(btn => {
+                        btn.addEventListener('click', async () => {
+                            if (!confirm('Bạn có chắc muốn xóa ghi chú này?')) return;
+                            const id = btn.getAttribute('data-id');
+                            try {
+                                const res = await fetch(`/api/video/notes/${id}`, { method: 'DELETE' });
+                                const resData = await res.json();
+                                if (resData.status === 'success') {
+                                    loadNotes();
+                                } else {
+                                    alert('Không thể xóa: ' + resData.message);
+                                }
+                            } catch (err) {
+                                console.error(err);
+                                alert('Lỗi kết nối server.');
+                            }
+                        });
+                    });
+                } else {
+                    notesList.innerHTML = `<div style="color: var(--accent-rose); text-align: center; padding: 1.5rem;">Lỗi: ${data.message}</div>`;
+                }
+            } catch (err) {
+                console.error(err);
+                notesList.innerHTML = '<div style="color: var(--accent-rose); text-align: center; padding: 1.5rem;">Lỗi tải dữ liệu.</div>';
+            }
+        }
+
+        if (noteSaveBtn) {
+            noteSaveBtn.addEventListener('click', async () => {
+                const content = noteTextarea.value.trim();
+                if (!content) {
+                    alert('Vui lòng nhập nội dung ghi chú.');
+                    return;
+                }
+
+                const targetTime = noteTimestamp !== null ? noteTimestamp : video.currentTime;
+
+                try {
+                    const res = await fetch('/api/video/notes', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            connection_name: "{{ connection.name }}",
+                            bucket_name: "{{ bucket_name }}",
+                            file_key: "{{ key }}",
+                            timestamp: targetTime,
+                            content: content
+                        })
+                    });
+                    const resData = await res.json();
+                    if (resData.status === 'success') {
+                        noteTextarea.value = '';
+                        setNoteTimestamp(null);
+                        noteTimeDisplay.textContent = '00:00';
+                        loadNotes();
+                    } else {
+                        alert('Không thể lưu: ' + resData.message);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('Lỗi kết nối server.');
+                }
+            });
+        }
     });
     {% endif %}
 
