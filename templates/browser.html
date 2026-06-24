@@ -208,7 +208,7 @@
 {% if can_edit %}
     <!-- Upload File Modal -->
     <div id="uploadModal" class="modal-overlay">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 600px;">
             <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
                 <span>Upload File</span>
                 <button onclick="closeModal('uploadModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
@@ -217,25 +217,22 @@
             <form id="upload-form">
                 <input type="hidden" id="upload-prefix" value="{{ prefix }}">
                 
-                <div class="form-group">
-                    <label for="file">Select File</label>
-                    <input type="file" id="file" class="form-control" required style="padding: 0.5rem;">
+                <div class="upload-drop-zone" id="drop-zone">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <div class="upload-drop-zone-text">
+                        <strong>Kéo thả tệp vào đây</strong> hoặc click để chọn tệp tin
+                    </div>
+                    <input type="file" id="file" class="file-input-hidden" multiple required>
                 </div>
-                
-                <!-- Progress Bar container -->
-                <div id="progress-container" style="display: none; margin-top: 1.5rem;">
-                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
-                        <span id="upload-status">Uploading...</span>
-                        <span id="progress-percent">0%</span>
-                    </div>
-                    <div style="height: 8px; background: rgba(255,255,255,0.05); border-radius: 999px; overflow: hidden; border: 1px solid var(--glass-border);">
-                        <div id="progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue)); transition: width 0.1s ease;"></div>
-                    </div>
+
+                <!-- Preview container -->
+                <div class="upload-preview-container" id="preview-container" style="display: none;">
+                    <!-- Preview items will be appended here dynamically -->
                 </div>
                 
                 <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
                     <button type="button" id="btn-upload-cancel" class="btn btn-secondary" onclick="closeModal('uploadModal')">Cancel</button>
-                    <button type="submit" id="btn-upload-submit" class="btn btn-primary"><i class="fa-solid fa-upload"></i> Upload</button>
+                    <button type="submit" id="btn-upload-submit" class="btn btn-primary" disabled><i class="fa-solid fa-upload"></i> Upload</button>
                 </div>
             </form>
         </div>
@@ -249,118 +246,174 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadForm = document.getElementById('upload-form');
     if (!uploadForm) return;
 
-    uploadForm.addEventListener('submit', (e) => {
+    const fileInput = document.getElementById('file');
+    const dropZone = document.getElementById('drop-zone');
+    const previewContainer = document.getElementById('preview-container');
+    const submitBtn = document.getElementById('btn-upload-submit');
+    const cancelBtn = document.getElementById('btn-upload-cancel');
+
+    let selectedFiles = [];
+
+    // Drag-and-drop event handlers
+    const preventDefaults = (e) => {
         e.preventDefault();
+        e.stopPropagation();
+    };
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFilesSelect(files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        handleFilesSelect(fileInput.files);
+    });
+
+    function handleFilesSelect(files) {
+        if (!files.length) return;
+        selectedFiles = Array.from(files);
         
-        const fileInput = document.getElementById('file');
-        if (!fileInput.files.length) return;
-        
-        const file = fileInput.files[0];
-        const prefix = document.getElementById('upload-prefix').value;
-        
-        const submitBtn = document.getElementById('btn-upload-submit');
-        const cancelBtn = document.getElementById('btn-upload-cancel');
-        const progressContainer = document.getElementById('progress-container');
-        const progressBar = document.getElementById('progress-bar');
-        const progressPercent = document.getElementById('progress-percent');
-        const uploadStatus = document.getElementById('upload-status');
-        
+        // Clear preview
+        previewContainer.innerHTML = '';
+        previewContainer.style.display = 'flex';
+
+        selectedFiles.forEach((file, index) => {
+            const item = document.createElement('div');
+            item.className = 'preview-item';
+            item.id = `preview-item-${index}`;
+            
+            let sizeStr = '';
+            if (file.size < 1024) sizeStr = `${file.size} B`;
+            else if (file.size < 1048576) sizeStr = `${(file.size / 1024).toFixed(1)} KB`;
+            else sizeStr = `${(file.size / 1048576).toFixed(1)} MB`;
+
+            item.innerHTML = `
+                <div class="preview-item-header">
+                    <span class="preview-item-name" title="${file.name}">${file.name} (${sizeStr})</span>
+                    <span class="preview-item-status pending" id="status-${index}">Pending</span>
+                </div>
+                <div class="preview-item-progress-bar-container">
+                    <div class="preview-item-progress-bar" id="progress-bar-${index}"></div>
+                </div>
+            `;
+            previewContainer.appendChild(item);
+        });
+
+        submitBtn.disabled = false;
+    }
+
+    // Perform uploads sequentially
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!selectedFiles.length) return;
+
         submitBtn.disabled = true;
         cancelBtn.disabled = true;
-        progressContainer.style.display = 'block';
-        uploadStatus.textContent = 'Generating upload signature...';
+        fileInput.disabled = true;
 
-        // 1. Get presigned POST fields from Flask
-        fetch("{{ url_for('presign_upload', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                filename: file.name,
-                filesize: file.size,
-                filetype: file.type,
-                prefix: prefix
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'error') {
-                throw new Error(data.message);
-            }
-            
-            uploadStatus.textContent = 'Uploading directly to S3...';
-            
-            // 2. Build form data for S3
-            const formData = new FormData();
-            Object.entries(data.fields).forEach(([k, v]) => {
-                formData.append(k, v);
-            });
-            formData.append('file', file);
-            
-            // 3. Perform upload with progress tracking using XMLHttpRequest
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', data.url, true);
-            
-            xhr.upload.onprogress = (event) => {
-                if (event.lengthComputable) {
-                    const percentComplete = Math.round((event.loaded / event.total) * 100);
-                    progressBar.style.width = percentComplete + '%';
-                    progressPercent.textContent = percentComplete + '%';
+        const prefix = document.getElementById('upload-prefix').value;
+        let successCount = 0;
+
+        for (let i = 0; i < selectedFiles.length; i++) {
+            const file = selectedFiles[i];
+            const statusEl = document.getElementById(`status-${i}`);
+            const barEl = document.getElementById(`progress-bar-${i}`);
+
+            statusEl.textContent = 'Uploading...';
+            statusEl.className = 'preview-item-status uploading';
+
+            try {
+                // 1. Get presigned upload signature
+                const presignRes = await fetch("{{ url_for('presign_upload', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        filesize: file.size,
+                        filetype: file.type,
+                        prefix: prefix
+                    })
+                });
+                const presignData = await presignRes.json();
+                if (presignData.status === 'error') {
+                    throw new Error(presignData.message);
                 }
-            };
-            
-            xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    uploadStatus.textContent = 'Confirming upload with server...';
-                    
-                    // 4. Confirm upload with Flask
-                    fetch("{{ url_for('confirm_upload', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ key: data.key })
-                    })
-                    .then(res => res.json())
-                    .then(confirmData => {
-                        if (confirmData.status === 'success') {
-                            uploadStatus.textContent = 'Success!';
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 500);
-                        } else {
-                            throw new Error(confirmData.message || 'Confirm failed');
-                        }
-                    })
-                    .catch(err => {
-                        alert('Confirm failed: ' + err.message);
-                        resetForm();
+
+                // 2. Perform direct upload to S3 using XHR
+                await new Promise((resolve, reject) => {
+                    const formData = new FormData();
+                    Object.entries(presignData.fields).forEach(([k, v]) => {
+                        formData.append(k, v);
                     });
-                } else {
-                    alert('S3 upload failed. Status: ' + xhr.status);
-                    resetForm();
+                    formData.append('file', file);
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', presignData.url, true);
+
+                    xhr.upload.onprogress = (event) => {
+                        if (event.lengthComputable) {
+                            const percent = Math.round((event.loaded / event.total) * 100);
+                            barEl.style.width = percent + '%';
+                        }
+                    };
+
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve(presignData.key);
+                        } else {
+                            reject(new Error(`S3 upload failed (status ${xhr.status})`));
+                        }
+                    };
+
+                    xhr.onerror = () => reject(new Error('Network error during S3 upload'));
+                    xhr.send(formData);
+                });
+
+                // 3. Confirm upload
+                statusEl.textContent = 'Confirming...';
+                const confirmRes = await fetch("{{ url_for('confirm_upload', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: presignData.key })
+                });
+                const confirmData = await confirmRes.json();
+                if (confirmData.status !== 'success') {
+                    throw new Error(confirmData.message || 'Confirmation failed');
                 }
-            };
-            
-            xhr.onerror = () => {
-                alert('An error occurred during S3 upload.');
-                resetForm();
-            };
-            
-            xhr.send(formData);
-        })
-        .catch(err => {
-            alert('Upload error: ' + err.message);
-            resetForm();
-        });
-        
-        function resetForm() {
+
+                statusEl.textContent = 'Success';
+                statusEl.className = 'preview-item-status success';
+                successCount++;
+            } catch (err) {
+                console.error(err);
+                statusEl.textContent = 'Error: ' + err.message;
+                statusEl.className = 'preview-item-status error';
+                barEl.style.backgroundColor = 'var(--accent-rose)';
+            }
+        }
+
+        if (successCount === selectedFiles.length) {
+            setTimeout(() => {
+                window.location.reload();
+            }, 800);
+        } else {
+            // Re-enable elements if there were errors
             submitBtn.disabled = false;
             cancelBtn.disabled = false;
-            progressContainer.style.display = 'none';
-            progressBar.style.width = '0%';
-            progressPercent.textContent = '0%';
+            fileInput.disabled = false;
         }
     });
 });
