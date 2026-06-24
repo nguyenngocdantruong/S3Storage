@@ -907,11 +907,22 @@
                 else sizeStr = `${(kb / 1024).toFixed(1)} MB`;
             }
             
+            let displayName = file.name;
+            if (displayName.length > 70) {
+                const parts = displayName.split('.');
+                if (parts.length > 1) {
+                    const ext = parts[parts.length - 1];
+                    displayName = displayName.substring(0, 50) + '...' + '.' + ext;
+                } else {
+                    displayName = displayName.substring(0, 50) + '...';
+                }
+            }
+            
             item.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:start; gap:0.5rem;">
                     <div class="sidebar-item-header" style="flex:1; min-width:0;">
                         <i class="${getFileIconClass(file.file_type)}"></i>
-                        <span class="item-name" title="${file.name}">${file.name}</span>
+                        <span class="item-name" title="${file.name}">${displayName}</span>
                     </div>
                     <button class="share-file-btn" onclick="openShareModal(event, '${file.key.replace(/'/g, "\\'")}')" style="background:none; border:none; color:var(--text-muted); cursor:pointer; padding:0.25rem; border-radius:4px; font-size:0.75rem;" title="Chia sẻ liên kết">
                         <i class="fa-solid fa-share-nodes"></i>

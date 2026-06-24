@@ -116,7 +116,7 @@
                         {% set is_viewable = ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'mp3', 'wav', 'aac', 'flac', 'pdf', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] %}
                         <tr>
                             <td>
-                                <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="file-item-name">
+                                <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="file-item-name" title="{{ file.name }}">
                                     {% if ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov'] %}
                                         <i class="fa-solid fa-film file-icon video"></i>
                                     {% elif ext in ['mp3', 'wav', 'aac', 'flac'] %}
@@ -130,7 +130,16 @@
                                     {% else %}
                                         <i class="fa-solid fa-file file-icon"></i>
                                     {% endif %}
-                                    {{ file.name }}
+                                    {% if file.name|length > 70 %}
+                                        {% if '.' in file.name %}
+                                            {% set file_ext = file.name.split('.')[-1] %}
+                                            {{ file.name[:50] }}...{{ '.' + file_ext }}
+                                        {% else %}
+                                            {{ file.name[:50] }}...
+                                        {% endif %}
+                                    {% else %}
+                                        {{ file.name }}
+                                    {% endif %}
                                 </a>
                             </td>
                             <td style="color: var(--text-secondary);">
