@@ -57,6 +57,7 @@ body {
     left: 0;
     top: 0;
     z-index: 100;
+    transition: var(--transition-smooth);
 }
 
 .logo-container {
@@ -121,7 +122,42 @@ body {
     width: calc(100% - 280px);
     padding: 2.5rem 3rem;
     min-height: 100vh;
+    transition: var(--transition-smooth);
 }
+
+/* Collapsed Sidebar Layout Styles */
+.sidebar.collapsed {
+    width: 80px;
+    padding: 2rem 0.5rem;
+    align-items: center;
+}
+
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .nav-item span,
+.sidebar.collapsed .quota-meter-container,
+.sidebar.collapsed .user-profile-container {
+    display: none !important;
+}
+
+.sidebar.collapsed .logo-container {
+    margin-bottom: 2rem;
+    justify-content: center;
+}
+
+.sidebar.collapsed .nav-item a {
+    justify-content: center;
+    padding: 0.85rem;
+}
+
+.sidebar.collapsed .nav-item a i {
+    font-size: 1.2rem;
+}
+
+.main-wrapper.expanded-content {
+    margin-left: 80px;
+    width: calc(100% - 80px);
+}
+
 
 /* Glassmorphism Cards */
 .glass-card {

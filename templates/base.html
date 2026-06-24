@@ -40,7 +40,12 @@
     </div>
 
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="mainSidebar">
+        <script>
+            if (localStorage.getItem('sidebar-collapsed') === 'true') {
+                document.getElementById('mainSidebar').classList.add('collapsed');
+            }
+        </script>
         <a href="/" class="logo-container">
             <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" style="width: 42px; height: 42px; object-fit: contain; border-radius: var(--radius-md);">
             <span class="logo-text">S3 Storage</span>
@@ -106,12 +111,18 @@
                         </a>
                     </li>
                 {% endif %}
+                <li class="nav-item" style="margin-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 0.5rem;">
+                    <a href="javascript:void(0)" id="sidebarToggleBtn" style="cursor: pointer;">
+                        <i class="fa-solid fa-angles-left" id="sidebarToggleIcon"></i>
+                        <span>Collapse Menu</span>
+                    </a>
+                </li>
             </ul>
         </nav>
         
         {% if g.user %}
             <!-- Storage Quota Meter -->
-            <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
+            <div class="quota-meter-container" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
                 <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem; font-weight: 500;">
                     <span>Storage Quota</span>
                     <span>{% if quota_is_unlimited %}Vô hạn{% else %}{{ quota_pct }}%{% endif %}</span>
@@ -133,7 +144,7 @@
                 {% endif %}
             </div>
 
-            <div style="border-top: 1px solid var(--glass-border); padding-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+            <div class="user-profile-container" style="border-top: 1px solid var(--glass-border); padding-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
                     <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">
                         {{ g.user.name[0] | upper if g.user.name else 'U' }}
@@ -151,9 +162,43 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="main-wrapper">
+    <main class="main-wrapper" id="mainWrapper">
+        <script>
+            if (localStorage.getItem('sidebar-collapsed') === 'true') {
+                document.getElementById('mainWrapper').classList.add('expanded-content');
+            }
+        </script>
         {% block content %}{% endblock %}
     </main>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const toggleBtn = document.getElementById('sidebarToggleBtn');
+        const sidebar = document.getElementById('mainSidebar');
+        const wrapper = document.getElementById('mainWrapper');
+        const icon = document.getElementById('sidebarToggleIcon');
+
+        if (sidebar && sidebar.classList.contains('collapsed')) {
+            if (icon) {
+                icon.className = 'fa-solid fa-angles-right';
+            }
+        }
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                wrapper.classList.toggle('expanded-content');
+
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                localStorage.setItem('sidebar-collapsed', isCollapsed);
+
+                if (icon) {
+                    icon.className = isCollapsed ? 'fa-solid fa-angles-right' : 'fa-solid fa-angles-left';
+                }
+            });
+        }
+    });
+    </script>
 
     <!-- Core Scripts -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
