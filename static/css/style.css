@@ -126,17 +126,34 @@ body {
 }
 
 /* Collapsed Sidebar Layout Styles */
+.sidebar {
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
 .sidebar.collapsed {
     width: 80px;
     padding: 2rem 0.5rem;
     align-items: center;
 }
 
+.sidebar .logo-text,
+.sidebar .nav-item span,
+.sidebar .quota-meter-container,
+.sidebar .user-profile-container {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    white-space: nowrap;
+}
+
 .sidebar.collapsed .logo-text,
 .sidebar.collapsed .nav-item span,
 .sidebar.collapsed .quota-meter-container,
 .sidebar.collapsed .user-profile-container {
-    display: none !important;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .sidebar.collapsed .logo-container {
