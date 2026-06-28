@@ -6,10 +6,10 @@
     --glass-border: rgba(255, 255, 255, 0.08);
     --glass-highlight: rgba(255, 255, 255, 0.03);
     
-    --accent-blue: #3b82f6;
-    --accent-blue-hover: #2563eb;
-    --accent-purple: #8b5cf6;
-    --accent-purple-hover: #7c3aed;
+    --accent-blue: #059669;
+    --accent-blue-hover: #047857;
+    --accent-purple: #10b981;
+    --accent-purple-hover: #059669;
     --accent-emerald: #10b981;
     --accent-rose: #f43f5e;
     
@@ -32,8 +32,8 @@
 body {
     background-color: var(--bg-primary);
     background-image: 
-        radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.15) 0px, transparent 50%);
+        radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.15) 0px, transparent 50%);
     background-attachment: fixed;
     color: var(--text-primary);
     font-family: var(--font-sans);
@@ -58,6 +58,13 @@ body {
     top: 0;
     z-index: 100;
     transition: var(--transition-smooth);
+    overflow-y: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+.sidebar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
 }
 
 .logo-container {
@@ -79,7 +86,7 @@ body {
     font-size: 1.25rem;
     color: white;
     font-weight: 700;
-    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
 }
 
 .logo-text {
@@ -142,7 +149,7 @@ body {
 
 .glass-card:hover {
     border-color: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 8px 32px 0 rgba(139, 92, 246, 0.05);
+    box-shadow: 0 8px 32px 0 rgba(16, 185, 129, 0.05);
 }
 
 /* Buttons */
@@ -164,12 +171,12 @@ body {
 .btn-primary {
     background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
     color: white;
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 4px 15px rgba(5, 150, 105, 0.2);
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.3);
 }
 
 .btn-secondary {
@@ -219,7 +226,7 @@ body {
 .form-control:focus {
     outline: none;
     border-color: var(--accent-purple);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
 }
 
 /* Grid Layouts */
@@ -236,8 +243,8 @@ body {
     font-size: 0.75rem;
     font-weight: 600;
     border-radius: 9999px;
-    background: rgba(59, 130, 246, 0.15);
-    color: #93c5fd;
+    background: rgba(5, 150, 105, 0.15);
+    color: #a7f3d0;
 }
 
 /* Table Style for Files & Buckets */
@@ -386,7 +393,7 @@ body {
     justify-content: center;
     font-size: 4rem;
     color: white;
-    box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4);
+    box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
     animation: pulse-glow 3s infinite;
 }
 
@@ -453,8 +460,8 @@ body {
 }
 
 @keyframes pulse-glow {
-    0%, 100% { transform: scale(1); box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4); }
-    50% { transform: scale(1.05); box-shadow: 0 15px 40px rgba(139, 92, 246, 0.6); }
+    0%, 100% { transform: scale(1); box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4); }
+    50% { transform: scale(1.05); box-shadow: 0 15px 40px rgba(16, 185, 129, 0.6); }
 }
 
 /* Breadcrumbs */
@@ -542,8 +549,8 @@ input[type=number] {
 }
 
 .share-input-wrapper:focus-within {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 1px #3b82f6;
+    border-color: #10b981;
+    box-shadow: 0 0 0 1px #10b981;
 }
 
 .share-search-input {
@@ -635,7 +642,7 @@ input[type=number] {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background: linear-gradient(135deg, #10b981, #059669);
     color: #fff;
     display: flex;
     align-items: center;
@@ -793,7 +800,7 @@ input[type=number] {
     background: transparent;
     border: 1px solid #334155;
     border-radius: 9999px;
-    color: #3b82f6;
+    color: #10b981;
     padding: 0.5rem 1rem;
     font-size: 0.85rem;
     font-weight: 600;
@@ -805,12 +812,12 @@ input[type=number] {
 }
 
 .share-copy-btn:hover {
-    background: rgba(59, 130, 246, 0.05);
-    border-color: #3b82f6;
+    background: rgba(5, 150, 105, 0.05);
+    border-color: #10b981;
 }
 
 .share-done-btn {
-    background: #3b82f6;
+    background: #10b981;
     border: none;
     border-radius: 9999px;
     color: #fff;
@@ -913,7 +920,7 @@ input[type=number] {
 
 .upload-drop-zone:hover, .upload-drop-zone.dragover {
     border-color: var(--accent-blue);
-    background: rgba(59, 130, 246, 0.05);
+    background: rgba(5, 150, 105, 0.05);
 }
 
 .upload-drop-zone i {
@@ -1007,3 +1014,168 @@ input[type=number] {
     background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));
     transition: width 0.1s ease;
 }
+
+/* Responsive adjustment for smaller desktops (1025px - 1280px) */
+@media (min-width: 1025px) and (max-width: 1280px) {
+    .sidebar {
+        width: 240px !important;
+        padding: 1.5rem 1rem !important;
+    }
+    .main-wrapper {
+        margin-left: 240px !important;
+        padding: 2rem 1.5rem !important;
+    }
+    .logo-container {
+        margin-bottom: 2rem !important;
+    }
+    .quota-meter-container {
+        padding: 0.75rem !important;
+    }
+}
+
+/* Grid View styling */
+.grid-view-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    margin-top: 1rem;
+}
+
+.grid-card {
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: var(--transition-smooth);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.grid-card:hover {
+    border-color: var(--accent-emerald);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.15);
+}
+
+.grid-card-preview {
+    width: 100%;
+    height: 130px;
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    position: relative;
+}
+
+.grid-card-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.grid-card:hover .grid-card-preview img {
+    transform: scale(1.05);
+}
+
+.grid-card-preview video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.grid-card-icon {
+    font-size: 3rem;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+}
+
+.grid-card-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.grid-card-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.35rem;
+    display: block;
+    transition: var(--transition-smooth);
+}
+
+.grid-card-name:hover {
+    color: var(--accent-emerald);
+}
+
+.grid-card-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.grid-card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 0.75rem;
+}
+
+.grid-card-checkbox {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 5;
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-emerald);
+}
+
+/* Toggle View mode buttons active class */
+.btn-view-toggle.active {
+    background: var(--accent-emerald) !important;
+    border-color: var(--accent-emerald) !important;
+    color: white !important;
+}
+
+/* Custom scrollbar for upload queue */
+#upload-queue-body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+#upload-queue-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+#upload-queue-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#upload-queue-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+}
+
+#upload-queue-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(16, 185, 129, 0.4);
+}
+

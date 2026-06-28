@@ -6,7 +6,7 @@
 <div class="header-actions">
     <div>
         <h1 class="page-title">Video Progress Tracking</h1>
-        <p style="color: var(--text-secondary); margin-top: 0.25rem;">Grouped by bucket, sorted by file name.</p>
+        <p style="color: var(--text-secondary); margin-top: 0.25rem;">Track your media history and resume where you left off.</p>
     </div>
 </div>
 
@@ -18,9 +18,9 @@
                     <i class="fa-solid fa-bucket" style="color: var(--accent-blue);"></i>
                     Bucket: {{ bucket }}
                 </h2>
-                <form action="{{ url_for('delete_progress_bucket', bucket_name=bucket) }}" method="POST" style="margin: 0;" onsubmit="return confirm('Bạn có chắc chắn muốn xoá toàn bộ tiến trình của bucket {{ bucket }} không?');">
+                <form action="{{ url_for('delete_progress_bucket', bucket_name=bucket) }}" method="POST" style="margin: 0;" onsubmit="return confirm('Are you sure you want to delete all progress for bucket {{ bucket }}?');">
                     <button type="submit" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171; min-height: auto;">
-                        <i class="fa-solid fa-trash-can" style="margin-right: 0.25rem;"></i> Xóa tiến trình Bucket
+                        <i class="fa-solid fa-trash-can" style="margin-right: 0.25rem;"></i> Clear Bucket Progress
                     </button>
                 </form>
             </div>
@@ -44,7 +44,15 @@
                             {% endif %}
                             <tr>
                                 <td>
-                                    <div style="font-weight: 500; color: #fff; margin-bottom: 0.25rem;">{{ record.file_name }}</div>
+                                    <div style="font-weight: 500; margin-bottom: 0.25rem;">
+                                        {% if record.connection_id %}
+                                            <a href="{{ url_for('view_file', connection_id=record.connection_id, bucket_name=record.bucket_name, key=record.file_key) }}" style="color: var(--accent-blue); text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--accent-blue)'">
+                                                {{ record.file_name }}
+                                            </a>
+                                        {% else %}
+                                            <span style="color: #fff;">{{ record.file_name }}</span>
+                                        {% endif %}
+                                    </div>
                                     <span style="font-size: 0.75rem; color: var(--text-muted); word-break: break-all;">{{ record.file_key }}</span>
                                 </td>
                                 <td style="color: var(--text-secondary); font-size: 0.9rem;">
@@ -75,8 +83,8 @@
                                     {{ record.last_watched_at.strftime('%Y-%m-%d %H:%M UTC') if record.last_watched_at else '—' }}
                                 </td>
                                 <td style="text-align: right;">
-                                    <form action="{{ url_for('delete_progress_item', progress_id=record.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Bạn có chắc muốn xoá tiến trình của video này?');">
-                                        <button type="submit" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; border-color: rgba(239, 68, 68, 0.3); color: #f87171; font-size: 0.8rem; min-height: auto;" title="Xóa tiến trình">
+                                    <form action="{{ url_for('delete_progress_item', progress_id=record.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete progress for this video?');">
+                                        <button type="submit" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; border-color: rgba(239, 68, 68, 0.3); color: #f87171; font-size: 0.8rem; min-height: auto;" title="Delete Progress">
                                             <i class="fa-solid fa-trash-can"></i>
                                         </button>
                                     </form>

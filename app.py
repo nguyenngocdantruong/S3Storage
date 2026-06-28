@@ -91,6 +91,7 @@ class UserBucket(db.Model):
     connection_id = db.Column(db.Integer, db.ForeignKey('s3_connection.id'), nullable=False)
     bucket_name = db.Column(db.String(100), nullable=False)
     access_type = db.Column(db.String(20), default='restricted') # 'restricted' or 'public'
+    bucket_size = db.Column(db.BigInteger, default=0, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref=db.backref('owned_buckets', lazy=True))
@@ -367,6 +368,18 @@ with app.app_context():
             db.session.rollback()
             print(f"Migration error for user_bucket: {e}")
 
+    # Migration: check if user_bucket table has bucket_size column
+    try:
+        db.session.execute(db.text("SELECT bucket_size FROM user_bucket LIMIT 1")).fetchone()
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(db.text("ALTER TABLE user_bucket ADD COLUMN bucket_size BIGINT DEFAULT 0"))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Migration error for user_bucket bucket_size: {e}")
+
     # Migration: check if bucket_access table has role column
     try:
         db.session.execute(db.text("SELECT role FROM bucket_access LIMIT 1")).fetchone()
@@ -411,6 +424,41 @@ with app.app_context():
         db.session.add(admin)
         db.session.commit()
 
+    # Legacy/Unassigned bucket sync to Admin on startup
+    try:
+        admin_user = User.query.filter_by(role='Admin').first()
+        if admin_user:
+            connections = S3Connection.query.all()
+            for conn in connections:
+                try:
+                    s3 = get_s3_client(conn)
+                    response = s3.list_buckets()
+                    for bucket in response.get('Buckets', []):
+                        bucket_name = bucket['Name']
+                        mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
+                        if not mapping:
+                            size = get_bucket_size(s3, bucket_name) or 0
+                            new_mapping = UserBucket(
+                                user_id=admin_user.id,
+                                connection_id=conn.id,
+                                bucket_name=bucket_name,
+                                access_type='restricted',
+                                bucket_size=size
+                            )
+                            db.session.add(new_mapping)
+                            print(f"Startup Sync: Mapped unassigned bucket '{bucket_name}' to Admin '{admin_user.name}' with size {size}")
+                        else:
+                            # Update size of legacy bucket mapped to Admin at startup
+                            if mapping.user_id == admin_user.id:
+                                size = get_bucket_size(s3, bucket_name) or 0
+                                mapping.bucket_size = size
+                                print(f"Startup Sync: Calculated and updated legacy bucket '{bucket_name}' size to {size}")
+                    db.session.commit()
+                except Exception as conn_err:
+                    print(f"Startup Sync Warning: Failed to scan connection {conn.name}: {conn_err}")
+    except Exception as sync_err:
+        print(f"Startup Sync Error: {sync_err}")
+
 # Middleware & Context injection
 @app.before_request
 def load_logged_in_user():
@@ -439,7 +487,32 @@ def inject_quota():
             'quota_pct': pct,
             'quota_is_unlimited': False
         }
-    return {}
+    return {
+        'quota_used': 0,
+        'quota_limit': 0,
+        'quota_pct': 0,
+        'quota_is_unlimited': True
+    }
+
+class TemplateG:
+    def __init__(self, original_g):
+        self._g = original_g
+    @property
+    def user(self):
+        if self._g.user is None:
+            class GuestUser:
+                id = -1
+                name = "Guest"
+                role = "Guest"
+                email = ""
+            return GuestUser()
+        return self._g.user
+    def __getattr__(self, name):
+        return getattr(self._g, name)
+
+@app.context_processor
+def inject_g():
+    return {'g': TemplateG(g)}
 
 def login_required(view):
     @wraps(view)
@@ -559,7 +632,6 @@ def profile():
 # --- S3 Dashboard & Connection Routes ---
 
 @app.route('/')
-@login_required
 def dashboard():
     connections = S3Connection.query.order_by(S3Connection.created_at.desc()).all()
     return render_template('dashboard.html', connections=connections)
@@ -628,8 +700,8 @@ def add_connection():
         db.session.rollback()
         error_msg = str(e)
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json or 'application/json' in request.headers.get('Accept', ''):
-            return jsonify({'status': 'error', 'message': f'Lỗi kết nối thử nghiệm S3: {error_msg}'}), 400
-        flash(f'Lỗi kết nối thử nghiệm S3: {error_msg}', 'error')
+            return jsonify({'status': 'error', 'message': f'S3 connection test error: {error_msg}'}), 400
+        flash(f'S3 connection test error: {error_msg}', 'error')
 
     return redirect(url_for('dashboard'))
 
@@ -707,14 +779,13 @@ def edit_connection(connection_id):
         db.session.rollback()
         error_msg = str(e)
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json or 'application/json' in request.headers.get('Accept', ''):
-            return jsonify({'status': 'error', 'message': f'Lỗi kết nối thử nghiệm S3: {error_msg}'}), 400
-        flash(f'Lỗi kết nối thử nghiệm S3: {error_msg}', 'error')
+            return jsonify({'status': 'error', 'message': f'S3 connection test error: {error_msg}'}), 400
+        flash(f'S3 connection test error: {error_msg}', 'error')
 
     return redirect(url_for('dashboard'))
 
 
 @app.route('/connection/<connection_id>')
-@login_required
 def view_connection(connection_id):
     conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
     try:
@@ -727,16 +798,19 @@ def view_connection(connection_id):
         except ClientError as ce:
             # Catch s3:ListAllMyBuckets Forbidden (AccessDenied) and fall back to mapped/shared buckets
             if ce.response.get('Error', {}).get('Code') in ['AccessDenied', '403'] or 'Forbidden' in str(ce):
-                if g.user.role == 'Admin':
+                if g.user and g.user.role == 'Admin':
                     mappings = UserBucket.query.filter_by(connection_id=conn.id).all()
                     shared = BucketAccess.query.filter_by(connection_id=conn.id).all()
-                else:
+                elif g.user:
                     mappings = UserBucket.query.filter_by(connection_id=conn.id, user_id=g.user.id).all()
                     shared = BucketAccess.query.filter_by(connection_id=conn.id, user_id=g.user.id).all()
+                else:
+                    mappings = UserBucket.query.filter_by(connection_id=conn.id).filter(UserBucket.access_type.in_(['public', 'public_view', 'public_edit'])).all()
+                    shared = []
                 
                 mapped_names = set([m.bucket_name for m in mappings] + [s.bucket_name for s in shared])
                 raw_buckets = [{'Name': name, 'CreationDate': None} for name in mapped_names]
-                flash('Không thể liệt kê toàn bộ Buckets (403 Forbidden). Chỉ hiển thị các Buckets bạn sở hữu hoặc được phân quyền truy cập.', 'warning')
+                flash('Unable to list all buckets (403 Forbidden). Only displaying buckets you are authorized to access.', 'warning')
             else:
                 raise ce
         
@@ -863,6 +937,8 @@ def browse_bucket(connection_id, bucket_name):
 
     try:
         s3 = get_s3_client(conn)
+        public_endpoint = conn.upload_endpoint if (conn.upload_endpoint and conn.upload_endpoint.strip()) else conn.endpoint_url
+        s3_public = get_s3_client(conn, endpoint_url=public_endpoint)
         paginator = s3.get_paginator('list_objects_v2')
         pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter='/')
         
@@ -894,12 +970,28 @@ def browse_bucket(connection_id, bucket_name):
                      continue
                 key = obj.get('Key')
                 prog = progress_map.get(key)
+                
+                ext = key.split('.')[-1].lower() if '.' in key else ''
+                is_previewable = ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv']
+                
+                url = None
+                if is_previewable:
+                    try:
+                        url = fix_s3_url(s3_public.generate_presigned_url(
+                            'get_object',
+                            Params={'Bucket': bucket_name, 'Key': key},
+                            ExpiresIn=3600
+                        ))
+                    except Exception:
+                        pass
+
                 files.append({
                     'key': key,
                     'name': key.split('/')[-1],
                     'size': obj.get('Size'),
                     'created_by': creator_map.get(key, 'Unknown'),
                     'last_modified': obj.get('LastModified'),
+                    'presigned_url': url,
                     'progress': {
                         'seconds': prog.seconds_watched,
                         'duration': prog.duration,
@@ -938,6 +1030,206 @@ def browse_bucket(connection_id, bucket_name):
         flash(f'Failed to browse bucket contents: {str(e)}', 'error')
         return redirect(url_for('view_connection', connection_id=connection_id))
 
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/multipart/initiate', methods=['POST'])
+@login_required
+def multipart_initiate(connection_id, bucket_name):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    
+    if not check_bucket_edit_access(g.user, conn, bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied.'}), 403
+
+    mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
+    owner_id = mapping.user_id if mapping else None
+
+    data = request.get_json() or {}
+    filename = data.get('filename')
+    filesize = data.get('filesize')
+    filetype = data.get('filetype') or 'application/octet-stream'
+    prefix = data.get('prefix', '')
+
+    if not filename or filesize is None:
+        return jsonify({'status': 'error', 'message': 'Missing filename or filesize.'}), 400
+
+    if filename.lower().endswith(('.exe', '.dll', '.msi', '.bat', '.sh', '.cmd', '.com', '.lnk', '.sys')):
+        return jsonify({'status': 'error', 'message': 'Upload of executable files (.exe, .dll, .msi, etc.) is blocked for security reasons.'}), 400
+
+    try:
+        quota_owner_id = owner_id if owner_id else g.user.id
+        quota_owner = db.session.get(User, quota_owner_id)
+        
+        if quota_owner.role != 'Admin':
+            used = get_user_storage_used(quota_owner)
+            limit = quota_owner.quota_limit or 2147483648
+            
+            if used + filesize > limit:
+                return jsonify({
+                    'status': 'error', 
+                    'message': f'Storage quota exceeded. Available: {round((limit - used)/1048576, 1)}MB.'
+                }), 400
+
+        parts = [secure_filename(p) for p in filename.split('/') if p]
+        filename_secured = '/'.join(parts)
+        key = prefix + filename_secured
+        
+        endpoint_url = conn.upload_endpoint if (conn.upload_endpoint and conn.upload_endpoint.strip()) else conn.endpoint_url
+        s3 = get_s3_client(conn, endpoint_url=endpoint_url)
+        
+        response = s3.create_multipart_upload(
+            Bucket=bucket_name,
+            Key=key,
+            ContentType=filetype
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'uploadId': response['UploadId'],
+            'key': key
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/multipart/presign-part', methods=['POST'])
+@login_required
+def multipart_presign_part(connection_id, bucket_name):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    
+    if not check_bucket_edit_access(g.user, conn, bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied.'}), 403
+
+    data = request.get_json() or {}
+    upload_id = data.get('uploadId')
+    key = data.get('key')
+    part_number = data.get('partNumber')
+
+    if not all([upload_id, key, part_number]):
+        return jsonify({'status': 'error', 'message': 'Missing uploadId, key, or partNumber.'}), 400
+
+    try:
+        endpoint_url = conn.upload_endpoint if (conn.upload_endpoint and conn.upload_endpoint.strip()) else conn.endpoint_url
+        s3 = get_s3_client(conn, endpoint_url=endpoint_url)
+        
+        presigned_url = s3.generate_presigned_url(
+            ClientMethod='upload_part',
+            Params={
+                'Bucket': bucket_name,
+                'Key': key,
+                'UploadId': upload_id,
+                'PartNumber': int(part_number)
+            },
+            ExpiresIn=3600
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'url': fix_s3_url(presigned_url)
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/multipart/complete', methods=['POST'])
+@login_required
+def multipart_complete(connection_id, bucket_name):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    
+    if not check_bucket_edit_access(g.user, conn, bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied.'}), 403
+
+    mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
+    owner_id = mapping.user_id if mapping else None
+
+    data = request.get_json() or {}
+    upload_id = data.get('uploadId')
+    key = data.get('key')
+    parts = data.get('parts')
+
+    if not all([upload_id, key, parts]):
+        return jsonify({'status': 'error', 'message': 'Missing uploadId, key, or parts.'}), 400
+
+    try:
+        endpoint_url = conn.upload_endpoint if (conn.upload_endpoint and conn.upload_endpoint.strip()) else conn.endpoint_url
+        s3 = get_s3_client(conn, endpoint_url=endpoint_url)
+        
+        # S3 expects Parts to be sorted by PartNumber
+        sorted_parts = sorted(parts, key=lambda x: x['PartNumber'])
+        
+        s3.complete_multipart_upload(
+            Bucket=bucket_name,
+            Key=key,
+            UploadId=upload_id,
+            MultipartUpload={'Parts': sorted_parts}
+        )
+        
+        # Retrieve actual size
+        actual_size = 0
+        try:
+            response = s3.head_object(Bucket=bucket_name, Key=key)
+            actual_size = response.get('ContentLength', 0)
+        except Exception as e:
+            print(f"Warning: Failed to get object size: {e}")
+            
+        filename = key.split('/')[-1]
+        quota_owner_id = owner_id if owner_id else g.user.id
+        
+        log_action(
+            g.user.id, 
+            quota_owner_id, 
+            conn.name, 
+            bucket_name, 
+            'UPLOAD_FILE', 
+            f"Uploaded file '{filename}' ({actual_size} bytes) via Multipart to S3"
+        )
+        
+        # Save uploader metadata
+        existing_upload = UploadedFile.query.filter_by(
+            connection_id=conn.id,
+            bucket_name=bucket_name,
+            file_key=key
+        ).first()
+        if existing_upload:
+            existing_upload.user_id = g.user.id
+            existing_upload.created_at = datetime.utcnow()
+        else:
+            uploaded_file = UploadedFile(
+                connection_id=conn.id,
+                bucket_name=bucket_name,
+                file_key=key,
+                user_id=g.user.id
+            )
+            db.session.add(uploaded_file)
+        db.session.commit()
+        
+        return jsonify({'status': 'success', 'size': actual_size})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/multipart/abort', methods=['POST'])
+@login_required
+def multipart_abort(connection_id, bucket_name):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    
+    if not check_bucket_edit_access(g.user, conn, bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied.'}), 403
+
+    data = request.get_json() or {}
+    upload_id = data.get('uploadId')
+    key = data.get('key')
+
+    if not all([upload_id, key]):
+        return jsonify({'status': 'error', 'message': 'Missing uploadId or key.'}), 400
+
+    try:
+        endpoint_url = conn.upload_endpoint if (conn.upload_endpoint and conn.upload_endpoint.strip()) else conn.endpoint_url
+        s3 = get_s3_client(conn, endpoint_url=endpoint_url)
+        
+        s3.abort_multipart_upload(
+            Bucket=bucket_name,
+            Key=key,
+            UploadId=upload_id
+        )
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @app.route('/connection/<connection_id>/bucket/<bucket_name>/presign-upload', methods=['POST'])
 @login_required
 def presign_upload(connection_id, bucket_name):
@@ -957,6 +1249,9 @@ def presign_upload(connection_id, bucket_name):
 
     if not filename or filesize is None:
         return jsonify({'status': 'error', 'message': 'Missing filename or filesize.'}), 400
+
+    if filename.lower().endswith(('.exe', '.dll', '.msi', '.bat', '.sh', '.cmd', '.com', '.lnk', '.sys')):
+        return jsonify({'status': 'error', 'message': 'Upload of executable files (.exe, .dll, .msi, etc.) is blocked for security reasons.'}), 400
 
     try:
         quota_owner_id = owner_id if owner_id else g.user.id
@@ -1055,6 +1350,248 @@ def confirm_upload(connection_id, bucket_name):
         db.session.commit()
         
         return jsonify({'status': 'success', 'size': actual_size})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/save-text', methods=['POST'])
+@login_required
+def save_text_file(connection_id, bucket_name):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    
+    if not check_bucket_edit_access(g.user, conn, bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied.'}), 403
+
+    mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
+    owner_id = mapping.user_id if mapping else None
+
+    data = request.get_json() or {}
+    key = data.get('key')
+    content = data.get('content')
+
+    if not key or content is None:
+        return jsonify({'status': 'error', 'message': 'Missing key or content.'}), 400
+
+    try:
+        endpoint_url = conn.upload_endpoint if (conn.upload_endpoint and conn.upload_endpoint.strip()) else conn.endpoint_url
+        s3 = get_s3_client(conn, endpoint_url=endpoint_url)
+        
+        filename = key.split('/')[-1]
+        ext = filename.split('.')[-1].lower() if '.' in filename else ''
+        content_type = 'text/plain; charset=utf-8'
+        if ext == 'json':
+            content_type = 'application/json; charset=utf-8'
+        elif ext == 'csv':
+            content_type = 'text/csv; charset=utf-8'
+        elif ext == 'xml':
+            content_type = 'application/xml; charset=utf-8'
+        elif ext in ['yaml', 'yml']:
+            content_type = 'text/yaml; charset=utf-8'
+        elif ext == 'md':
+            content_type = 'text/markdown; charset=utf-8'
+        elif ext == 'html':
+            content_type = 'text/html; charset=utf-8'
+        elif ext == 'js':
+            content_type = 'application/javascript; charset=utf-8'
+        elif ext == 'css':
+            content_type = 'text/css; charset=utf-8'
+
+        body_bytes = content.encode('utf-8')
+        actual_size = len(body_bytes)
+
+        quota_owner_id = owner_id if owner_id else g.user.id
+        quota_owner = db.session.get(User, quota_owner_id)
+        
+        if quota_owner.role != 'Admin':
+            old_size = 0
+            try:
+                old_meta = s3.head_object(Bucket=bucket_name, Key=key)
+                old_size = old_meta.get('ContentLength', 0)
+            except Exception:
+                pass
+            
+            size_diff = actual_size - old_size
+            if size_diff > 0:
+                used = get_user_storage_used(quota_owner)
+                limit = quota_owner.quota_limit or 2147483648
+                if used + size_diff > limit:
+                    return jsonify({
+                        'status': 'error', 
+                        'message': f'Storage quota exceeded. Available: {round((limit - used)/1048576, 1)}MB.'
+                    }), 400
+
+        s3.put_object(
+            Bucket=bucket_name,
+            Key=key,
+            Body=body_bytes,
+            ContentType=content_type
+        )
+        
+        log_action(
+            g.user.id, 
+            quota_owner_id, 
+            conn.name, 
+            bucket_name, 
+            'EDIT_FILE', 
+            f"Edited text file '{filename}' ({actual_size} bytes) directly on the web"
+        )
+        
+        existing_upload = UploadedFile.query.filter_by(
+            connection_id=conn.id,
+            bucket_name=bucket_name,
+            file_key=key
+        ).first()
+        if existing_upload:
+            existing_upload.user_id = g.user.id
+            existing_upload.created_at = datetime.utcnow()
+        else:
+            uploaded_file = UploadedFile(
+                connection_id=conn.id,
+                bucket_name=bucket_name,
+                file_key=key,
+                user_id=g.user.id
+            )
+            db.session.add(uploaded_file)
+        db.session.commit()
+        
+        return jsonify({'status': 'success', 'size': actual_size})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/rename', methods=['POST'])
+@login_required
+def rename_object(connection_id, bucket_name):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    if not check_bucket_edit_access(g.user, conn, bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied.'}), 403
+        
+    data = request.get_json() or {}
+    old_key = data.get('old_key')
+    new_name = data.get('new_name')
+    
+    if not old_key or not new_name:
+        return jsonify({'status': 'error', 'message': 'Missing parameters.'}), 400
+        
+    is_dir = old_key.endswith('/')
+    if not is_dir:
+        import os
+        old_filename = old_key.split('/')[-1]
+        _, old_ext = os.path.splitext(old_filename)
+        new_name_base, _ = os.path.splitext(new_name)
+        secured_base = secure_filename(new_name_base)
+        if not secured_base:
+            return jsonify({'status': 'error', 'message': 'Invalid new name.'}), 400
+        new_name = secured_base + old_ext
+    else:
+        new_name = secure_filename(new_name)
+        if not new_name:
+            return jsonify({'status': 'error', 'message': 'Invalid new name.'}), 400
+            
+    try:
+        s3 = get_s3_client(conn)
+        
+        if is_dir:
+            parts = old_key.rstrip('/').split('/')
+            parent_path = '/'.join(parts[:-1]) + '/' if len(parts) > 1 else ''
+            new_key = parent_path + new_name + '/'
+            
+            paginator = s3.get_paginator('list_objects_v2')
+            pages = paginator.paginate(Bucket=bucket_name, Prefix=old_key)
+            
+            objects_to_delete = []
+            for page in pages:
+                if 'Contents' in page:
+                    for obj in page['Contents']:
+                        source_key = obj['Key']
+                        dest_key = new_key + source_key[len(old_key):]
+                        
+                        s3.copy_object(
+                            Bucket=bucket_name,
+                            CopySource={'Bucket': bucket_name, 'Key': source_key},
+                            Key=dest_key
+                        )
+                        objects_to_delete.append({'Key': source_key})
+            
+            if objects_to_delete:
+                for i in range(0, len(objects_to_delete), 1000):
+                    batch = objects_to_delete[i:i+1000]
+                    s3.delete_objects(
+                        Bucket=bucket_name,
+                        Delete={'Objects': batch}
+                    )
+                    
+            # Update DB records for folder rename
+            uploaded_files = UploadedFile.query.filter(
+                UploadedFile.connection_id == conn.id,
+                UploadedFile.bucket_name == bucket_name,
+                UploadedFile.file_key.startswith(old_key)
+            ).all()
+            for uf in uploaded_files:
+                uf.file_key = new_key + uf.file_key[len(old_key):]
+                
+            progress_records = VideoProgress.query.filter(
+                VideoProgress.connection_name == conn.name,
+                VideoProgress.bucket_name == bucket_name,
+                VideoProgress.file_key.startswith(old_key)
+            ).all()
+            for pr in progress_records:
+                pr.file_key = new_key + pr.file_key[len(old_key):]
+                
+            # Update Video Notes for folder rename
+            note_records = VideoNote.query.filter(
+                VideoNote.connection_name == conn.name,
+                VideoNote.bucket_name == bucket_name,
+                VideoNote.file_key.startswith(old_key)
+            ).all()
+            for nr in note_records:
+                nr.file_key = new_key + nr.file_key[len(old_key):]
+                
+            db.session.commit()
+                    
+            log_action(g.user.id, None, conn.name, bucket_name, 'RENAME_FOLDER', f"Renamed folder {old_key} to {new_key}")
+        else:
+            parts = old_key.split('/')
+            parent_path = '/'.join(parts[:-1]) + '/' if len(parts) > 1 else ''
+            new_key = parent_path + new_name
+            
+            s3.copy_object(
+                Bucket=bucket_name,
+                CopySource={'Bucket': bucket_name, 'Key': old_key},
+                Key=new_key
+            )
+            s3.delete_object(Bucket=bucket_name, Key=old_key)
+            
+            # Update DB records for file rename
+            uploaded_file = UploadedFile.query.filter_by(
+                connection_id=conn.id,
+                bucket_name=bucket_name,
+                file_key=old_key
+            ).first()
+            if uploaded_file:
+                uploaded_file.file_key = new_key
+                
+            progress_record = VideoProgress.query.filter_by(
+                connection_name=conn.name,
+                bucket_name=bucket_name,
+                file_key=old_key
+            ).first()
+            if progress_record:
+                progress_record.file_key = new_key
+                progress_record.file_name = new_name
+                
+            # Update Video Notes for file rename
+            note_records = VideoNote.query.filter_by(
+                connection_name=conn.name,
+                bucket_name=bucket_name,
+                file_key=old_key
+            ).all()
+            for nr in note_records:
+                nr.file_key = new_key
+                
+            db.session.commit()
+            
+            log_action(g.user.id, None, conn.name, bucket_name, 'RENAME_FILE', f"Renamed file {old_key} to {new_key}")
+            
+        return jsonify({'status': 'success', 'message': 'Renamed successfully.'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -1174,7 +1711,8 @@ def view_file(connection_id, bucket_name):
         return redirect(url_for('browse_bucket', connection_id=connection_id, bucket_name=bucket_name))
         
     try:
-        s3 = get_s3_client(conn)
+        public_endpoint = conn.upload_endpoint if (conn.upload_endpoint and conn.upload_endpoint.strip()) else conn.endpoint_url
+        s3 = get_s3_client(conn, endpoint_url=public_endpoint)
         presigned_url = fix_s3_url(s3.generate_presigned_url(
             'get_object',
             Params={'Bucket': bucket_name, 'Key': key},
@@ -1184,7 +1722,7 @@ def view_file(connection_id, bucket_name):
         filename = key.split('/')[-1]
         ext = filename.split('.')[-1].lower() if '.' in filename else ''
         
-        video_exts = ['mp4', 'webm', 'ogg', 'mkv', 'mov']
+        video_exts = ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv']
         audio_exts = ['mp3', 'wav', 'ogg', 'aac', 'flac']
         pdf_exts = ['pdf']
         ppt_exts = ['ppt', 'pptx']
@@ -1234,6 +1772,8 @@ def view_file(connection_id, bucket_name):
         else:
             file_url = presigned_url
 
+        can_edit = check_bucket_edit_access(g.user, conn, bucket_name)
+
         return render_template(
             'viewer.html',
             connection=conn,
@@ -1243,7 +1783,8 @@ def view_file(connection_id, bucket_name):
             file_type=file_type,
             presigned_url=file_url,
             is_local_endpoint=is_local_endpoint,
-            resume_seconds=resume_seconds
+            resume_seconds=resume_seconds,
+            can_edit=can_edit
         )
     except Exception as e:
         flash(f'Could not view file: {str(e)}', 'error')
@@ -1367,6 +1908,83 @@ def office_to_pdf(connection_id, bucket_name):
         except Exception:
             pass
 
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/flv-to-mp4')
+def flv_to_mp4(connection_id, bucket_name):
+    import os
+    import subprocess
+    import tempfile
+    import shutil
+    import urllib.parse
+    from flask import Response, stream_with_context, request, g
+
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    key = request.args.get('key')
+    
+    mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    
+    if not is_public and g.user is None:
+        return "Authentication required", 401
+        
+    if not check_bucket_access(g.user, conn, bucket_name):
+        return "Permission Denied", 403
+        
+    if not key:
+        return "Missing file key", 400
+
+    try:
+        s3 = get_s3_client(conn)
+        temp_dir = tempfile.mkdtemp()
+        filename = key.split('/')[-1]
+        input_path = os.path.join(temp_dir, filename)
+        
+        # Download from S3 to local temp path
+        s3.download_file(bucket_name, key, input_path)
+        
+        # Transcode to fragmented MP4 (compatible with html5 video tag streaming)
+        cmd = [
+            'ffmpeg', '-i', input_path,
+            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '28',
+            '-c:a', 'aac', '-b:a', '128k',
+            '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov',
+            'pipe:1'
+        ]
+        
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            bufsize=10**6
+        )
+        
+        def generate():
+            try:
+                while True:
+                    data = process.stdout.read(4096 * 16)
+                    if not data:
+                        break
+                    yield data
+            finally:
+                try:
+                    process.terminate()
+                    process.wait(timeout=2)
+                except Exception:
+                    pass
+                try:
+                    shutil.rmtree(temp_dir)
+                except Exception:
+                    pass
+
+        headers = {
+            'Content-Type': 'video/mp4',
+            'Content-Disposition': f'inline; filename="{urllib.parse.quote(filename.replace(".flv", ".mp4"))}"'
+        }
+        return Response(stream_with_context(generate()), status=200, headers=headers)
+        
+    except Exception as e:
+        return f"Error converting video: {str(e)}", 500
+
+
 # --- Video Playback Tracking Routes ---
 
 @app.route('/video/progress', methods=['POST'])
@@ -1411,8 +2029,12 @@ def update_video_progress():
 @login_required
 def list_progress():
     progress_records = VideoProgress.query.filter_by(user_id=g.user.id).all()
+    connections = S3Connection.query.all()
+    conn_map = {c.name: c.connection_id for c in connections}
+
     grouped_progress = {}
     for record in progress_records:
+        record.connection_id = conn_map.get(record.connection_name)
         bucket = record.bucket_name
         if bucket not in grouped_progress:
             grouped_progress[bucket] = []
@@ -1477,6 +2099,170 @@ def update_user_quota(user_id):
     flash(f"Quota for {user.name} updated to {quota_gb} GB.", 'success')
     return redirect(url_for('manage_users'))
 
+@app.route('/admin/functions')
+@admin_required
+def admin_functions():
+    return render_template('admin_functions.html')
+
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/hls/playlist.m3u8')
+def flv_hls_playlist(connection_id, bucket_name):
+    import subprocess
+    from flask import Response, request, g, url_for
+    import urllib.parse
+    
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    key = request.args.get('key')
+    
+    mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    
+    if not is_public and g.user is None:
+        return "Authentication required", 401
+        
+    if not check_bucket_access(g.user, conn, bucket_name):
+        return "Permission Denied", 403
+        
+    if not key:
+        return "Missing file key", 400
+        
+    try:
+        s3 = get_s3_client(conn)
+        # Generate presigned URL for ffprobe to check duration
+        presigned_url = s3.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': key},
+            ExpiresIn=3600
+        )
+        
+        # Get duration using ffprobe
+        cmd = [
+            'ffprobe', '-v', 'error',
+            '-show_entries', 'format=duration',
+            '-of', 'default=noprint_wrappers=1:nokey=1',
+            presigned_url
+        ]
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=15)
+        if result.returncode != 0:
+            raise Exception(f"ffprobe failed: {result.stderr}")
+            
+        duration = float(result.stdout.strip())
+        
+        # Segment duration: 6 seconds is standard and works well for quick seeking
+        seg_dur = 6.0
+        num_segments = int(duration // seg_dur)
+        remainder = duration % seg_dur
+        
+        playlist_lines = [
+            "#EXTM3U",
+            "#EXT-X-VERSION:3",
+            f"#EXT-X-TARGETDURATION:{int(seg_dur + 1)}",
+            "#EXT-X-MEDIA-SEQUENCE:0"
+        ]
+        
+        for i in range(num_segments):
+            start = i * seg_dur
+            seg_url = url_for(
+                'flv_hls_segment',
+                connection_id=connection_id,
+                bucket_name=bucket_name,
+                key=key,
+                start=start,
+                duration=seg_dur
+            )
+            playlist_lines.append(f"#EXTINF:{seg_dur:.2f},")
+            playlist_lines.append(seg_url)
+            
+        if remainder > 0.1:
+            start = num_segments * seg_dur
+            seg_url = url_for(
+                'flv_hls_segment',
+                connection_id=connection_id,
+                bucket_name=bucket_name,
+                key=key,
+                start=start,
+                duration=remainder
+            )
+            playlist_lines.append(f"#EXTINF:{remainder:.2f},")
+            playlist_lines.append(seg_url)
+            
+        playlist_lines.append("#EXT-X-ENDLIST")
+        
+        playlist_content = "\n".join(playlist_lines)
+        return Response(playlist_content, mimetype='application/x-mpegURL')
+        
+    except Exception as e:
+        app.logger.error(f"Error generating HLS playlist for {key}: {str(e)}")
+        return f"Error generating HLS playlist: {str(e)}", 500
+
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/hls/segment.ts')
+def flv_hls_segment(connection_id, bucket_name):
+    import subprocess
+    from flask import Response, request, g, stream_with_context
+    
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    key = request.args.get('key')
+    start = request.args.get('start', type=float)
+    duration = request.args.get('duration', type=float)
+    
+    mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    
+    if not is_public and g.user is None:
+        return "Authentication required", 401
+        
+    if not check_bucket_access(g.user, conn, bucket_name):
+        return "Permission Denied", 403
+        
+    if not key or start is None or duration is None:
+        return "Missing parameters", 400
+        
+    try:
+        s3 = get_s3_client(conn)
+        presigned_url = s3.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': key},
+            ExpiresIn=3600
+        )
+        
+        # Start ffmpeg seeking to 'start' and taking 'duration'
+        # -output_ts_offset shifts the timestamps to match the segment start time in the HLS timeline
+        cmd = [
+            'ffmpeg', '-ss', f'{start:.2f}', '-t', f'{duration:.2f}',
+            '-i', presigned_url,
+            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
+            '-c:a', 'aac', '-b:a', '128k',
+            '-output_ts_offset', f'{start:.2f}',
+            '-muxdelay', '0',
+            '-f', 'mpegts', 'pipe:1'
+        ]
+        
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            bufsize=10**6
+        )
+        
+        def generate():
+            try:
+                while True:
+                    data = process.stdout.read(4096 * 16)
+                    if not data:
+                        break
+                    yield data
+            finally:
+                try:
+                    process.terminate()
+                    process.wait(timeout=1)
+                except Exception:
+                    pass
+                    
+        return Response(stream_with_context(generate()), mimetype='video/MP2T')
+        
+    except Exception as e:
+        app.logger.error(f"Error streaming HLS segment {start} for {key}: {str(e)}")
+        return f"Error streaming HLS segment: {str(e)}", 500
+
 @app.route('/admin/bucket-access')
 @admin_required
 def bucket_access_list():
@@ -1493,20 +2279,20 @@ def bucket_access_grant():
     bucket_name = request.form.get('bucket_name', '').strip().lower()
 
     if not all([user_id, connection_id, bucket_name]):
-        flash('Vui lòng điền đầy đủ các thông tin.', 'error')
+        flash('Please fill in all required fields.', 'error')
         return redirect(url_for('bucket_access_list'))
 
     user = db.session.get(User, user_id)
     conn = db.session.get(S3Connection, connection_id)
 
     if not user or not conn:
-        flash('Người dùng hoặc kết nối không tồn tại.', 'error')
+        flash('User or connection does not exist.', 'error')
         return redirect(url_for('bucket_access_list'))
 
     # Check if grant already exists
     existing = BucketAccess.query.filter_by(user_id=user_id, connection_id=connection_id, bucket_name=bucket_name).first()
     if existing:
-        flash('Người dùng đã có quyền truy cập vào bucket này.', 'warning')
+        flash('User already has access to this bucket.', 'warning')
         return redirect(url_for('bucket_access_list'))
 
     # Grant access
@@ -1523,7 +2309,7 @@ def bucket_access_grant():
         f"Admin {g.user.name} granted access to bucket '{bucket_name}' for user {user.name}"
     )
 
-    flash(f"Đã cấp quyền truy cập bucket '{bucket_name}' cho {user.name} thành công.", 'success')
+    flash(f"Granted access to bucket '{bucket_name}' for {user.name} successfully.", 'success')
     return redirect(url_for('bucket_access_list'))
 
 @app.route('/admin/bucket-access/<int:access_id>/revoke', methods=['POST'])
@@ -1554,7 +2340,7 @@ def bucket_access_revoke(access_id):
         f"Admin {g.user.name} revoked access to bucket '{bucket_name}' for user {user_name}"
     )
 
-    flash(f"Đã thu hồi quyền truy cập bucket '{bucket_name}' của {user_name} thành công.", 'success')
+    flash(f"Revoked access to bucket '{bucket_name}' of {user_name} successfully.", 'success')
     return redirect(url_for('bucket_access_list'))
 
 @app.route('/logs')
@@ -1890,7 +2676,7 @@ def api_bucket_files(connection_id, bucket_name):
                 ext = filename.split('.')[-1].lower() if '.' in filename else ''
                 
                 # Determine type
-                video_exts = ['mp4', 'webm', 'ogg', 'mkv', 'mov']
+                video_exts = ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv']
                 audio_exts = ['mp3', 'wav', 'ogg', 'aac', 'flac']
                 pdf_exts = ['pdf']
                 ppt_exts = ['ppt', 'pptx']
@@ -1941,7 +2727,8 @@ def api_share_file(connection_id, bucket_name):
         return jsonify({'status': 'error', 'message': 'Missing file key'}), 400
         
     try:
-        s3 = get_s3_client(conn)
+        public_endpoint = conn.upload_endpoint if (conn.upload_endpoint and conn.upload_endpoint.strip()) else conn.endpoint_url
+        s3 = get_s3_client(conn, endpoint_url=public_endpoint)
         presigned_url = fix_s3_url(s3.generate_presigned_url(
             'get_object',
             Params={'Bucket': bucket_name, 'Key': key},

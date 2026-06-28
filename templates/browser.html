@@ -19,8 +19,17 @@
             <i class="fa-solid fa-bucket" style="color: var(--accent-blue);"></i>
             {{ bucket_name }}
         </h1>
-        <p style="color: var(--text-secondary); margin-top: 0.25rem;">
-            Path: <code>/{{ prefix }}</code>
+        <p style="color: var(--text-secondary); margin-top: 0.25rem; display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap;">
+            <span>Path:</span>
+            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix='', sort=sort_by, direction=direction) }}" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">Root</a>
+            {% if prefix %}
+                {% set accum = namespace(path='') %}
+                {% for part in prefix.rstrip('/').split('/') %}
+                    {% set accum.path = accum.path + part + '/' %}
+                    <span style="color: var(--text-muted); font-size: 0.8rem;">/</span>
+                    <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=accum.path, sort=sort_by, direction=direction) }}" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">{{ part }}</a>
+                {% endfor %}
+            {% endif %}
         </p>
     </div>
     
@@ -42,7 +51,7 @@
                 <i class="fa-solid fa-upload"></i> Upload File
             </button>
             <button id="btn-bulk-delete" class="btn btn-danger" style="display: none; align-items: center; gap: 0.5rem;" onclick="performBulkDelete()">
-                <i class="fa-solid fa-trash-can"></i> Xóa đã chọn (<span id="bulk-delete-count">0</span>)
+                <i class="fa-solid fa-trash-can"></i> Delete Selected (<span id="bulk-delete-count">0</span>)
             </button>
         {% endif %}
     </div>
@@ -50,6 +59,34 @@
 
 <!-- File Browser List -->
 <div class="glass-card">
+    <!-- Search & Filter Controls -->
+    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center; flex-wrap: wrap;">
+        <div style="position: relative; flex-grow: 1; max-width: 350px;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem;"></i>
+            <input type="text" id="search-input" placeholder="Search files and folders..." class="form-control" style="width: 100%; padding-left: 2.5rem; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding-top: 0.5rem; padding-bottom: 0.5rem; color: #fff; outline: none; transition: border-color 0.2s;">
+        </div>
+        <div>
+            <select id="filter-select" class="general-access-select" style="min-width: 150px; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 0.9rem; padding: 0.5rem 2rem 0.5rem 1rem;">
+                <option value="all">All Types</option>
+                <option value="folder">Folders Only</option>
+                <option value="file">Files Only</option>
+                <option value="video">Videos</option>
+                <option value="audio">Audios</option>
+                <option value="pdf">PDFs</option>
+                <option value="image">Images</option>
+                <option value="text">Documents</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.25rem; border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 0.25rem; background: rgba(15, 23, 42, 0.4);">
+            <button id="btn-view-list" class="btn btn-secondary btn-view-toggle active" style="padding: 0.35rem 0.6rem; border-radius: var(--radius-md); font-size: 0.9rem;" title="List View">
+                <i class="fa-solid fa-list"></i>
+            </button>
+            <button id="btn-view-grid" class="btn btn-secondary btn-view-toggle" style="padding: 0.35rem 0.6rem; border-radius: var(--radius-md); font-size: 0.9rem;" title="Grid View">
+                <i class="fa-solid fa-grip"></i>
+            </button>
+        </div>
+    </div>
+
     {% if folders or files %}
         <div class="data-table-container">
             <table class="data-table">
@@ -97,7 +134,7 @@
                     <!-- Folders (Prefixes) -->
                     {% for folder in folders %}
                         {% set folder_name = folder.rstrip('/').split('/')[-1] + '/' %}
-                        <tr>
+                        <tr class="browser-row" data-type="folder" data-category="folder" data-name="{{ folder_name | lower }}">
                             {% if can_edit %}
                                 <td></td>
                             {% endif %}
@@ -112,9 +149,16 @@
                             <td style="color: var(--text-muted);">—</td>
                             <td style="color: var(--text-muted);">—</td>
                             <td style="text-align: right;">
-                                <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
-                                    Open
-                                </a>
+                                <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
+                                    <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
+                                        Open
+                                    </a>
+                                    {% if can_edit %}
+                                        <button class="btn btn-secondary btn-rename" style="padding: 0.35rem; border-radius: var(--radius-md);" data-key="{{ folder }}" data-name="{{ folder_name.rstrip('/') }}" title="Rename Folder">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </button>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                     {% endfor %}
@@ -122,8 +166,20 @@
                     <!-- Files -->
                     {% for file in files %}
                         {% set ext = file.name.split('.')[-1].lower() if '.' in file.name else '' %}
-                        {% set is_viewable = ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'mp3', 'wav', 'aac', 'flac', 'pdf', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'txt', 'json', 'csv', 'xml', 'log', 'ini', 'cfg', 'yaml', 'yml', 'md', 'html', 'js', 'css'] %}
-                        <tr>
+                        {% set file_cat = 'other' %}
+                        {% if ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv'] %}
+                            {% set file_cat = 'video' %}
+                        {% elif ext in ['mp3', 'wav', 'aac', 'flac'] %}
+                            {% set file_cat = 'audio' %}
+                        {% elif ext == 'pdf' %}
+                            {% set file_cat = 'pdf' %}
+                        {% elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] %}
+                            {% set file_cat = 'image' %}
+                        {% elif ext in ['txt', 'json', 'csv', 'xml', 'log', 'ini', 'cfg', 'yaml', 'yml', 'md', 'html', 'js', 'css', 'doc', 'docx', 'ppt', 'pptx'] %}
+                            {% set file_cat = 'text' %}
+                        {% endif %}
+                        {% set is_viewable = ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv', 'mp3', 'wav', 'aac', 'flac', 'pdf', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'txt', 'json', 'csv', 'xml', 'log', 'ini', 'cfg', 'yaml', 'yml', 'md', 'html', 'js', 'css'] %}
+                        <tr class="browser-row" data-type="file" data-category="{{ file_cat }}" data-name="{{ file.name | lower }}">
                             {% if can_edit %}
                                 <td style="text-align: center;">
                                     <input type="checkbox" class="file-checkbox" data-key="{{ file.key }}" data-name="{{ file.name }}" style="cursor: pointer;">
@@ -131,7 +187,7 @@
                             {% endif %}
                             <td>
                                 <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="file-item-name" title="{{ file.name }}">
-                                    {% if ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov'] %}
+                                    {% if ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv'] %}
                                         <i class="fa-solid fa-film file-icon video"></i>
                                     {% elif ext in ['mp3', 'wav', 'aac', 'flac'] %}
                                         <i class="fa-solid fa-music file-icon audio"></i>
@@ -188,15 +244,18 @@
                             <td style="text-align: right;">
                                 <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
                                     {% if is_viewable %}
-                                        <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); color: #93c5fd;">
-                                            <i class="fa-solid fa-play"></i> Play/View
+                                        <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem; border-radius: var(--radius-md); background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); color: #93c5fd;" title="Play/View">
+                                            <i class="fa-solid fa-play"></i>
                                         </a>
                                     {% else %}
-                                        <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
-                                            <i class="fa-solid fa-download"></i> Download
+                                        <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem; border-radius: var(--radius-md);" title="Download">
+                                            <i class="fa-solid fa-download"></i>
                                         </a>
                                     {% endif %}
                                     {% if can_edit %}
+                                        <button class="btn btn-secondary btn-rename" style="padding: 0.35rem; border-radius: var(--radius-md);" data-key="{{ file.key }}" data-name="{{ file.name }}" title="Rename File">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </button>
                                         <form action="{{ url_for('delete_object', connection_id=connection.connection_id, bucket_name=bucket_name) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete &quot;{{ file.name }}&quot;?');" style="display: inline;">
                                             <input type="hidden" name="key" value="{{ file.key }}">
                                             <input type="hidden" name="prefix" value="{{ prefix }}">
@@ -211,6 +270,153 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+
+        <!-- Grid View Container -->
+        <div id="grid-view-container" class="grid-view-container" style="display: none;">
+            <!-- Folders in Grid -->
+            {% for folder in folders %}
+                {% set folder_name = folder.rstrip('/').split('/')[-1] + '/' %}
+                <div class="grid-card" data-type="folder" data-category="folder" data-name="{{ folder_name | lower }}">
+                    <div class="grid-card-preview">
+                        <i class="fa-solid fa-folder grid-card-icon folder" style="color: #fbbf24;"></i>
+                    </div>
+                    <div class="grid-card-info">
+                        <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="grid-card-name" title="{{ folder_name }}">
+                            {{ folder_name }}
+                        </a>
+                        <div class="grid-card-meta">
+                            <span>Folder</span>
+                        </div>
+                        <div class="grid-card-actions">
+                            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
+                                Open
+                            </a>
+                            {% if can_edit %}
+                                <button class="btn btn-secondary btn-rename" style="padding: 0.35rem; border-radius: var(--radius-md);" data-key="{{ folder }}" data-name="{{ folder_name.rstrip('/') }}" title="Rename Folder">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+
+            <!-- Files in Grid -->
+            {% for file in files %}
+                {% set ext = file.name.split('.')[-1].lower() if '.' in file.name else '' %}
+                {% set file_cat = 'other' %}
+                {% if ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv'] %}
+                    {% set file_cat = 'video' %}
+                {% elif ext in ['mp3', 'wav', 'aac', 'flac'] %}
+                    {% set file_cat = 'audio' %}
+                {% elif ext == 'pdf' %}
+                    {% set file_cat = 'pdf' %}
+                {% elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] %}
+                    {% set file_cat = 'image' %}
+                {% elif ext in ['txt', 'json', 'csv', 'xml', 'log', 'ini', 'cfg', 'yaml', 'yml', 'md', 'html', 'js', 'css', 'doc', 'docx', 'ppt', 'pptx'] %}
+                    {% set file_cat = 'text' %}
+                {% endif %}
+                {% set is_viewable = ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv', 'mp3', 'wav', 'aac', 'flac', 'pdf', 'ppt', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'txt', 'json', 'csv', 'xml', 'log', 'ini', 'cfg', 'yaml', 'yml', 'md', 'html', 'js', 'css'] %}
+                
+                <div class="grid-card" data-type="file" data-category="{{ file_cat }}" data-name="{{ file.name | lower }}">
+                    {% if can_edit %}
+                        <input type="checkbox" class="file-checkbox grid-card-checkbox" data-key="{{ file.key }}" data-name="{{ file.name }}">
+                    {% endif %}
+                    
+                    <div class="grid-card-preview">
+                        {% if file_cat == 'image' and file.presigned_url %}
+                            <img src="{{ file.presigned_url }}" alt="{{ file.name }}" loading="lazy">
+                        {% elif file_cat == 'video' and file.presigned_url %}
+                            <video src="{{ file.presigned_url }}" muted preload="none" style="width:100%; height:100%; object-fit:cover;"
+                                   onmouseover="this.play().catch(e => {})" onmouseout="this.pause(); this.currentTime = 0;"></video>
+                        {% else %}
+                            {% if ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv'] %}
+                                <i class="fa-solid fa-film grid-card-icon video" style="color: #f43f5e;"></i>
+                            {% elif ext in ['mp3', 'wav', 'aac', 'flac'] %}
+                                <i class="fa-solid fa-music grid-card-icon audio" style="color: #10b981;"></i>
+                            {% elif ext == 'pdf' %}
+                                <i class="fa-solid fa-file-pdf grid-card-icon pdf" style="color: #ef4444;"></i>
+                            {% elif ext in ['ppt', 'pptx'] %}
+                                <i class="fa-solid fa-file-powerpoint grid-card-icon pptx" style="color: #ea580c;"></i>
+                            {% elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] %}
+                                <i class="fa-solid fa-file-image grid-card-icon image" style="color: #a855f7;"></i>
+                            {% elif ext in ['txt', 'json', 'csv', 'xml', 'log', 'ini', 'cfg', 'yaml', 'yml', 'md', 'html', 'js', 'css'] %}
+                                <i class="fa-solid fa-file-lines grid-card-icon text-file" style="color: #38bdf8;"></i>
+                            {% else %}
+                                <i class="fa-solid fa-file grid-card-icon"></i>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    
+                    <div class="grid-card-info">
+                        <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="grid-card-name" title="{{ file.name }}">
+                            {{ file.name }}
+                        </a>
+                        <div class="grid-card-meta">
+                            <span>
+                                {% if file.size < 1024 %}
+                                    {{ file.size }} B
+                                {% elif file.size < 1048576 %}
+                                    {{ (file.size / 1024) | round(1) }} KB
+                                {% else %}
+                                    {{ (file.size / 1048576) | round(1) }} MB
+                                {% endif %}
+                            </span>
+                            <span style="max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ file.created_by }}">
+                                {{ file.created_by }}
+                            </span>
+                        </div>
+                        
+                        {% if file.progress %}
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                                <div style="flex-grow: 1; height: 4px; background: rgba(255, 255, 255, 0.05); border-radius: 999px; overflow: hidden; border: 1px solid var(--glass-border);">
+                                    <div style="width: {{ file.progress.pct }}%; height: 100%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));"></div>
+                                </div>
+                                <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-secondary);">{{ file.progress.pct }}%</span>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="grid-card-actions">
+                            {% if is_viewable %}
+                                <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem; border-radius: var(--radius-md); background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); color: #93c5fd;" title="Play/View">
+                                    <i class="fa-solid fa-play"></i>
+                                </a>
+                            {% else %}
+                                <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem; border-radius: var(--radius-md);" title="Download">
+                                    <i class="fa-solid fa-download"></i>
+                                </a>
+                            {% endif %}
+                            {% if can_edit %}
+                                <button class="btn btn-secondary btn-rename" style="padding: 0.35rem; border-radius: var(--radius-md);" data-key="{{ file.key }}" data-name="{{ file.name }}" title="Rename File">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <form action="{{ url_for('delete_object', connection_id=connection.connection_id, bucket_name=bucket_name) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete &quot;{{ file.name }}&quot;?');" style="display: inline;">
+                                    <input type="hidden" name="key" value="{{ file.key }}">
+                                    <input type="hidden" name="prefix" value="{{ prefix }}">
+                                    <button class="btn btn-danger" style="padding: 0.35rem; border-radius: var(--radius-md);" title="Delete File">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        <!-- Pagination Controls -->
+        <div class="pagination-container" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 1rem; border-top: 1px solid var(--glass-border); padding-top: 1.25rem;">
+            <div style="font-size: 0.88rem; color: var(--text-secondary);">
+                Showing <span id="paginated-start">0</span> to <span id="paginated-end">0</span> of <span id="paginated-total">0</span> items
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button id="btn-prev-page" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto; width: auto;">
+                    <i class="fa-solid fa-angle-left"></i> Previous
+                </button>
+                <button id="btn-next-page" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto; width: auto;">
+                    Next <i class="fa-solid fa-angle-right"></i>
+                </button>
+            </div>
         </div>
     {% else %}
         <div style="text-align: center; padding: 4rem 2rem;">
@@ -399,6 +605,27 @@
     }
     </style>
 
+    <!-- Rename Modal -->
+    <div id="renameModal" class="modal-overlay">
+        <div class="modal-content upload-modal-content" style="max-width: 450px !important;">
+            <h2 style="font-size: 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <span>Rename Item</span>
+                <button onclick="closeModal('renameModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </h2>
+            <form id="rename-form" style="width: 100%; display: flex; flex-direction: column; gap: 1rem;">
+                <input type="hidden" id="rename-old-key">
+                <div>
+                    <label for="rename-new-name" style="display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">New Name</label>
+                    <input type="text" id="rename-new-name" class="form-control" style="width: 100%;" required>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 0.5rem; width: 100%;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('renameModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Rename</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Upload File Modal -->
     <div id="uploadModal" class="modal-overlay">
         <div class="modal-content upload-modal-content">
@@ -410,12 +637,24 @@
             <form id="upload-form" style="width: 100%; display: flex; flex-direction: column;">
                 <input type="hidden" id="upload-prefix" value="{{ prefix }}">
                 
-                <div class="upload-drop-zone" id="drop-zone">
+                <div class="upload-drop-zone" id="drop-zone" style="cursor: default !important;">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
-                    <div class="upload-drop-zone-text">
-                        <strong>Kéo thả tệp vào đây</strong> hoặc click để chọn tệp tin
+                    <div class="upload-drop-zone-text" style="margin-bottom: 0.5rem;">
+                        <strong>Drag & drop files or folders here</strong>
                     </div>
-                    <input type="file" id="file" class="file-input-hidden" multiple>
+                    <div style="display: flex; gap: 0.75rem; z-index: 20; position: relative;">
+                        <button type="button" class="btn btn-secondary" id="btn-select-files" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto; width: auto; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); color: #93c5fd;">
+                            <i class="fa-solid fa-file" style="-webkit-text-fill-color: initial !important; background: none !important; font-size: 0.9rem !important; transform: none !important; margin-right: 0.25rem;"></i> Select Files
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="btn-select-folders" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto; width: auto; background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.2); color: #c084fc;">
+                            <i class="fa-solid fa-folder-open" style="-webkit-text-fill-color: initial !important; background: none !important; font-size: 0.9rem !important; transform: none !important; margin-right: 0.25rem;"></i> Select Folders
+                        </button>
+                    </div>
+                    <div id="inputs-container">
+                        <input type="file" id="file" style="display: none;" multiple>
+                        <input type="file" id="folder-input" webkitdirectory directory multiple style="display: none;">
+                    </div>
+                    <div id="active-inputs-storage" style="display: none;"></div>
                 </div>
 
                 <!-- Preview container -->
@@ -436,7 +675,7 @@
         <div id="upload-queue-header" style="padding: 1rem; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: rgba(30, 41, 59, 0.7); cursor: pointer; user-select: none;">
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <i class="fa-solid fa-cloud-arrow-up fa-bounce" style="color: var(--accent-purple);" id="upload-widget-icon"></i>
-                <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600;">Đang tải lên (<span id="upload-queue-count">0/0</span>)</h4>
+                <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600;">Uploading (<span id="upload-queue-count">0/0</span>)</h4>
             </div>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <button id="btn-minimize-upload-widget" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size: 0.85rem;"><i class="fa-solid fa-chevron-down"></i></button>
@@ -447,10 +686,11 @@
         </div>
     </div>
 
+
     <!-- Upload Queue Trigger Bubble (only shown when minimized and upload is active) -->
     <div id="upload-queue-bubble" style="position: fixed; bottom: 20px; right: 20px; background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); color: #fff; padding: 0.75rem 1.25rem; border-radius: 9999px; box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4); display: none; align-items: center; gap: 0.5rem; cursor: pointer; z-index: 1999; font-weight: 600; font-size: 0.9rem; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
         <i class="fa-solid fa-cloud-arrow-up fa-spin-pulse"></i>
-        <span>Đang tải lên <span id="upload-bubble-count">0</span> file...</span>
+        <span>Uploading <span id="upload-bubble-count">0</span> file(s)...</span>
     </div>
 {% endif %}
 {% endblock %}
@@ -461,23 +701,371 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadForm = document.getElementById('upload-form');
     if (!uploadForm) return;
 
-    const fileInput = document.getElementById('file');
+    let fileInput, folderInput;
+    function initInputs() {
+        fileInput = document.getElementById('file');
+        folderInput = document.getElementById('folder-input');
+        
+        fileInput.addEventListener('change', () => {
+            const files = Array.from(fileInput.files).map(f => {
+                f.relativePath = f.name;
+                return f;
+            });
+            handleFilesSelect(files);
+        });
+
+        folderInput.addEventListener('change', () => {
+            const files = Array.from(folderInput.files).map(f => {
+                f.relativePath = f.webkitRelativePath || f.name;
+                return f;
+            });
+            handleFilesSelect(files);
+        });
+    }
+
+    const btnSelectFiles = document.getElementById('btn-select-files');
+    const btnSelectFolders = document.getElementById('btn-select-folders');
     const dropZone = document.getElementById('drop-zone');
     const previewContainer = document.getElementById('preview-container');
     const submitBtn = document.getElementById('btn-upload-submit');
     const cancelBtn = document.getElementById('btn-upload-cancel');
 
+    initInputs();
+
+    if (btnSelectFiles) {
+        btnSelectFiles.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+    }
+    if (btnSelectFolders) {
+        btnSelectFolders.addEventListener('click', (e) => {
+            e.stopPropagation();
+            folderInput.click();
+        });
+    }
+
     let selectedFiles = [];
+    let globalUploads = {};
+
+    function updateQueueSummary() {
+        const uploadsArray = Object.values(globalUploads);
+        const successCount = uploadsArray.filter(s => s.isCompleted).length;
+        const total = uploadsArray.length;
+        const remaining = total - successCount;
+        
+        document.getElementById('upload-queue-count').textContent = `${successCount}/${total}`;
+        const bubbleCountEl = document.getElementById('upload-bubble-count');
+        if (bubbleCountEl) bubbleCountEl.textContent = remaining;
+
+        // Clean up completed/cancelled batches
+        const batches = {};
+        uploadsArray.forEach(s => {
+            if (s.batchId) {
+                if (!batches[s.batchId]) {
+                    batches[s.batchId] = { total: 0, finished: 0 };
+                }
+                batches[s.batchId].total++;
+                const statusEl = document.getElementById(`widget-status-${s.id}`);
+                const statusText = statusEl ? statusEl.textContent : '';
+                if (s.isCompleted || s.isCancelled || statusText === 'Error') {
+                    batches[s.batchId].finished++;
+                }
+            }
+        });
+        Object.entries(batches).forEach(([batchId, info]) => {
+            if (info.total === info.finished) {
+                const fInput = document.getElementById(`file-${batchId}`);
+                const dInput = document.getElementById(`folder-input-${batchId}`);
+                if (fInput) fInput.remove();
+                if (dInput) dInput.remove();
+            }
+        });
+        
+        if (successCount === total && total > 0) {
+            setTimeout(() => {
+                window.location.reload();
+            }, 1200);
+        }
+    }
+
+    async function startUpload(fileId) {
+        const state = globalUploads[fileId];
+        const file = state.file;
+        
+        const statusEl = document.getElementById(`widget-status-${fileId}`);
+        const barEl = document.getElementById(`widget-progress-bar-${fileId}`);
+        const speedEl = document.getElementById(`widget-speed-${fileId}`);
+        const etaEl = document.getElementById(`widget-eta-${fileId}`);
+        
+        const pauseBtn = document.getElementById(`pause-btn-${fileId}`);
+        const resumeBtn = document.getElementById(`resume-btn-${fileId}`);
+        const cancelBtn = document.getElementById(`cancel-btn-${fileId}`);
+        
+        if (!state.listenersAttached) {
+            pauseBtn.addEventListener('click', () => {
+                state.isPaused = true;
+                pauseBtn.style.display = 'none';
+                resumeBtn.style.display = 'inline-block';
+                statusEl.textContent = 'Paused';
+                statusEl.className = 'preview-item-status pending';
+                if (state.activeXhrs) {
+                    state.activeXhrs.forEach(xhr => xhr.abort());
+                    state.activeXhrs.clear();
+                }
+            });
+            
+            resumeBtn.addEventListener('click', () => {
+                state.isPaused = false;
+                pauseBtn.style.display = 'inline-block';
+                resumeBtn.style.display = 'none';
+                statusEl.textContent = 'Uploading...';
+                statusEl.className = 'preview-item-status uploading';
+                state.startTime = Date.now();
+                startUpload(fileId);
+            });
+            
+            cancelBtn.addEventListener('click', async () => {
+                state.isCancelled = true;
+                pauseBtn.style.display = 'none';
+                resumeBtn.style.display = 'none';
+                cancelBtn.style.display = 'none';
+                statusEl.textContent = 'Cancelled';
+                statusEl.className = 'preview-item-status error';
+                barEl.style.backgroundColor = 'var(--text-muted)';
+                if (state.activeXhrs) {
+                    state.activeXhrs.forEach(xhr => xhr.abort());
+                    state.activeXhrs.clear();
+                }
+                if (state.uploadId && state.key) {
+                    try {
+                        fetch("{{ url_for('multipart_abort', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ uploadId: state.uploadId, key: state.key })
+                        });
+                    } catch (e) {}
+                }
+                updateQueueSummary();
+            });
+            state.listenersAttached = true;
+        }
+        
+        try {
+            const CHUNK_SIZE = 64 * 1024 * 1024;
+            const totalParts = Math.ceil(file.size / CHUNK_SIZE) || 1;
+            
+            if (!state.completedParts) {
+                state.completedParts = new Set();
+                state.uploadingParts = new Set();
+                state.activeXhrs = new Set();
+                state.partProgress = {};
+                if (state.parts && state.parts.length > 0) {
+                    state.parts.forEach(p => {
+                        state.completedParts.add(p.PartNumber);
+                        state.partProgress[p.PartNumber] = (p.PartNumber === totalParts) 
+                            ? (file.size - (totalParts - 1) * CHUNK_SIZE) 
+                            : CHUNK_SIZE;
+                    });
+                }
+            }
+            
+            if (!state.uploadId) {
+                statusEl.textContent = 'Initiating...';
+                const uploadName = file.relativePath || file.name;
+                
+                const initRes = await fetch("{{ url_for('multipart_initiate', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: uploadName,
+                        filesize: file.size,
+                        filetype: file.type,
+                        prefix: document.getElementById('upload-prefix').value
+                    })
+                });
+                const initData = await initRes.json();
+                if (initData.status === 'error') {
+                    throw new Error(initData.message);
+                }
+                state.uploadId = initData.uploadId;
+                state.key = initData.key;
+                state.startTime = Date.now();
+            }
+            
+            const uploadPart = async (partNumber) => {
+                if (state.isCancelled || state.isPaused) return;
+                
+                const startByte = (partNumber - 1) * CHUNK_SIZE;
+                const endByte = Math.min(file.size, startByte + CHUNK_SIZE);
+                const chunkBlob = file.slice(startByte, endByte);
+                
+                const presignRes = await fetch("{{ url_for('multipart_presign_part', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uploadId: state.uploadId, key: state.key, partNumber: partNumber })
+                });
+                const presignData = await presignRes.json();
+                if (presignData.status === 'error') {
+                    throw new Error(presignData.message);
+                }
+                
+                if (state.isCancelled || state.isPaused) return;
+                
+                const etag = await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    state.activeXhrs.add(xhr);
+                    xhr.open('PUT', presignData.url, true);
+                    
+                    xhr.upload.onprogress = (event) => {
+                        if (state.isCancelled || state.isPaused) return;
+                        if (event.lengthComputable) {
+                            state.partProgress[partNumber] = event.loaded;
+                            
+                            let totalLoaded = Object.values(state.partProgress).reduce((a, b) => a + b, 0);
+                            totalLoaded = Math.min(file.size, totalLoaded);
+                            const percent = Math.round((totalLoaded / file.size) * 100);
+                            barEl.style.width = percent + '%';
+                            statusEl.textContent = `${percent}%`;
+                            
+                            const elapsed = (Date.now() - state.startTime) / 1000;
+                            const speed = elapsed > 0 ? totalLoaded / elapsed : 0;
+                            const speedStr = speed > 1048576 
+                                ? (speed / 1048576).toFixed(1) + ' MB/s' 
+                                : (speed / 1024).toFixed(1) + ' KB/s';
+                            const remaining = file.size - totalLoaded;
+                            let etaStr = '--:--';
+                            if (speed > 0) {
+                                const etaSec = Math.round(remaining / speed);
+                                const etaMin = Math.floor(etaSec / 60);
+                                const etaSecRem = etaSec % 60;
+                                etaStr = `${etaMin}:${etaSecRem < 10 ? '0' : ''}${etaSecRem}`;
+                            }
+                            if (speedEl) speedEl.textContent = speedStr;
+                            if (etaEl) etaEl.textContent = `Remaining: ${etaStr}`;
+                        }
+                    };
+                    
+                    xhr.onload = () => {
+                        state.activeXhrs.delete(xhr);
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            const etagHeader = xhr.getResponseHeader('ETag').replace(/"/g, '');
+                            resolve(etagHeader);
+                        } else {
+                            reject(new Error(`Chunk upload failed (status ${xhr.status})`));
+                        }
+                    };
+                    xhr.onerror = () => {
+                        state.activeXhrs.delete(xhr);
+                        reject(new Error('Network error during chunk upload'));
+                    };
+                    xhr.send(chunkBlob);
+                });
+                
+                state.parts.push({ PartNumber: partNumber, ETag: etag });
+                state.completedParts.add(partNumber);
+                state.partProgress[partNumber] = chunkBlob.size;
+            };
+            
+            const CONCURRENCY = 3;
+            const partsToUpload = [];
+            for (let p = 1; p <= totalParts; p++) {
+                if (!state.completedParts.has(p)) {
+                    partsToUpload.push(p);
+                }
+            }
+            
+            let nextIndex = 0;
+            let hasError = false;
+            let errorMsg = null;
+            
+            const runWorker = async () => {
+                while (nextIndex < partsToUpload.length && !state.isCancelled && !state.isPaused && !hasError) {
+                    const currentPart = partsToUpload[nextIndex++];
+                    state.uploadingParts.add(currentPart);
+                    try {
+                        await uploadPart(currentPart);
+                    } catch (e) {
+                        hasError = true;
+                        errorMsg = e.message;
+                    } finally {
+                        state.uploadingParts.delete(currentPart);
+                    }
+                }
+            };
+            
+            const workers = [];
+            const initialWorkersCount = Math.min(CONCURRENCY, partsToUpload.length);
+            for (let i = 0; i < initialWorkersCount; i++) {
+                workers.push(runWorker());
+            }
+            
+            if (initialWorkersCount > 0) {
+                await Promise.all(workers);
+            }
+            
+            if (hasError) {
+                throw new Error(errorMsg || 'Upload failed');
+            }
+            
+            if (state.isCancelled || state.isPaused) return;
+            
+            statusEl.textContent = 'Confirming...';
+            pauseBtn.style.display = 'none';
+            cancelBtn.style.display = 'none';
+            
+            const completeRes = await fetch("{{ url_for('multipart_complete', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uploadId: state.uploadId, key: state.key, parts: state.parts })
+            });
+            const completeData = await completeRes.json();
+            if (completeData.status !== 'success') {
+                throw new Error(completeData.message || 'Confirmation failed');
+            }
+            
+            statusEl.textContent = 'Success';
+            statusEl.className = 'preview-item-status success';
+            if (speedEl) speedEl.textContent = 'Upload successful';
+            if (etaEl) etaEl.textContent = '';
+            
+            state.isCompleted = true;
+            updateQueueSummary();
+        } catch (err) {
+            if (state.isPaused || state.isCancelled) return;
+            console.error(err);
+            statusEl.textContent = 'Error';
+            statusEl.className = 'preview-item-status error';
+            barEl.style.backgroundColor = 'var(--accent-rose)';
+            if (speedEl) speedEl.textContent = err.message || 'Error';
+            if (etaEl) etaEl.textContent = '';
+            pauseBtn.style.display = 'none';
+            resumeBtn.style.display = 'none';
+            cancelBtn.style.display = 'none';
+            if (state.uploadId && state.key) {
+                try {
+                    fetch("{{ url_for('multipart_abort', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ uploadId: state.uploadId, key: state.key })
+                    });
+                } catch (e) {}
+            }
+            updateQueueSummary();
+        }
+    }
 
     window.closeModalAndReset = () => {
         closeModal('uploadModal');
         selectedFiles = [];
         fileInput.value = '';
+        folderInput.value = '';
         previewContainer.innerHTML = '';
         previewContainer.style.display = 'none';
         submitBtn.disabled = true;
         cancelBtn.disabled = false;
         fileInput.disabled = false;
+        folderInput.disabled = false;
     };
 
     const uploadModalEl = document.getElementById('uploadModal');
@@ -489,7 +1077,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Drag-and-drop event handlers
     const preventDefaults = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -507,21 +1094,82 @@ document.addEventListener('DOMContentLoaded', () => {
         dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
     });
 
-    dropZone.addEventListener('drop', (e) => {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        handleFilesSelect(files);
-    });
+    async function readAllEntries(dirReader) {
+        let allEntries = [];
+        let readBatch = async () => {
+            let entries = await new Promise((resolve) => {
+                dirReader.readEntries(resolve);
+            });
+            if (entries.length > 0) {
+                allEntries = allEntries.concat(entries);
+                await readBatch();
+            }
+        };
+        await readBatch();
+        return allEntries;
+    }
 
-    fileInput.addEventListener('change', (e) => {
-        handleFilesSelect(fileInput.files);
+    async function getFilesFromEntry(entry, path = "") {
+        let files = [];
+        if (entry.isFile) {
+            const file = await new Promise((resolve) => entry.file(resolve));
+            file.relativePath = path + file.name;
+            files.push(file);
+        } else if (entry.isDirectory) {
+            const dirReader = entry.createReader();
+            const entries = await readAllEntries(dirReader);
+            for (const childEntry of entries) {
+                const childFiles = await getFilesFromEntry(childEntry, path + entry.name + "/");
+                files.push(...childFiles);
+            }
+        }
+        return files;
+    }
+
+    dropZone.addEventListener('drop', async (e) => {
+        const items = e.dataTransfer.items;
+        if (!items.length) return;
+        let files = [];
+        for (const item of items) {
+            const entry = item.webkitGetAsEntry();
+            if (entry) {
+                const entryFiles = await getFilesFromEntry(entry);
+                files.push(...entryFiles);
+            } else if (item.kind === 'file') {
+                const file = item.getAsFile();
+                if (file) {
+                    file.relativePath = file.name;
+                    files.push(file);
+                }
+            }
+        }
+        handleFilesSelect(files);
     });
 
     function handleFilesSelect(files) {
         if (!files.length) return;
-        selectedFiles = Array.from(files);
+
+        const blockedExtensions = ['exe', 'dll', 'msi', 'bat', 'cmd', 'sh', 'lnk', 'sys', 'com'];
+        const allowedFiles = [];
+        const blockedFiles = [];
+
+        files.forEach(file => {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (blockedExtensions.includes(ext)) {
+                blockedFiles.push(file.name);
+            } else {
+                allowedFiles.push(file);
+            }
+        });
+
+        if (blockedFiles.length > 0) {
+            alert(`The following file(s) are blocked (executables are not allowed): \n\n${blockedFiles.join('\n')}`);
+        }
+
+        if (!allowedFiles.length) return;
+
+        selectedFiles = selectedFiles.concat(allowedFiles);
         
-        // Clear preview
         previewContainer.innerHTML = '';
         previewContainer.style.display = 'flex';
 
@@ -535,9 +1183,11 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (file.size < 1048576) sizeStr = `${(file.size / 1024).toFixed(1)} KB`;
             else sizeStr = `${(file.size / 1048576).toFixed(1)} MB`;
 
+            const displayName = file.relativePath || file.name;
+
             item.innerHTML = `
                 <div class="preview-item-header">
-                    <span class="preview-item-name" title="${file.name}">${file.name} (${sizeStr})</span>
+                    <span class="preview-item-name" title="${displayName}">${displayName} (${sizeStr})</span>
                     <span class="preview-item-status pending" id="status-${index}">Pending</span>
                 </div>
                 <div class="preview-item-progress-bar-container">
@@ -550,7 +1200,6 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = false;
     }
 
-    // Perform uploads sequentially using background widget
     uploadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!selectedFiles.length) return;
@@ -561,132 +1210,91 @@ document.addEventListener('DOMContentLoaded', () => {
         const bubble = document.getElementById('upload-queue-bubble');
         const bubbleCount = document.getElementById('upload-bubble-count');
         
-        widgetBody.innerHTML = '';
+        const newBatchIds = [];
+        const batchId = 'batch-' + Math.random().toString(36).substr(2, 9);
         
-        selectedFiles.forEach((file, index) => {
+        selectedFiles.forEach((file) => {
+            const fileId = 'up-' + Math.random().toString(36).substr(2, 9);
+            newBatchIds.push(fileId);
+            
             const item = document.createElement('div');
             item.className = 'preview-item';
-            item.id = `widget-item-${index}`;
+            item.id = `widget-item-${fileId}`;
             
             let sizeStr = '';
             if (file.size < 1024) sizeStr = `${file.size} B`;
             else if (file.size < 1048576) sizeStr = `${(file.size / 1024).toFixed(1)} KB`;
             else sizeStr = `${(file.size / 1048576).toFixed(1)} MB`;
 
+            const displayName = file.relativePath || file.name;
+
             item.innerHTML = `
-                <div class="preview-item-header">
-                    <span class="preview-item-name" title="${file.name}">${file.name} (${sizeStr})</span>
-                    <span class="preview-item-status pending" id="widget-status-${index}">Pending</span>
+                <div class="preview-item-header" style="margin-bottom: 0.25rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+                    <span class="preview-item-name" style="font-size:0.8rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#fff; flex-grow:1;" title="${displayName}">${displayName} (${sizeStr})</span>
+                    <div style="display: flex; gap: 0.25rem; align-items: center;">
+                        <button type="button" class="btn-control pause-btn" id="pause-btn-${fileId}" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; padding:2px 4px; font-size:0.75rem;" title="Pause"><i class="fa-solid fa-pause"></i></button>
+                        <button type="button" class="btn-control resume-btn" id="resume-btn-${fileId}" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; padding:2px 4px; font-size:0.75rem; display:none;" title="Resume"><i class="fa-solid fa-play"></i></button>
+                        <button type="button" class="btn-control cancel-btn" id="cancel-btn-${fileId}" style="background:none; border:none; color:var(--accent-rose); cursor:pointer; padding:2px 4px; font-size:0.75rem;" title="Cancel"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
                 </div>
-                <div class="preview-item-progress-bar-container">
-                    <div class="preview-item-progress-bar" id="widget-progress-bar-${index}"></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem; gap: 1rem;">
+                    <div class="preview-item-progress-bar-container" style="height:4px; background:rgba(255,255,255,0.05); border-radius:99px; overflow:hidden; flex-grow:1;">
+                        <div class="preview-item-progress-bar" id="widget-progress-bar-${fileId}" style="width:0%; height:100%; background:linear-gradient(90deg, var(--accent-purple), var(--accent-blue)); transition:width 0.2s;"></div>
+                    </div>
+                    <span class="preview-item-status pending" id="widget-status-${fileId}" style="font-size:0.75rem; white-space:nowrap;">Pending</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted);">
+                    <span id="widget-speed-${fileId}">0 KB/s</span>
+                    <span id="widget-eta-${fileId}">--:--</span>
                 </div>
             `;
             widgetBody.appendChild(item);
+            
+            globalUploads[fileId] = {
+                id: fileId,
+                file: file,
+                batchId: batchId,
+                isPaused: false,
+                isCancelled: false,
+                isCompleted: false,
+                xhr: null,
+                currentPart: 1,
+                parts: [],
+                uploadId: null,
+                key: null,
+                totalLoaded: 0,
+                startTime: Date.now(),
+                accumulatedBytes: 0,
+                listenersAttached: false
+            };
         });
 
-        // Close upload modal immediately so it runs in background
-        closeModal('uploadModal');
+        // Dynamic inputs migration to prevent file access revocation
+        const inputsContainer = document.getElementById('inputs-container');
+        const activeStorage = document.getElementById('active-inputs-storage');
         
-        // Show widget
+        fileInput.id = `file-${batchId}`;
+        folderInput.id = `folder-input-${batchId}`;
+        
+        activeStorage.appendChild(fileInput);
+        activeStorage.appendChild(folderInput);
+        
+        inputsContainer.innerHTML = `
+            <input type="file" id="file" style="display: none;" multiple>
+            <input type="file" id="folder-input" webkitdirectory directory multiple style="display: none;">
+        `;
+        
+        initInputs();
+
+        closeModalAndReset(); // This cleans up modal inputs & selectedFiles immediately so it's ready for another select
         widget.style.display = 'flex';
         bubble.style.display = 'none';
-        widgetCount.textContent = `0/${selectedFiles.length}`;
-        bubbleCount.textContent = selectedFiles.length;
+        
+        updateQueueSummary();
 
-        const prefix = document.getElementById('upload-prefix').value;
-        let successCount = 0;
-
-        for (let i = 0; i < selectedFiles.length; i++) {
-            const file = selectedFiles[i];
-            const statusEl = document.getElementById(`widget-status-${i}`);
-            const barEl = document.getElementById(`widget-progress-bar-${i}`);
-
-            statusEl.textContent = 'Uploading...';
-            statusEl.className = 'preview-item-status uploading';
-
-            try {
-                // 1. Get presigned upload signature
-                const presignRes = await fetch("{{ url_for('presign_upload', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        filename: file.name,
-                        filesize: file.size,
-                        filetype: file.type,
-                        prefix: prefix
-                    })
-                });
-                const presignData = await presignRes.json();
-                if (presignData.status === 'error') {
-                    throw new Error(presignData.message);
-                }
-
-                // 2. Perform direct upload to S3 using XHR
-                await new Promise((resolve, reject) => {
-                    const formData = new FormData();
-                    Object.entries(presignData.fields).forEach(([k, v]) => {
-                        formData.append(k, v);
-                    });
-                    formData.append('file', file);
-
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('POST', presignData.url, true);
-
-                    xhr.upload.onprogress = (event) => {
-                        if (event.lengthComputable) {
-                            const percent = Math.round((event.loaded / event.total) * 100);
-                            barEl.style.width = percent + '%';
-                        }
-                    };
-
-                    xhr.onload = () => {
-                        if (xhr.status >= 200 && xhr.status < 300) {
-                            resolve(presignData.key);
-                        } else {
-                            reject(new Error(`S3 upload failed (status ${xhr.status})`));
-                        }
-                    };
-
-                    xhr.onerror = () => reject(new Error('Network error during S3 upload'));
-                    xhr.send(formData);
-                });
-
-                // 3. Confirm upload
-                statusEl.textContent = 'Confirming...';
-                const confirmRes = await fetch("{{ url_for('confirm_upload', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: presignData.key })
-                });
-                const confirmData = await confirmRes.json();
-                if (confirmData.status !== 'success') {
-                    throw new Error(confirmData.message || 'Confirmation failed');
-                }
-
-                statusEl.textContent = 'Success';
-                statusEl.className = 'preview-item-status success';
-                successCount++;
-            } catch (err) {
-                console.error(err);
-                statusEl.textContent = 'Error';
-                statusEl.className = 'preview-item-status error';
-                barEl.style.backgroundColor = 'var(--accent-rose)';
-            }
-            
-            widgetCount.textContent = `${successCount}/${selectedFiles.length}`;
-            bubbleCount.textContent = selectedFiles.length - successCount;
-        }
-
-        if (successCount === selectedFiles.length) {
-            setTimeout(() => {
-                window.location.reload();
-            }, 1200);
-        } else {
-            // Keep widget open if there was an error
-            document.getElementById('upload-widget-icon').className = 'fa-solid fa-triangle-exclamation';
-            document.getElementById('upload-widget-icon').style.color = 'var(--accent-rose)';
-        }
+        newBatchIds.forEach((fileId) => {
+            startUpload(fileId);
+        });
     });
 
     // Widget Minimize / Expand logic
@@ -709,19 +1317,152 @@ document.addEventListener('DOMContentLoaded', () => {
     if (widgetHeader) widgetHeader.addEventListener('click', minimizeWidget);
     if (bubble) bubble.addEventListener('click', expandWidget);
 
-    // Bulk Delete Checkbox Logic
+    // Client-side search, filtering and pagination logic
+    const searchInput = document.getElementById('search-input');
+    const filterSelect = document.getElementById('filter-select');
+    const prevPageBtn = document.getElementById('btn-prev-page');
+    const nextPageBtn = document.getElementById('btn-next-page');
+    const paginatedStartEl = document.getElementById('paginated-start');
+    const paginatedEndEl = document.getElementById('paginated-end');
+    const paginatedTotalEl = document.getElementById('paginated-total');
+    
+    const storageKey = `viewMode_${ "{{ connection.connection_id }}" }_${ "{{ bucket_name }}" }_${ "{{ prefix }}" }`;
+    let currentViewMode = localStorage.getItem(storageKey) || 'list';
+    let currentPage = 1;
+    const itemsPerPage = 15;
+    let filteredItems = [];
+
+    // View Mode Toggle Listeners
+    const btnList = document.getElementById('btn-view-list');
+    const btnGrid = document.getElementById('btn-view-grid');
+    const tableView = document.querySelector('.data-table-container');
+    const gridView = document.getElementById('grid-view-container');
+
+    function applyViewMode() {
+        if (currentViewMode === 'grid') {
+            if (tableView) tableView.style.display = 'none';
+            if (gridView) gridView.style.display = 'grid';
+            if (btnList) btnList.classList.remove('active');
+            if (btnGrid) btnGrid.classList.add('active');
+        } else {
+            if (tableView) tableView.style.display = 'block';
+            if (gridView) gridView.style.display = 'none';
+            if (btnList) btnList.classList.add('active');
+            if (btnGrid) btnGrid.classList.remove('active');
+        }
+        currentPage = 1;
+        updateTable();
+    }
+
+    if (btnList && btnGrid) {
+        btnList.addEventListener('click', () => {
+            currentViewMode = 'list';
+            localStorage.setItem(storageKey, 'list');
+            applyViewMode();
+        });
+        btnGrid.addEventListener('click', () => {
+            currentViewMode = 'grid';
+            localStorage.setItem(storageKey, 'grid');
+            applyViewMode();
+        });
+    }
+
+    function updateTable() {
+        if (!searchInput) return;
+        const query = searchInput.value.toLowerCase().trim();
+        const filterVal = filterSelect.value;
+
+        // Select all items belonging to active view mode
+        const activeSelector = currentViewMode === 'grid' ? '.grid-card' : '.browser-row';
+        const allItems = Array.from(document.querySelectorAll(activeSelector));
+
+        // Hide ALL items across both list and grid view
+        document.querySelectorAll('.browser-row, .grid-card').forEach(item => item.style.display = 'none');
+
+        filteredItems = allItems.filter(item => {
+            const name = item.getAttribute('data-name');
+            const type = item.getAttribute('data-type');
+            const category = item.getAttribute('data-category');
+
+            const matchesSearch = !query || name.includes(query);
+            let matchesFilter = true;
+            if (filterVal !== 'all') {
+                if (filterVal === 'folder') {
+                    matchesFilter = (type === 'folder');
+                } else if (filterVal === 'file') {
+                    matchesFilter = (type === 'file');
+                } else {
+                    matchesFilter = (category === filterVal);
+                }
+            }
+            return matchesSearch && matchesFilter;
+        });
+
+        const totalItems = filteredItems.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIdx = (currentPage - 1) * itemsPerPage;
+        const endIdx = Math.min(totalItems, startIdx + itemsPerPage);
+
+        for (let i = startIdx; i < endIdx; i++) {
+            filteredItems[i].style.display = '';
+        }
+
+        if (paginatedStartEl) {
+            paginatedStartEl.textContent = totalItems === 0 ? 0 : startIdx + 1;
+            paginatedEndEl.textContent = endIdx;
+            paginatedTotalEl.textContent = totalItems;
+        }
+        if (prevPageBtn) {
+            prevPageBtn.disabled = (currentPage === 1);
+            nextPageBtn.disabled = (currentPage === totalPages || totalItems === 0);
+        }
+    }
+
+    if (searchInput && filterSelect) {
+        searchInput.addEventListener('input', () => {
+            currentPage = 1;
+            updateTable();
+        });
+        filterSelect.addEventListener('change', () => {
+            currentPage = 1;
+            updateTable();
+        });
+        if (prevPageBtn) {
+            prevPageBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateTable();
+                }
+            });
+            nextPageBtn.addEventListener('click', () => {
+                const totalPages = Math.ceil(filteredItems.length / itemsPerPage) || 1;
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updateTable();
+                }
+            });
+        }
+        updateTable();
+    }
+
     const selectAllCheckbox = document.getElementById('select-all-files');
     const fileCheckboxes = document.querySelectorAll('.file-checkbox');
     const bulkDeleteBtn = document.getElementById('btn-bulk-delete');
     const bulkDeleteCount = document.getElementById('bulk-delete-count');
 
     const updateBulkDeleteVisibility = () => {
-        const checkedBoxes = document.querySelectorAll('.file-checkbox:checked');
-        if (checkedBoxes.length > 0) {
-            bulkDeleteBtn.style.display = 'inline-flex';
-            bulkDeleteCount.textContent = checkedBoxes.length;
-        } else {
-            bulkDeleteBtn.style.display = 'none';
+        const checkedKeys = new Set();
+        document.querySelectorAll('.file-checkbox:checked').forEach(cb => {
+            checkedKeys.add(cb.getAttribute('data-key'));
+        });
+        const checkedCount = checkedKeys.size;
+        if (bulkDeleteCount) bulkDeleteCount.textContent = checkedCount;
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.style.display = checkedCount > 0 ? 'inline-flex' : 'none';
         }
     };
 
@@ -736,6 +1477,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     fileCheckboxes.forEach(cb => {
         cb.addEventListener('change', () => {
+            const key = cb.getAttribute('data-key');
+            const checked = cb.checked;
+
+            document.querySelectorAll(`.file-checkbox[data-key="${CSS.escape(key)}"]`).forEach(otherCb => {
+                otherCb.checked = checked;
+            });
+
             const allChecked = Array.from(fileCheckboxes).every(c => c.checked);
             const someChecked = Array.from(fileCheckboxes).some(c => c.checked);
             if (selectAllCheckbox) {
@@ -746,6 +1494,70 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    applyViewMode();
+
+    // Rename logic
+    const renameModal = document.getElementById('renameModal');
+    const renameForm = document.getElementById('rename-form');
+    const renameOldKeyInput = document.getElementById('rename-old-key');
+    const renameNewNameInput = document.getElementById('rename-new-name');
+
+    document.querySelectorAll('.btn-rename').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const key = btn.getAttribute('data-key');
+            const name = btn.getAttribute('data-name');
+            renameOldKeyInput.value = key;
+            const isDir = key.endsWith('/');
+            if (isDir) {
+                renameNewNameInput.value = name;
+            } else {
+                const dotIndex = name.lastIndexOf('.');
+                if (dotIndex !== -1) {
+                    renameNewNameInput.value = name.substring(0, dotIndex);
+                } else {
+                    renameNewNameInput.value = name;
+                }
+            }
+            openModal('renameModal');
+        });
+    });
+
+    if (renameForm) {
+        renameForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const oldKey = renameOldKeyInput.value;
+            const newName = renameNewNameInput.value.trim();
+            if (!newName) return;
+
+            const submitBtn = renameForm.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Renaming...';
+
+            try {
+                const response = await fetch("{{ url_for('rename_object', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ old_key: oldKey, new_name: newName })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Failed to rename item.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Rename';
+                }
+            } catch (err) {
+                console.error(err);
+                alert('An error occurred during rename.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Rename';
+            }
+        });
+    }
+
     window.performBulkDelete = async () => {
         const checkedBoxes = document.querySelectorAll('.file-checkbox:checked');
         if (checkedBoxes.length === 0) return;
@@ -754,11 +1566,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const keys = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-key'));
         const names = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-name'));
 
-        const confirmMsg = `Bạn có chắc chắn muốn xóa ${count} tệp tin đã chọn?\n\n` + names.slice(0, 5).join('\n') + (names.length > 5 ? '\n...' : '');
+        const confirmMsg = `Are you sure you want to delete ${count} selected files?\n\n` + names.slice(0, 5).join('\n') + (names.length > 5 ? '\n...' : '');
         if (!confirm(confirmMsg)) return;
 
         bulkDeleteBtn.disabled = true;
-        bulkDeleteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xóa...';
+        bulkDeleteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
 
         try {
             const response = await fetch("{{ url_for('delete_objects_bulk', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
@@ -770,17 +1582,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.status === 'success') {
                 window.location.reload();
             } else {
-                alert(data.message || 'Xóa tệp tin thất bại.');
+                alert(data.message || 'Failed to delete files.');
                 bulkDeleteBtn.disabled = false;
                 updateBulkDeleteVisibility();
             }
         } catch (err) {
             console.error(err);
-            alert('Có lỗi xảy ra trong quá trình xóa.');
+            alert('An error occurred during deletion.');
             bulkDeleteBtn.disabled = false;
             updateBulkDeleteVisibility();
         }
     };
+
 });
 </script>
 {% endblock %}
+

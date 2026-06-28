@@ -3,10 +3,16 @@
 {% block title %}Viewer: {{ filename }} - {{ connection.name }}{% endblock %}
 
 {% block extra_head %}
+<!-- HLS.js for FLV dynamic playback -->
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <!-- PDF.js library -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 <!-- PDF.js text layer styles -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf_viewer.min.css">
+<!-- Ace Editor for text editing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
+<!-- Marked for markdown preview -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
     /* Layout styling */
     .viewer-layout-container {
@@ -346,6 +352,85 @@
     .folder-header:hover {
         background: rgba(255, 255, 255, 0.05);
     }
+    
+    /* Markdown Preview Styling */
+    .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 0.3em;
+        margin-top: 1.5em;
+        margin-bottom: 1em;
+        color: #fff;
+    }
+    .markdown-body h1 { font-size: 1.8rem; }
+    .markdown-body h2 { font-size: 1.4rem; }
+    .markdown-body h3 { font-size: 1.1rem; }
+    .markdown-body p, .markdown-body ul, .markdown-body ol {
+        line-height: 1.6;
+        margin-bottom: 1.2em;
+    }
+    .markdown-body code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.2rem 0.4rem;
+        border-radius: var(--radius-sm);
+        font-family: monospace;
+    }
+    .markdown-body pre {
+        background: #090d16;
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+    }
+    .markdown-body pre code {
+        background: transparent;
+        padding: 0;
+    }
+    
+    /* Subtitle Styles */
+    .subtitle-control-panel {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 1rem;
+        padding: 1rem;
+        background: var(--bg-card);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-md);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .subtitle-select-container {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 1;
+    }
+    .subtitle-select {
+        flex: 1;
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid var(--glass-border);
+        color: #fff;
+        padding: 0.5rem 1rem;
+        border-radius: var(--radius-md);
+        outline: none;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        font-family: inherit;
+        font-size: 0.9rem;
+    }
+    .subtitle-select:focus {
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+    }
+    video::cue {
+        background: rgba(15, 23, 42, 0.85) !important;
+        color: #fff !important;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+        font-size: 1.15rem !important;
+        line-height: 1.4 !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+    }
 </style>
 {% endblock %}
 
@@ -396,7 +481,7 @@
     
     <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
         <button id="toggle-sidebar-btn" class="btn btn-secondary">
-            <i id="toggle-sidebar-icon" class="fa-solid fa-right-to-bracket"></i> <span id="toggle-sidebar-text">Thu gọn Sidebar</span>
+            <i id="toggle-sidebar-icon" class="fa-solid fa-right-to-bracket"></i> <span id="toggle-sidebar-text">Collapse Sidebar</span>
         </button>
         <a href="{{ presigned_url }}" download class="btn btn-primary">
             <i class="fa-solid fa-download"></i> Download File
@@ -410,10 +495,29 @@
         <div class="player-container-custom">
             {% if file_type == 'video' %}
                 <div class="media-viewer" style="position: relative;">
-                    <video id="tracked-video" src="{{ presigned_url }}" controls autoplay style="width: 100%; height: 100%; object-fit: contain;"></video>
+                    {% if filename.lower().endswith('.flv') or key.lower().endswith('.flv') %}
+                        {% set flv_hls_url = url_for('flv_hls_playlist', connection_id=connection.connection_id, bucket_name=bucket_name, key=key) %}
+                        <video id="tracked-video" data-hls="true" data-src="{{ flv_hls_url }}" controls autoplay style="width: 100%; height: 100%; object-fit: contain;"></video>
+                    {% else %}
+                        <video id="tracked-video" src="{{ presigned_url }}" controls autoplay style="width: 100%; height: 100%; object-fit: contain;"></video>
+                    {% endif %}
                     <!-- HUD overlay for keyboard shortcut actions -->
                     <div id="video-hud" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.85); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 0.5rem 1rem; color: #fff; z-index: 100; font-weight: 600; display: none; pointer-events: none; opacity: 0; transition: opacity 0.3s; font-size: 0.9rem;">
                         Play
+                    </div>
+                </div>
+                
+                <!-- Subtitle Selector Panel -->
+                <div class="subtitle-control-panel" id="subtitle-panel" style="display: none;">
+                    <div class="subtitle-select-container">
+                        <i class="fa-solid fa-closed-captioning" style="color: var(--accent-purple); font-size: 1.25rem;"></i>
+                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Subtitles:</span>
+                        <select id="subtitle-select" class="subtitle-select">
+                            <option value="">None (Disabled)</option>
+                        </select>
+                    </div>
+                    <div id="sub-status" style="font-size: 0.8rem; color: var(--text-muted); display: none;">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Loading...
                     </div>
                 </div>
                 
@@ -421,16 +525,17 @@
                 <div id="resumeModal" class="modal-overlay" style="display: none;">
                     <div class="modal-content" style="max-width: 480px; text-align: center;">
                         <i class="fa-solid fa-clock-rotate-left" style="font-size: 3rem; color: var(--accent-purple); margin-bottom: 1.5rem; display: block;"></i>
-                        <h3 style="font-size: 1.25rem; margin-bottom: 1rem; color: #fff;">Tiếp tục xem?</h3>
+                        <h3 style="font-size: 1.25rem; margin-bottom: 1rem; color: #fff;">Resume Playback?</h3>
                         <p style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.95rem;">
-                            Bạn đã dừng lại ở <strong id="resume-time-display" style="color: #fff;">00:00</strong>. Bạn có muốn tiếp tục xem ở lần dừng trước không?
+                            You stopped at <strong id="resume-time-display" style="color: #fff;">00:00</strong>. Would you like to resume watching from where you left off?
                         </p>
                         <div style="display: flex; gap: 1rem; justify-content: center;">
-                            <button id="btn-resume-no" class="btn btn-secondary" style="flex: 1;">Xem từ đầu</button>
-                            <button id="btn-resume-yes" class="btn btn-primary" style="flex: 1;">Xem tiếp</button>
+                            <button id="btn-resume-no" class="btn btn-secondary" style="flex: 1;">Watch from beginning</button>
+                            <button id="btn-resume-yes" class="btn btn-primary" style="flex: 1;">Resume</button>
                         </div>
                     </div>
                 </div>
+
                 
             {% elif file_type == 'audio' %}
                 <div class="media-viewer audio-mode">
@@ -446,13 +551,13 @@
                     <div class="pdf-toolbar">
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
                             <button class="btn btn-secondary" id="pdf-prev-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto;">
-                                <i class="fa-solid fa-arrow-left"></i> Trước
+                                <i class="fa-solid fa-arrow-left"></i> Previous
                             </button>
                             <span style="font-size: 0.9rem; color: var(--text-primary);">
-                                Trang <span id="pdf-current-page">1</span> / <span id="pdf-total-pages">1</span>
+                                Page <span id="pdf-current-page">1</span> / <span id="pdf-total-pages">1</span>
                             </span>
                             <button class="btn btn-secondary" id="pdf-next-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto;">
-                                Sau <i class="fa-solid fa-arrow-right"></i>
+                                Next <i class="fa-solid fa-arrow-right"></i>
                             </button>
                         </div>
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -464,7 +569,7 @@
                                 <i class="fa-solid fa-magnifying-glass-plus"></i>
                             </button>
                             <button class="btn btn-secondary" id="pdf-fullscreen-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto;">
-                                <i class="fa-solid fa-expand"></i> Phóng to
+                                <i class="fa-solid fa-expand"></i> Fullscreen
                             </button>
                         </div>
                     </div>
@@ -477,7 +582,7 @@
                         </div>
                         <div id="pdf-loading-overlay" style="position: absolute; inset: 0; background: rgba(30, 41, 59, 0.85); display: flex; justify-content: center; align-items: center; z-index: 10; color: #fff; flex-direction: column; gap: 1rem;">
                             <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
-                            <span>Đang tải tài liệu...</span>
+                            <span>Loading document...</span>
                         </div>
                     </div>
                 </div>
@@ -488,17 +593,44 @@
                 </div>
                 
             {% elif file_type == 'text' %}
-                <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; min-height: 450px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem;">
-                        <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">
-                            <i class="fa-solid fa-code"></i> File Contents
-                        </span>
-                        <button class="btn btn-secondary" onclick="copyTextContent()" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem;">
-                            <i class="fa-solid fa-copy"></i> Sao chép
-                        </button>
+                <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; min-height: 500px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">
+                                 <i class="fa-solid fa-code"></i> File Contents
+                            </span>
+                            <span id="file-mode-badge" style="font-size: 0.75rem; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 0.15rem 0.5rem; border-radius: 99px; text-transform: uppercase; font-weight: 600;">Text</span>
+                            <span id="edit-indicator" style="font-size: 0.75rem; background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); padding: 0.15rem 0.5rem; border-radius: 99px; font-weight: 600; display: none;">Modified</span>
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            {% if can_edit %}
+                                <button class="btn btn-secondary" id="btn-format-code" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem;">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Format
+                                </button>
+                                {% if filename.lower().endswith('.md') %}
+                                    <button class="btn btn-secondary" id="btn-toggle-preview" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem;">
+                                        <i class="fa-solid fa-eye"></i> Preview
+                                    </button>
+                                {% endif %}
+                                <button class="btn btn-success" id="btn-save-text" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem; background: #10b981; border: 1px solid #059669; color: #fff;" disabled>
+                                    <i class="fa-solid fa-floppy-disk"></i> Save
+                                </button>
+                            {% endif %}
+                            <button class="btn btn-secondary" onclick="copyTextContent()" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem;">
+                                <i class="fa-solid fa-copy"></i> Copy
+                            </button>
+                        </div>
                     </div>
-                    <div style="flex: 1; overflow: auto; background: #090d16; border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1.25rem; position: relative; max-height: 70vh;">
-                        <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; line-height: 1.5; color: #cbd5e1; white-space: pre-wrap; word-break: break-all; text-align: left;" id="text-viewer-content">Đang tải nội dung...</pre>
+                    
+                    <div style="flex: 1; min-height: 450px; position: relative;">
+                        <!-- Ace Editor Container -->
+                        <div id="text-editor" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 1px solid var(--glass-border); border-radius: var(--radius-md); font-family: 'Courier New', Courier, monospace;">Loading content...</div>
+                        
+                        <!-- Markdown Preview Container -->
+                        {% if filename.lower().endswith('.md') %}
+                            <div id="markdown-preview" class="markdown-body" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow-y: auto; display: none; padding: 1.5rem; background: #0b111e; border: 1px solid var(--glass-border); border-radius: var(--radius-md); text-align: left; color: #cbd5e1;"></div>
+                        {% endif %}
                     </div>
                 </div>
                 
@@ -523,13 +655,13 @@
         <div class="sidebar-header" style="display: flex; gap: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem; margin-bottom: 0.5rem; justify-content: flex-start; align-items: center;">
             <div id="tab-files" class="sidebar-tab active" style="font-size: 1rem; font-weight: 700; color: #fff; cursor: pointer; border-bottom: 2px solid var(--accent-purple); padding-bottom: 0.25rem; display: flex; align-items: center; gap: 0.35rem;">
                 <i class="fa-solid fa-folder-open"></i>
-                <span>Tệp tin</span>
+                <span>Files</span>
                 <span id="sidebar-file-count" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal; margin-left: 0.25rem;"></span>
             </div>
             {% if file_type == 'video' %}
             <div id="tab-notes" class="sidebar-tab" style="font-size: 1rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; padding-bottom: 0.25rem; display: flex; align-items: center; gap: 0.35rem; border-bottom: 2px solid transparent;">
                 <i class="fa-solid fa-note-sticky"></i>
-                <span>Ghi chú</span>
+                <span>Notes</span>
             </div>
             {% endif %}
         </div>
@@ -538,12 +670,12 @@
         <div id="tab-content-files" style="display: flex; flex-direction: column; gap: 1rem; flex: 1; min-height: 0;">
             <div class="sidebar-search">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="sidebar-filter" placeholder="Lọc tệp tin...">
+                <input type="text" id="sidebar-filter" placeholder="Filter files...">
             </div>
             <div class="sidebar-file-list" id="sidebar-file-list">
                 <div class="loading-spinner">
                     <i class="fa-solid fa-circle-notch fa-spin"></i>
-                    <span>Đang tải danh sách...</span>
+                    <span>Loading list...</span>
                 </div>
             </div>
         </div>
@@ -555,21 +687,21 @@
             <div id="notes-list" style="overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; flex-grow: 1; padding-right: 0.25rem;">
                 <div style="color: var(--text-muted); text-align: center; padding: 2rem 1rem; font-size: 0.9rem;">
                     <i class="fa-solid fa-pen-to-square" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--text-muted);"></i>
-                    Chưa có ghi chú nào cho video này.
+                    No notes for this video yet.
                 </div>
             </div>
             
             <!-- Note Form -->
             <div id="note-form" style="border-top: 1px solid var(--glass-border); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary);">
-                    <span>Thời điểm ghi chú: <strong id="note-time-display" style="color: var(--accent-purple);">00:00</strong></span>
-                    <button class="btn btn-secondary" id="note-time-sync-btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; min-height: auto; width: auto; display: flex; align-items: center; gap: 0.25rem;" title="Đồng bộ với thời gian video hiện tại">
+                    <span>Note time: <strong id="note-time-display" style="color: var(--accent-purple);">00:00</strong></span>
+                    <button class="btn btn-secondary" id="note-time-sync-btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; min-height: auto; width: auto; display: flex; align-items: center; gap: 0.25rem;" title="Sync with current video time">
                         <i class="fa-solid fa-arrows-rotate"></i> Sync
                     </button>
                 </div>
-                <textarea id="note-textarea" class="form-control" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 0.85rem; padding: 0.5rem; resize: none; height: 70px; outline: none; width: 100%;" placeholder="Nhập ghi chú bài học... (video sẽ tự động dừng)"></textarea>
+                <textarea id="note-textarea" class="form-control" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 0.85rem; padding: 0.5rem; resize: none; height: 70px; outline: none; width: 100%;" placeholder="Enter note... (video will pause automatically)"></textarea>
                 <button class="btn btn-primary" id="note-save-btn" style="width: 100%; padding: 0.5rem; font-size: 0.85rem; font-weight: 600;">
-                    <i class="fa-solid fa-save"></i> Lưu ghi chú
+                    <i class="fa-solid fa-save"></i> Save note
                 </button>
             </div>
         </div>
@@ -581,15 +713,15 @@
 <div id="drag-overlay" class="drag-overlay">
     <div style="text-align: center; color: #fff;">
         <i class="fa-solid fa-cloud-arrow-up" style="font-size: 5rem; color: var(--accent-purple); margin-bottom: 2rem; animation: pulse-glow 2s infinite;"></i>
-        <h2 style="font-size: 2rem; font-weight: 700;">Thả file vào đây để tải lên S3</h2>
-        <p style="color: var(--text-secondary); margin-top: 0.5rem;">Tải trực tiếp vào thư mục hiện tại của bucket</p>
+        <h2 style="font-size: 2rem; font-weight: 700;">Drag & Drop files here to upload to S3</h2>
+        <p style="color: var(--text-secondary); margin-top: 0.5rem;">Upload directly to the current directory in the bucket</p>
     </div>
 </div>
 
 <!-- Upload Queue Widget -->
 <div id="upload-queue-widget" style="position: fixed; bottom: 20px; right: 20px; width: 320px; background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); z-index: 2000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; flex-direction: column; overflow: hidden; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);">
     <div style="padding: 1rem; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: rgba(15,23,42,0.6);">
-        <h4 style="margin: 0; color: #fff; font-size: 0.95rem;">Đang tải lên (<span id="upload-queue-count">0</span>)</h4>
+        <h4 style="margin: 0; color: #fff; font-size: 0.95rem;">Uploading (<span id="upload-queue-count">0</span>)</h4>
         <button onclick="document.getElementById('upload-queue-widget').style.display='none';" style="background:none; border:none; color:var(--text-secondary); cursor:pointer;"><i class="fa-solid fa-chevron-down"></i></button>
     </div>
     <div id="upload-queue-items" style="max-height: 250px; overflow-y: auto; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; scrollbar-width: thin;">
@@ -601,33 +733,33 @@
 <div id="shareLinkModal" class="modal-overlay" style="display: none;">
     <div class="modal-content" style="max-width: 480px;">
         <h2 style="font-size: 1.35rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; color: #fff;">
-            <span>Chia sẻ liên kết</span>
+            <span>Share Link</span>
             <button onclick="closeShareModal()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
         </h2>
         <div class="form-group">
-            <label for="share-expires-in">Thời gian hết hạn</label>
+            <label for="share-expires-in">Expiration Time</label>
             <select id="share-expires-in" class="form-control" style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--glass-border); color: #fff;">
-                <option value="600">10 phút</option>
-                <option value="3600" selected>1 giờ</option>
-                <option value="7200">2 giờ</option>
-                <option value="86400">1 ngày</option>
-                <option value="604800">7 ngày</option>
+                <option value="600">10 minutes</option>
+                <option value="3600" selected>1 hour</option>
+                <option value="7200">2 hours</option>
+                <option value="86400">1 day</option>
+                <option value="604800">7 days</option>
             </select>
         </div>
         
         <div class="form-group" id="share-link-result-container" style="display: none; margin-top: 1.5rem;">
-            <label>Đường dẫn liên kết</label>
+            <label>Link URL</label>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
                 <input type="text" id="share-link-input" class="form-control" readonly style="flex: 1; background: rgba(0,0,0,0.3);">
                 <button class="btn btn-primary" onclick="copyShareLink()" style="padding: 0.75rem 1rem; min-height: auto; font-size: 0.85rem;">
-                    <i class="fa-solid fa-copy"></i> Sao chép
+                    <i class="fa-solid fa-copy"></i> Copy
                 </button>
             </div>
         </div>
         
         <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
-            <button class="btn btn-secondary" onclick="closeShareModal()">Đóng</button>
-            <button class="btn btn-primary" id="generate-share-link-btn">Tạo liên kết</button>
+            <button class="btn btn-secondary" onclick="closeShareModal()">Close</button>
+            <button class="btn btn-primary" id="generate-share-link-btn">Generate Link</button>
         </div>
     </div>
 </div>
@@ -720,6 +852,7 @@
         alert('Đã sao chép liên kết vào Clipboard!');
     };
 
+
     // Parse files list into Tree structure
     function buildFileTree(files) {
         const root = { name: "Root", type: "folder", children: {}, files: [] };
@@ -800,11 +933,11 @@
                 const pct = file.progress.pct;
                 let metaText = `${pct}%`;
                 if (file.file_type === 'pdf') {
-                    metaText = `Trang ${Math.round(file.progress.seconds)}/${Math.round(file.progress.duration)}`;
+                    metaText = `Page ${Math.round(file.progress.seconds)}/${Math.round(file.progress.duration)}`;
                 }
                 progressHtml = `
                     <div class="sidebar-item-meta">
-                        <span>Tiến độ:</span>
+                        <span>Progress:</span>
                         <span>${metaText}</span>
                     </div>
                     <div class="sidebar-progress-bar">
@@ -826,7 +959,7 @@
                         <i class="${getFileIconClass(file.file_type)}"></i>
                         <span class="item-name" title="${file.name}">${file.name}</span>
                     </div>
-                    <button class="share-file-btn" onclick="openShareModal(event, '${file.key.replace(/'/g, "\\'")}')" style="background:none; border:none; color:var(--text-muted); cursor:pointer; padding:0.25rem; border-radius:4px; font-size:0.75rem;" title="Chia sẻ liên kết">
+                    <button class="share-file-btn" onclick="openShareModal(event, '${file.key.replace(/'/g, "\\'")}')" style="background:none; border:none; color:var(--text-muted); cursor:pointer; padding:0.25rem; border-radius:4px; font-size:0.75rem;" title="Share Link">
                         <i class="fa-solid fa-share-nodes"></i>
                     </button>
                 </div>
@@ -884,11 +1017,11 @@
                 const pct = file.progress.pct;
                 let metaText = `${pct}%`;
                 if (file.file_type === 'pdf') {
-                    metaText = `Trang ${Math.round(file.progress.seconds)}/${Math.round(file.progress.duration)}`;
+                    metaText = `Page ${Math.round(file.progress.seconds)}/${Math.round(file.progress.duration)}`;
                 }
                 progressHtml = `
                     <div class="sidebar-item-meta">
-                        <span>Tiến độ:</span>
+                        <span>Progress:</span>
                         <span>${metaText}</span>
                     </div>
                     <div class="sidebar-progress-bar">
@@ -921,7 +1054,7 @@
                         <i class="${getFileIconClass(file.file_type)}"></i>
                         <span class="item-name" title="${file.name}">${displayName}</span>
                     </div>
-                    <button class="share-file-btn" onclick="openShareModal(event, '${file.key.replace(/'/g, "\\'")}')" style="background:none; border:none; color:var(--text-muted); cursor:pointer; padding:0.25rem; border-radius:4px; font-size:0.75rem;" title="Chia sẻ liên kết">
+                    <button class="share-file-btn" onclick="openShareModal(event, '${file.key.replace(/'/g, "\\'")}')" style="background:none; border:none; color:var(--text-muted); cursor:pointer; padding:0.25rem; border-radius:4px; font-size:0.75rem;" title="Share Link">
                         <i class="fa-solid fa-share-nodes"></i>
                     </button>
                 </div>
@@ -984,6 +1117,9 @@
                     
                     window.sidebarFiles = data.files;
                     renderFolderTree(data.files);
+                    if (window.initSubtitles) {
+                        window.initSubtitles();
+                    }
                 }
             })
             .catch(err => {
@@ -1023,6 +1159,9 @@
                         renderFlatResults();
                     } else {
                         renderFolderTree(window.sidebarFiles);
+                    }
+                    if (window.initSubtitles) {
+                        window.initSubtitles();
                     }
                 }
             });
@@ -1085,8 +1224,11 @@
             itemsContainer.appendChild(itemEl);
             updateQueueCount();
             
-            // Get presigned fields
-            fetch(`/connection/${connectionId}/bucket/${bucketName}/presign-upload`, {
+            // Initiate multipart upload
+            const CHUNK_SIZE = 6 * 1024 * 1024; // 6MB chunk
+            const totalParts = Math.ceil(file.size / CHUNK_SIZE) || 1;
+            
+            fetch(`/connection/${connectionId}/bucket/${bucketName}/multipart/initiate`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1101,9 +1243,11 @@
             .then(res => res.json())
             .then(resData => {
                 if (resData.status === 'success') {
-                    uploadToS3(file, resData, uploadId);
+                    const uploadS3Id = resData.uploadId;
+                    const key = resData.key;
+                    uploadPartsSeq(file, uploadS3Id, key, totalParts, CHUNK_SIZE, uploadId);
                 } else {
-                    markUploadFailed(uploadId, resData.message || 'Lỗi presign');
+                    markUploadFailed(uploadId, resData.message || 'Lỗi khởi tạo');
                 }
             })
             .catch(err => {
@@ -1112,77 +1256,124 @@
         });
     }
 
-    function uploadToS3(file, resData, uploadId) {
-        const formData = new FormData();
-        for (const key in resData.fields) {
-            formData.append(key, resData.fields[key]);
-        }
-        formData.append('file', file);
-        
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', resData.url, true);
+    function uploadPartsSeq(file, uploadId, key, totalParts, CHUNK_SIZE, uploadQueueId) {
+        let currentPart = 1;
+        const parts = [];
         const startTime = Date.now();
-        
-        xhr.upload.onprogress = function(e) {
-            if (e.lengthComputable) {
-                const pct = Math.round((e.loaded / e.total) * 100);
-                document.getElementById(`bar-${uploadId}`).style.width = pct + '%';
-                document.getElementById(`pct-${uploadId}`).textContent = pct + '%';
+
+        function uploadNext() {
+            if (currentPart > totalParts) {
+                const pctSpan = document.getElementById(`pct-${uploadQueueId}`);
+                if (pctSpan) pctSpan.textContent = 'Đang ghép...';
                 
-                const elapsed = (Date.now() - startTime) / 1000;
-                const speed = e.loaded / elapsed;
-                const speedStr = speed > 1048576 
-                    ? (speed / 1048576).toFixed(1) + ' MB/s' 
-                    : (speed / 1024).toFixed(1) + ' KB/s';
-                
-                const remaining = e.total - e.loaded;
-                let etaStr = '--:--';
-                if (speed > 0) {
-                    const etaSec = Math.round(remaining / speed);
-                    const etaMin = Math.floor(etaSec / 60);
-                    const etaSecRem = etaSec % 60;
-                    etaStr = `${etaMin}:${etaSecRem < 10 ? '0' : ''}${etaSecRem}`;
-                }
-                
-                document.getElementById(`speed-${uploadId}`).textContent = speedStr;
-                document.getElementById(`eta-${uploadId}`).textContent = `Còn lại: ${etaStr}`;
-            }
-        };
-        
-        xhr.onload = function() {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                // Confirm S3 upload to database
-                fetch(`/connection/${connectionId}/bucket/${bucketName}/confirm-upload`, {
+                fetch(`/connection/${connectionId}/bucket/${bucketName}/multipart/complete`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        key: resData.key
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uploadId: uploadId, key: key, parts: parts })
                 })
                 .then(res => res.json())
-                .then(confirmData => {
-                    if (confirmData.status === 'success') {
-                        markUploadSuccess(uploadId);
+                .then(completeData => {
+                    if (completeData.status === 'success') {
+                        markUploadSuccess(uploadQueueId);
                         reloadFilesList();
                     } else {
-                        markUploadFailed(uploadId, 'Lỗi confirm');
+                        markUploadFailed(uploadQueueId, 'Ghép file lỗi: ' + completeData.message);
                     }
                 })
                 .catch(err => {
-                    markUploadFailed(uploadId, 'Lỗi confirm');
+                    markUploadFailed(uploadQueueId, 'Lỗi hoàn tất upload');
                 });
-            } else {
-                markUploadFailed(uploadId, `Lỗi tải lên S3 (${xhr.status})`);
+                return;
             }
-        };
-        
-        xhr.onerror = function() {
-            markUploadFailed(uploadId, 'Lỗi kết nối S3');
-        };
-        
-        xhr.send(formData);
+
+            const startByte = (currentPart - 1) * CHUNK_SIZE;
+            const endByte = Math.min(file.size, startByte + CHUNK_SIZE);
+            const chunkBlob = file.slice(startByte, endByte);
+            const partNumber = currentPart;
+
+            fetch(`/connection/${connectionId}/bucket/${bucketName}/multipart/presign-part`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uploadId: uploadId, key: key, partNumber: partNumber })
+            })
+            .then(res => res.json())
+            .then(presignData => {
+                if (presignData.status === 'success') {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('PUT', presignData.url, true);
+
+                    xhr.upload.onprogress = function(e) {
+                        if (e.lengthComputable) {
+                            let totalLoaded = (partNumber - 1) * CHUNK_SIZE + e.loaded;
+                            totalLoaded = Math.min(file.size, totalLoaded);
+                            
+                            const pct = Math.round((totalLoaded / file.size) * 100);
+                            const barEl = document.getElementById(`bar-${uploadQueueId}`);
+                            const pctEl = document.getElementById(`pct-${uploadQueueId}`);
+                            if (barEl) barEl.style.width = pct + '%';
+                            if (pctEl) pctEl.textContent = pct + '%';
+
+                            const elapsed = (Date.now() - startTime) / 1000;
+                            const speed = totalLoaded / elapsed;
+                            const speedStr = speed > 1048576 
+                                ? (speed / 1048576).toFixed(1) + ' MB/s' 
+                                : (speed / 1024).toFixed(1) + ' KB/s';
+                            
+                            const remaining = file.size - totalLoaded;
+                            let etaStr = '--:--';
+                            if (speed > 0) {
+                                const etaSec = Math.round(remaining / speed);
+                                const etaMin = Math.floor(etaSec / 60);
+                                const etaSecRem = etaSec % 60;
+                                etaStr = `${etaMin}:${etaSecRem < 10 ? '0' : ''}${etaSecRem}`;
+                            }
+                            
+                            const speedEl = document.getElementById(`speed-${uploadQueueId}`);
+                            const etaEl = document.getElementById(`eta-${uploadQueueId}`);
+                            if (speedEl) speedEl.textContent = speedStr;
+                            if (etaEl) etaEl.textContent = `Còn lại: ${etaStr}`;
+                        }
+                    };
+
+                    xhr.onload = function() {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            const etag = xhr.getResponseHeader('ETag').replace(/"/g, '');
+                            parts.push({ PartNumber: partNumber, ETag: etag });
+                            
+                            currentPart++;
+                            uploadNext();
+                        } else {
+                            abortMultipart();
+                            markUploadFailed(uploadQueueId, `Lỗi tải chunk ${partNumber} (${xhr.status})`);
+                        }
+                    };
+
+                    xhr.onerror = function() {
+                        abortMultipart();
+                        markUploadFailed(uploadQueueId, `Lỗi mạng tải chunk ${partNumber}`);
+                    };
+
+                    xhr.send(chunkBlob);
+                } else {
+                    abortMultipart();
+                    markUploadFailed(uploadQueueId, presignData.message || 'Lỗi presign part');
+                }
+            })
+            .catch(err => {
+                abortMultipart();
+                markUploadFailed(uploadQueueId, 'Lỗi lấy URL part');
+            });
+        }
+
+        function abortMultipart() {
+            fetch(`/connection/${connectionId}/bucket/${bucketName}/multipart/abort`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uploadId: uploadId, key: key })
+            }).catch(err => console.error("Abort error:", err));
+        }
+
+        uploadNext();
     }
 
     function markUploadSuccess(uploadId) {
@@ -1394,6 +1585,30 @@
     document.addEventListener('DOMContentLoaded', () => {
         const video = document.getElementById('tracked-video');
         if (!video) return;
+
+        // Initialize dynamic HLS streaming for FLV files
+        if (video.getAttribute('data-hls') === 'true') {
+            const hlsUrl = video.getAttribute('data-src');
+            if (Hls.isSupported()) {
+                const hls = new Hls({
+                    maxBufferLength: 10,
+                    maxMaxBufferLength: 20
+                });
+                hls.loadSource(hlsUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    console.log("HLS manifest parsed successfully.");
+                });
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    console.error("HLS Error:", data);
+                });
+                video.hlsInstance = hls;
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = hlsUrl;
+            } else {
+                console.error("HLS is not supported in this browser.");
+            }
+        }
 
         let hasPrompted = false;
         let furthestTime = parseFloat("{{ resume_seconds }}") || 0;
@@ -1706,7 +1921,7 @@
                                 <button class="btn btn-secondary note-seek-btn" data-time="${note.timestamp}" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: auto; width: auto; color: var(--accent-purple); font-weight: 600; border-color: rgba(139, 92, 246, 0.3);">
                                     <i class="fa-solid fa-play" style="font-size: 0.65rem; margin-right: 2px;"></i> ${formatTime(note.timestamp)}
                                 </button>
-                                <button class="note-delete-btn" data-id="${note.id}" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; padding: 0.25rem; border-radius: 4px;" title="Xóa ghi chú">
+                                <button class="note-delete-btn" data-id="${note.id}" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; padding: 0.25rem; border-radius: 4px;" title="Delete note">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                             </div>
@@ -1727,7 +1942,7 @@
                     // Add click event for delete buttons
                     notesList.querySelectorAll('.note-delete-btn').forEach(btn => {
                         btn.addEventListener('click', async () => {
-                            if (!confirm('Bạn có chắc muốn xóa ghi chú này?')) return;
+                            if (!confirm('Are you sure you want to delete this note?')) return;
                             const id = btn.getAttribute('data-id');
                             try {
                                 const res = await fetch(`/api/video/notes/${id}`, { method: 'DELETE' });
@@ -1735,20 +1950,20 @@
                                 if (resData.status === 'success') {
                                     loadNotes();
                                 } else {
-                                    alert('Không thể xóa: ' + resData.message);
+                                    alert('Unable to delete: ' + resData.message);
                                 }
                             } catch (err) {
                                 console.error(err);
-                                alert('Lỗi kết nối server.');
+                                alert('Server connection error.');
                             }
                         });
                     });
                 } else {
-                    notesList.innerHTML = `<div style="color: var(--accent-rose); text-align: center; padding: 1.5rem;">Lỗi: ${data.message}</div>`;
+                    notesList.innerHTML = `<div style="color: var(--accent-rose); text-align: center; padding: 1.5rem;">Error: ${data.message}</div>`;
                 }
             } catch (err) {
                 console.error(err);
-                notesList.innerHTML = '<div style="color: var(--accent-rose); text-align: center; padding: 1.5rem;">Lỗi tải dữ liệu.</div>';
+                notesList.innerHTML = '<div style="color: var(--accent-rose); text-align: center; padding: 1.5rem;">Error loading data.</div>';
             }
         }
 
@@ -1756,7 +1971,7 @@
             noteSaveBtn.addEventListener('click', async () => {
                 const content = noteTextarea.value.trim();
                 if (!content) {
-                    alert('Vui lòng nhập nội dung ghi chú.');
+                    alert('Please enter note content.');
                     return;
                 }
 
@@ -1783,51 +1998,377 @@
                         noteTimeDisplay.textContent = '00:00';
                         loadNotes();
                     } else {
-                        alert('Không thể lưu: ' + resData.message);
+                        alert('Unable to save: ' + resData.message);
                     }
                 } catch (err) {
                     console.error(err);
-                    alert('Lỗi kết nối server.');
+                    alert('Server connection error.');
                 }
             });
+        }
+
+        // Subtitle handling logic
+        function srtToVtt(srtText) {
+            let vtt = "WEBVTT\n\n";
+            let normalized = srtText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            let parts = normalized.split('\n\n');
+            
+            for (let part of parts) {
+                part = part.trim();
+                if (!part) continue;
+                
+                let lines = part.split('\n');
+                if (lines.length < 2) continue;
+                
+                let timestampLineIndex = 0;
+                if (/^\d+$/.test(lines[0].trim())) {
+                    timestampLineIndex = 1;
+                }
+                
+                let timestampLine = lines[timestampLineIndex];
+                if (!timestampLine || !timestampLine.includes('-->')) {
+                    continue;
+                }
+                
+                // Convert timestamp format (00:00:00,000) to WebVTT format (00:00:00.000)
+                let vttTimestamp = timestampLine.replace(/,/g, '.').trim();
+                let subtitleText = lines.slice(timestampLineIndex + 1).join('\n');
+                
+                vtt += vttTimestamp + "\n" + subtitleText + "\n\n";
+            }
+            return vtt;
+        }
+
+        window.initSubtitles = function() {
+            if (!window.sidebarFiles || typeof currentKey === 'undefined') return;
+            
+            const lastSlash = currentKey.lastIndexOf('/');
+            const currentFolder = lastSlash !== -1 ? currentKey.substring(0, lastSlash + 1) : '';
+            
+            const subtitleExtensions = ['.srt', '.vtt', '.ass', '.sub'];
+            const subtitles = window.sidebarFiles.filter(file => {
+                const lowerName = file.name.toLowerCase();
+                const hasSubExt = subtitleExtensions.some(ext => lowerName.endsWith(ext));
+                if (!hasSubExt) return false;
+                
+                const fileLastSlash = file.key.lastIndexOf('/');
+                const fileFolder = fileLastSlash !== -1 ? file.key.substring(0, fileLastSlash + 1) : '';
+                return fileFolder === currentFolder;
+            });
+            
+            if (subtitles.length === 0) {
+                return;
+            }
+            
+            const panel = document.getElementById('subtitle-panel');
+            const select = document.getElementById('subtitle-select');
+            if (!panel || !select) return;
+            
+            select.innerHTML = '<option value="">None (Disabled)</option>';
+            
+            subtitles.forEach(sub => {
+                const opt = document.createElement('option');
+                opt.value = sub.key;
+                opt.textContent = sub.name;
+                select.appendChild(opt);
+            });
+            
+            panel.style.display = 'flex';
+            
+            select.addEventListener('change', () => {
+                const selectedKey = select.value;
+                const video = document.getElementById('tracked-video');
+                if (!video) return;
+                
+                const existing = document.getElementById('dynamic-subtitle-track');
+                if (existing) existing.remove();
+                
+                if (!selectedKey) return;
+                
+                const statusEl = document.getElementById('sub-status');
+                if (statusEl) statusEl.style.display = 'block';
+                
+                const proxyUrl = `{{ url_for('proxy_s3_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}?key=${encodeURIComponent(selectedKey)}`;
+                
+                fetch(proxyUrl)
+                    .then(res => {
+                        if (!res.ok) throw new Error("Could not fetch subtitle");
+                        return res.text();
+                    })
+                    .then(text => {
+                        let vttContent = "";
+                        const lowerKey = selectedKey.toLowerCase();
+                        if (lowerKey.endsWith('.vtt')) {
+                            vttContent = text;
+                        } else {
+                            vttContent = srtToVtt(text);
+                        }
+                        
+                        const blob = new Blob([vttContent], { type: 'text/vtt' });
+                        const blobUrl = URL.createObjectURL(blob);
+                        
+                        const track = document.createElement('track');
+                        track.id = 'dynamic-subtitle-track';
+                        track.kind = 'subtitles';
+                        track.label = select.options[select.selectedIndex].text;
+                        track.srclang = 'vi';
+                        track.src = blobUrl;
+                        track.default = true;
+                        
+                        video.appendChild(track);
+                        
+                        if (video.textTracks && video.textTracks.length > 0) {
+                            video.textTracks[0].mode = 'showing';
+                        }
+                        
+                        if (statusEl) statusEl.style.display = 'none';
+                    })
+                    .catch(err => {
+                        console.error("Failed to load subtitle:", err);
+                        alert("Failed to load subtitle file.");
+                        if (statusEl) statusEl.style.display = 'none';
+                        select.value = "";
+                    });
+            });
+        };
+
+        // If sidebarFiles are already loaded, initialize subtitles
+        if (window.sidebarFiles) {
+            window.initSubtitles();
         }
     });
     {% endif %}
 
     {% if file_type == 'text' %}
-    <script>
+        let editor;
+        let originalContent = '';
+        let isMarkdownPreview = false;
+
         document.addEventListener('DOMContentLoaded', async () => {
-            const textViewer = document.getElementById('text-viewer-content');
+            // Initialize Ace Editor
+            editor = ace.edit("text-editor");
+            editor.setTheme("ace/theme/one_dark");
+            
+            editor.setOptions({
+                fontSize: "14px",
+                fontFamily: "Courier New, Courier, monospace",
+                showPrintMargin: false,
+                displayIndentGuides: true,
+                useWrapMode: true
+            });
+            editor.getSession().setUseWrapMode(true);
+
+            // Determine Ace editor mode based on file name
+            const filename = "{{ filename }}".toLowerCase();
+            let mode = "ace/mode/text";
+            let displayMode = "Plain Text";
+
+            if (filename.endsWith('.json')) {
+                mode = "ace/mode/json";
+                displayMode = "JSON";
+            } else if (filename.endsWith('.csv')) {
+                mode = "ace/mode/text";
+                displayMode = "CSV";
+            } else if (filename.endsWith('.md')) {
+                mode = "ace/mode/markdown";
+                displayMode = "Markdown";
+            } else if (filename.endsWith('.html') || filename.endsWith('.htm')) {
+                mode = "ace/mode/html";
+                displayMode = "HTML";
+            } else if (filename.endsWith('.xml')) {
+                mode = "ace/mode/xml";
+                displayMode = "XML";
+            } else if (filename.endsWith('.js')) {
+                mode = "ace/mode/javascript";
+                displayMode = "JavaScript";
+            } else if (filename.endsWith('.css')) {
+                mode = "ace/mode/css";
+                displayMode = "CSS";
+            } else if (filename.endsWith('.yaml') || filename.endsWith('.yml')) {
+                mode = "ace/mode/yaml";
+                displayMode = "YAML";
+            } else if (filename.endsWith('.log')) {
+                displayMode = "Log File";
+            } else if (filename.endsWith('.ini') || filename.endsWith('.cfg') || filename.endsWith('.conf')) {
+                mode = "ace/mode/ini";
+                displayMode = "Configuration";
+            }
+
+            editor.getSession().setMode(mode);
+            document.getElementById('file-mode-badge').textContent = displayMode;
+
+            // Set read-only if user cannot edit
+            {% if not can_edit %}
+                editor.setReadOnly(true);
+            {% endif %}
+
+            // Fetch and set file content
             try {
                 const res = await fetch("{{ presigned_url }}");
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                const text = await res.text();
+                let text = await res.text();
                 
-                const filename = "{{ filename }}".toLowerCase();
                 if (filename.endsWith('.json')) {
                     try {
                         const parsed = JSON.parse(text);
-                        textViewer.textContent = JSON.stringify(parsed, null, 4);
-                        return;
-                    } catch (e) {}
+                        text = JSON.stringify(parsed, null, 4);
+                    } catch (e) {
+                        console.log("Could not format JSON on load: ", e);
+                    }
                 }
-                textViewer.textContent = text;
+                
+                originalContent = text;
+                editor.setValue(text, -1);
+                editor.getSession().getUndoManager().reset();
+
+                // Track changes
+                editor.on("input", () => {
+                    const currentContent = editor.getValue();
+                    const isChanged = (currentContent !== originalContent);
+                    const saveBtn = document.getElementById('btn-save-text');
+                    const indicator = document.getElementById('edit-indicator');
+                    
+                    if (saveBtn) {
+                        saveBtn.disabled = !isChanged;
+                    }
+                    if (indicator) {
+                        indicator.style.display = isChanged ? 'inline-block' : 'none';
+                    }
+                });
+
             } catch (err) {
                 console.error(err);
-                textViewer.textContent = "Không thể tải nội dung file: " + err.message;
-                textViewer.style.color = "var(--accent-rose)";
+                editor.setValue("Unable to load file content: " + err.message, -1);
+                editor.setReadOnly(true);
+            }
+
+            // Setup buttons
+            const btnFormat = document.getElementById('btn-format-code');
+            if (btnFormat) {
+                btnFormat.addEventListener('click', () => {
+                    const currentContent = editor.getValue();
+                    if (filename.endsWith('.json')) {
+                        try {
+                            const parsed = JSON.parse(currentContent);
+                            editor.setValue(JSON.stringify(parsed, null, 4), -1);
+                        } catch (e) {
+                            alert("Invalid JSON: " + e.message);
+                        }
+                    } else if (filename.endsWith('.xml') || filename.endsWith('.html')) {
+                        let formatted = '';
+                        let reg = /(>)(<)(\/*)/g;
+                        let xml = currentContent.replace(reg, '$1\r\n$2$3');
+                        let pad = 0;
+                        xml.split('\r\n').forEach(node => {
+                            let indent = 0;
+                            if (node.match(/.+<\/\w[^>]*>$/)) {
+                                indent = 0;
+                            } else if (node.match(/^<\/\w/)) {
+                                if (pad != 0) {
+                                    pad -= 1;
+                                }
+                            } else if (node.match(/^<\w([^>]*[^\/])?>.*$/)) {
+                                indent = 1;
+                            } else {
+                                indent = 0;
+                            }
+
+                            let padding = '';
+                            for (let i = 0; i < pad; i++) {
+                                padding += '    ';
+                            }
+
+                            formatted += padding + node + '\r\n';
+                            pad += indent;
+                        });
+                        editor.setValue(formatted.trim(), -1);
+                    } else {
+                        alert("Auto-formatting is supported for JSON and XML/HTML in this viewer.");
+                    }
+                });
+            }
+
+            const btnSave = document.getElementById('btn-save-text');
+            if (btnSave) {
+                btnSave.addEventListener('click', async () => {
+                    const currentContent = editor.getValue();
+                    
+                    if (filename.endsWith('.json')) {
+                        try {
+                            JSON.parse(currentContent);
+                        } catch (e) {
+                            if (!confirm("The content is not valid JSON. Are you sure you want to save anyway?\nError: " + e.message)) {
+                                return;
+                            }
+                        }
+                    }
+
+                    btnSave.disabled = true;
+                    btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+                    try {
+                        const response = await fetch("{{ url_for('save_text_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                key: "{{ key }}",
+                                content: currentContent
+                            })
+                        });
+
+                        const resData = await response.json();
+                        if (response.ok && resData.status === 'success') {
+                            originalContent = currentContent;
+                            btnSave.disabled = true;
+                            document.getElementById('edit-indicator').style.display = 'none';
+                            alert('File saved successfully!');
+                        } else {
+                            throw new Error(resData.message || 'Unknown error');
+                        }
+                    } catch (e) {
+                        alert('Failed to save file: ' + e.message);
+                        btnSave.disabled = false;
+                    } finally {
+                        btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save';
+                    }
+                });
+            }
+
+            const btnTogglePreview = document.getElementById('btn-toggle-preview');
+            const previewContainer = document.getElementById('markdown-preview');
+            const editorContainer = document.getElementById('text-editor');
+            
+            if (btnTogglePreview && previewContainer) {
+                btnTogglePreview.addEventListener('click', () => {
+                    isMarkdownPreview = !isMarkdownPreview;
+                    if (isMarkdownPreview) {
+                        const mdContent = editor.getValue();
+                        previewContainer.innerHTML = marked.parse(mdContent);
+                        
+                        editorContainer.style.display = 'none';
+                        previewContainer.style.display = 'block';
+                        btnTogglePreview.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Mode';
+                        if (btnFormat) btnFormat.style.display = 'none';
+                    } else {
+                        previewContainer.style.display = 'none';
+                        editorContainer.style.display = 'block';
+                        btnTogglePreview.innerHTML = '<i class="fa-solid fa-eye"></i> Preview';
+                        if (btnFormat) btnFormat.style.display = 'inline-flex';
+                    }
+                });
             }
         });
 
         window.copyTextContent = () => {
-            const content = document.getElementById('text-viewer-content').textContent;
+            const content = editor.getValue();
             navigator.clipboard.writeText(content).then(() => {
-                alert('Đã sao chép nội dung vào bộ nhớ tạm.');
+                alert('Content copied to clipboard.');
             }).catch(err => {
-                console.error('Lỗi sao chép: ', err);
+                console.error('Copy error: ', err);
             });
         };
-    </script>
     {% endif %}
 </script>
 {% endblock %}

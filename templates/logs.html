@@ -80,25 +80,25 @@
             <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 2rem; align-items: center;">
                 {% if pagination.has_prev %}
                     <a href="{{ url_for('view_logs', page=pagination.prev_num) }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
-                        <i class="fa-solid fa-angle-left"></i> Trước
+                        <i class="fa-solid fa-angle-left"></i> Previous
                     </a>
                 {% else %}
                     <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem; opacity: 0.5; cursor: not-allowed;" disabled>
-                        <i class="fa-solid fa-angle-left"></i> Trước
+                        <i class="fa-solid fa-angle-left"></i> Previous
                     </button>
                 {% endif %}
 
                 <span style="color: var(--text-secondary); font-size: 0.9rem;">
-                    Trang <strong>{{ pagination.page }}</strong> / {{ pagination.pages }}
+                    Page <strong>{{ pagination.page }}</strong> / {{ pagination.pages }}
                 </span>
 
                 {% if pagination.has_next %}
                     <a href="{{ url_for('view_logs', page=pagination.next_num) }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
-                        Sau <i class="fa-solid fa-angle-right"></i>
+                        Next <i class="fa-solid fa-angle-right"></i>
                     </a>
                 {% else %}
                     <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem; opacity: 0.5; cursor: not-allowed;" disabled>
-                        Sau <i class="fa-solid fa-angle-right"></i>
+                        Next <i class="fa-solid fa-angle-right"></i>
                     </button>
                 {% endif %}
             </div>

@@ -104,6 +104,14 @@
                             <span>My Profile</span>
                         </a>
                     </li>
+                    {% if g.user.role == 'Admin' %}
+                    <li class="nav-item {% if request.path == '/admin/functions' %}active{% endif %}">
+                        <a href="{{ url_for('admin_functions') }}">
+                            <i class="fa-solid fa-screwdriver-wrench"></i>
+                            <span>Admin Function</span>
+                        </a>
+                    </li>
+                    {% endif %}
                 {% else %}
                     <li class="nav-item {% if request.path == '/login' %}active{% endif %}">
                         <a href="{{ url_for('login') }}">
@@ -126,7 +134,7 @@
             <div class="quota-meter-container" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
                 <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem; font-weight: 500;">
                     <span>Storage Quota</span>
-                    <span>{% if quota_is_unlimited %}Vô hạn{% else %}{{ quota_pct }}%{% endif %}</span>
+                    <span>{% if quota_is_unlimited %}Unlimited{% else %}{{ quota_pct }}%{% endif %}</span>
                 </div>
                 {% if not quota_is_unlimited %}
                     <div style="height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 999px; overflow: hidden; margin-bottom: 0.5rem;">
