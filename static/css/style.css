@@ -451,6 +451,8 @@ body {
     background: linear-gradient(to right, #fff, #9ca3af);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 /* Animations */
@@ -472,6 +474,9 @@ body {
     margin-bottom: 1.5rem;
     font-size: 0.875rem;
     color: var(--text-secondary);
+    flex-wrap: wrap;
+    word-break: break-all;
+    overflow-wrap: anywhere;
 }
 
 .breadcrumbs a {
