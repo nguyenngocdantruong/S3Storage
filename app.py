@@ -314,20 +314,11 @@ def generate_and_cache_preview_task(app_to_use, connection_id, bucket_name, key,
                     app_to_use.logger.error(f"Error checking/creating preview bucket: {e}")
                     return
             
-            public_endpoint = conn.upload_endpoint if (conn.upload_endpoint and conn.upload_endpoint.strip()) else conn.endpoint_url
-            s3_public = get_s3_client(conn, endpoint_url=public_endpoint)
-            original_url = fix_s3_url(s3_public.generate_presigned_url(
-                'get_object',
-                Params={'Bucket': bucket_name, 'Key': key},
-                ExpiresIn=3600
-            ))
-            
             preview_key = f"{bucket_name}/{key}.jpg"
             
             if file_type == 'image':
-                req = urllib.request.Request(original_url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=30) as res:
-                    img_data = res.read()
+                response = s3.get_object(Bucket=bucket_name, Key=key)
+                img_data = response['Body'].read()
                 img = Image.open(io.BytesIO(img_data))
                 img.thumbnail((480, 480))
                 if img.mode != 'RGB':
@@ -342,33 +333,43 @@ def generate_and_cache_preview_task(app_to_use, connection_id, bucket_name, key,
                     ContentType='image/jpeg'
                 )
             elif file_type == 'video':
-                cap = cv2.VideoCapture(original_url)
-                if cap.isOpened():
-                    fps = cap.get(cv2.CAP_PROP_FPS)
-                    if fps > 0:
-                        cap.set(cv2.CAP_PROP_POS_FRAMES, int(fps))
-                    success, frame = cap.read()
-                    if not success:
-                        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                import tempfile
+                import os
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.tmp') as temp_file:
+                    temp_file_name = temp_file.name
+                
+                try:
+                    s3.download_file(bucket_name, key, temp_file_name)
+                    cap = cv2.VideoCapture(temp_file_name)
+                    if cap.isOpened():
+                        fps = cap.get(cv2.CAP_PROP_FPS)
+                        if fps > 0:
+                            cap.set(cv2.CAP_PROP_POS_FRAMES, int(fps))
                         success, frame = cap.read()
-                    cap.release()
-                    
-                    if success:
-                        h, w = frame.shape[:2]
-                        if w > 480:
-                            ratio = 480.0 / w
-                            dim = (480, int(h * ratio))
-                            frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
+                        if not success:
+                            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                            success, frame = cap.read()
+                        cap.release()
                         
-                        success_enc, encoded_img = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-                        if success_enc:
-                            output = io.BytesIO(encoded_img.tobytes())
-                            s3.put_object(
-                                Bucket=preview_bucket,
-                                Key=preview_key,
-                                Body=output,
-                                ContentType='image/jpeg'
-                            )
+                        if success:
+                            h, w = frame.shape[:2]
+                            if w > 480:
+                                ratio = 480.0 / w
+                                dim = (480, int(h * ratio))
+                                frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
+                            
+                            success_enc, encoded_img = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+                            if success_enc:
+                                output = io.BytesIO(encoded_img.tobytes())
+                                s3.put_object(
+                                    Bucket=preview_bucket,
+                                    Key=preview_key,
+                                    Body=output,
+                                    ContentType='image/jpeg'
+                                )
+                finally:
+                    if os.path.exists(temp_file_name):
+                        os.remove(temp_file_name)
         except Exception as ex:
             app_to_use.logger.error(f"Error in generate_and_cache_preview_task for connection {connection_id}, bucket {bucket_name}, key {key}: {ex}\n{traceback.format_exc()}")
 
@@ -1083,17 +1084,7 @@ def browse_bucket(connection_id, bucket_name):
                 
                 url = None
                 if is_previewable:
-                    preview_key = f"{bucket_name}/{key}.jpg"
-                    if preview_key in cached_previews:
-                        try:
-                            url = fix_s3_url(s3_public.generate_presigned_url(
-                                'get_object',
-                                Params={'Bucket': preview_bucket, 'Key': preview_key},
-                                ExpiresIn=3600
-                            ))
-                        except Exception:
-                            pass
-                    else:
+                    if bucket_name == preview_bucket:
                         try:
                             url = fix_s3_url(s3_public.generate_presigned_url(
                                 'get_object',
@@ -1102,12 +1093,32 @@ def browse_bucket(connection_id, bucket_name):
                             ))
                         except Exception:
                             pass
-                        # Trigger background generation for missing preview
-                        from flask import current_app
-                        threading.Thread(
-                            target=generate_and_cache_preview_task,
-                            args=(current_app._get_current_object(), conn.id, bucket_name, key, file_cat)
-                        ).start()
+                    else:
+                        preview_key = f"{bucket_name}/{key}.jpg"
+                        if preview_key in cached_previews:
+                            try:
+                                url = fix_s3_url(s3_public.generate_presigned_url(
+                                    'get_object',
+                                    Params={'Bucket': preview_bucket, 'Key': preview_key},
+                                    ExpiresIn=3600
+                                ))
+                            except Exception:
+                                pass
+                        else:
+                            try:
+                                url = fix_s3_url(s3_public.generate_presigned_url(
+                                    'get_object',
+                                    Params={'Bucket': bucket_name, 'Key': key},
+                                    ExpiresIn=3600
+                                ))
+                            except Exception:
+                                pass
+                            # Trigger background generation for missing preview
+                            from flask import current_app
+                            threading.Thread(
+                                target=generate_and_cache_preview_task,
+                                args=(current_app._get_current_object(), conn.id, bucket_name, key, file_cat)
+                            ).start()
 
                 files.append({
                     'key': key,
