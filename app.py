@@ -1353,6 +1353,30 @@ def confirm_upload(connection_id, bucket_name):
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/create-folder', methods=['POST'])
+@login_required
+def create_folder(connection_id, bucket_name):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    if not check_bucket_edit_access(g.user, conn, bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied.'}), 403
+    data = request.get_json() or {}
+    folder_name = data.get('folder_name', '').strip()
+    prefix = data.get('prefix', '')
+    if not folder_name:
+        return jsonify({'status': 'error', 'message': 'Folder name cannot be empty.'}), 400
+    from werkzeug.utils import secure_filename
+    secured_name = secure_filename(folder_name)
+    if not secured_name:
+        return jsonify({'status': 'error', 'message': 'Invalid folder name.'}), 400
+    key = prefix + secured_name + '/'
+    try:
+        s3 = get_s3_client(conn)
+        s3.put_object(Bucket=bucket_name, Key=key, Body=b'')
+        log_action(g.user.id, None, conn.name, bucket_name, 'CREATE_FOLDER', f"Created folder '{key}'")
+        return jsonify({'status': 'success', 'message': 'Folder created successfully.'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @app.route('/connection/<connection_id>/bucket/<bucket_name>/save-text', methods=['POST'])
 @login_required
 def save_text_file(connection_id, bucket_name):

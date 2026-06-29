@@ -47,6 +47,9 @@
         {% endif %}
         
         {% if can_edit %}
+            <button class="btn btn-secondary" onclick="openModal('createFolderModal')" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-folder-plus"></i> Create Folder
+            </button>
             <button class="btn btn-primary" onclick="openModal('uploadModal')">
                 <i class="fa-solid fa-upload"></i> Upload File
             </button>
@@ -626,6 +629,26 @@
         </div>
     </div>
 
+    <!-- Create Folder Modal -->
+    <div id="createFolderModal" class="modal-overlay">
+        <div class="modal-content upload-modal-content" style="max-width: 450px !important;">
+            <h2 style="font-size: 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <span>Create Folder</span>
+                <button onclick="closeModal('createFolderModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </h2>
+            <form id="create-folder-form" style="width: 100%; display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                    <label for="create-folder-name" style="display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Folder Name</label>
+                    <input type="text" id="create-folder-name" class="form-control" style="width: 100%;" required placeholder="e.g. documents">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 0.5rem; width: 100%;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('createFolderModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Upload File Modal -->
     <div id="uploadModal" class="modal-overlay">
         <div class="modal-content upload-modal-content">
@@ -789,6 +812,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    let uploadQueue = [];
+    let isUploading = false;
+
+    async function processQueue() {
+        if (isUploading) return;
+        if (uploadQueue.length === 0) return;
+        isUploading = true;
+        while (uploadQueue.length > 0) {
+            const fileId = uploadQueue.shift();
+            const state = globalUploads[fileId];
+            if (!state || state.isCancelled || state.isCompleted) {
+                continue;
+            }
+            const statusEl = document.getElementById(`widget-status-${fileId}`);
+            if (statusEl) {
+                statusEl.textContent = 'Initiating...';
+                statusEl.className = 'preview-item-status uploading';
+            }
+            try {
+                await startUpload(fileId);
+            } catch (err) {
+                console.error("Queue upload failed for: " + fileId, err);
+            }
+        }
+        isUploading = false;
+    }
+
     async function startUpload(fileId) {
         const state = globalUploads[fileId];
         const file = state.file;
@@ -819,10 +869,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.isPaused = false;
                 pauseBtn.style.display = 'inline-block';
                 resumeBtn.style.display = 'none';
-                statusEl.textContent = 'Uploading...';
-                statusEl.className = 'preview-item-status uploading';
+                statusEl.textContent = 'Queued...';
+                statusEl.className = 'preview-item-status pending';
                 state.startTime = Date.now();
-                startUpload(fileId);
+                uploadQueue.push(fileId);
+                processQueue();
             });
             
             cancelBtn.addEventListener('click', async () => {
@@ -852,7 +903,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         try {
-            const CHUNK_SIZE = 64 * 1024 * 1024;
+            const CHUNK_SIZE = file.size >= 3 * 1024 * 1024 * 1024 ? 128 * 1024 * 1024 : 64 * 1024 * 1024;
             const totalParts = Math.ceil(file.size / CHUNK_SIZE) || 1;
             
             if (!state.completedParts) {
@@ -967,7 +1018,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.partProgress[partNumber] = chunkBlob.size;
             };
             
-            const CONCURRENCY = 3;
+            const CONCURRENCY = 5;
             const partsToUpload = [];
             for (let p = 1; p <= totalParts; p++) {
                 if (!state.completedParts.has(p)) {
@@ -1293,8 +1344,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateQueueSummary();
 
         newBatchIds.forEach((fileId) => {
-            startUpload(fileId);
+            uploadQueue.push(fileId);
         });
+        processQueue();
     });
 
     // Widget Minimize / Expand logic
@@ -1554,6 +1606,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('An error occurred during rename.');
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Rename';
+            }
+        });
+    }
+
+    const createFolderForm = document.getElementById('create-folder-form');
+    if (createFolderForm) {
+        createFolderForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const folderName = document.getElementById('create-folder-name').value.trim();
+            if (!folderName) return;
+            const submitBtn = createFolderForm.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating...';
+            try {
+                const response = await fetch("{{ url_for('create_folder', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folder_name: folderName, prefix: "{{ prefix }}" })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Failed to create folder.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Create';
+                }
+            } catch (err) {
+                console.error(err);
+                alert('An error occurred during folder creation.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create';
             }
         });
     }
