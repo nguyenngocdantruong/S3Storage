@@ -976,6 +976,31 @@ def delete_bucket(connection_id, bucket_name):
 
     try:
         s3 = get_s3_client(conn)
+        
+        # Empty the bucket first (handling versioned & unversioned buckets)
+        try:
+            paginator = s3.get_paginator('list_object_versions')
+            for page in paginator.paginate(Bucket=bucket_name):
+                delete_keys = []
+                for obj in page.get('Versions', []):
+                    delete_keys.append({'Key': obj['Key'], 'VersionId': obj['VersionId']})
+                for obj in page.get('DeleteMarkers', []):
+                    delete_keys.append({'Key': obj['Key'], 'VersionId': obj['VersionId']})
+                if delete_keys:
+                    s3.delete_objects(Bucket=bucket_name, Delete={'Objects': delete_keys})
+        except Exception:
+            # Fallback to standard listing if versions are not supported by the provider
+            try:
+                paginator = s3.get_paginator('list_objects_v2')
+                for page in paginator.paginate(Bucket=bucket_name):
+                    delete_keys = []
+                    for obj in page.get('Contents', []):
+                        delete_keys.append({'Key': obj['Key']})
+                    if delete_keys:
+                        s3.delete_objects(Bucket=bucket_name, Delete={'Objects': delete_keys})
+            except Exception:
+                pass
+
         s3.delete_bucket(Bucket=bucket_name)
         
         # Clean up related VideoProgress records
