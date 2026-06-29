@@ -13,6 +13,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 from logging.handlers import RotatingFileHandler
 import traceback
+import threading
+import io
+import cv2
+from PIL import Image
 
 app = Flask(__name__)
 
@@ -284,6 +288,89 @@ def check_bucket_edit_access(user, connection, bucket_name):
     if shared and shared.role == 'Editor':
         return True
     return False
+
+def generate_and_cache_preview_task(app_to_use, connection_id, bucket_name, key, file_type):
+    import urllib.request
+    with app_to_use.app_context():
+        try:
+            conn = db.session.get(S3Connection, connection_id)
+            if not conn:
+                return
+            s3 = get_s3_client(conn)
+            
+            preview_bucket = 'preview-image'
+            try:
+                s3.head_bucket(Bucket=preview_bucket)
+            except ClientError as e:
+                # Bucket doesn't exist, create it
+                error_code = e.response.get('Error', {}).get('Code')
+                if error_code in ['404', 'NoSuchBucket']:
+                    kwargs = {'Bucket': preview_bucket}
+                    if conn.region_name and conn.region_name != 'us-east-1' and 'amazonaws.com' in conn.endpoint_url:
+                        kwargs['CreateBucketConfiguration'] = {'LocationConstraint': conn.region_name}
+                    s3.create_bucket(**kwargs)
+                    configure_bucket_cors(s3, preview_bucket)
+                else:
+                    app_to_use.logger.error(f"Error checking/creating preview bucket: {e}")
+                    return
+            
+            public_endpoint = conn.upload_endpoint if (conn.upload_endpoint and conn.upload_endpoint.strip()) else conn.endpoint_url
+            s3_public = get_s3_client(conn, endpoint_url=public_endpoint)
+            original_url = fix_s3_url(s3_public.generate_presigned_url(
+                'get_object',
+                Params={'Bucket': bucket_name, 'Key': key},
+                ExpiresIn=3600
+            ))
+            
+            preview_key = f"{bucket_name}/{key}.jpg"
+            
+            if file_type == 'image':
+                req = urllib.request.Request(original_url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=30) as res:
+                    img_data = res.read()
+                img = Image.open(io.BytesIO(img_data))
+                img.thumbnail((480, 480))
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                output = io.BytesIO()
+                img.save(output, format='JPEG', quality=85)
+                output.seek(0)
+                s3.put_object(
+                    Bucket=preview_bucket,
+                    Key=preview_key,
+                    Body=output,
+                    ContentType='image/jpeg'
+                )
+            elif file_type == 'video':
+                cap = cv2.VideoCapture(original_url)
+                if cap.isOpened():
+                    fps = cap.get(cv2.CAP_PROP_FPS)
+                    if fps > 0:
+                        cap.set(cv2.CAP_PROP_POS_FRAMES, int(fps))
+                    success, frame = cap.read()
+                    if not success:
+                        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        success, frame = cap.read()
+                    cap.release()
+                    
+                    if success:
+                        h, w = frame.shape[:2]
+                        if w > 480:
+                            ratio = 480.0 / w
+                            dim = (480, int(h * ratio))
+                            frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
+                        
+                        success_enc, encoded_img = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+                        if success_enc:
+                            output = io.BytesIO(encoded_img.tobytes())
+                            s3.put_object(
+                                Bucket=preview_bucket,
+                                Key=preview_key,
+                                Body=output,
+                                ContentType='image/jpeg'
+                            )
+        except Exception as ex:
+            app_to_use.logger.error(f"Error in generate_and_cache_preview_task for connection {connection_id}, bucket {bucket_name}, key {key}: {ex}\n{traceback.format_exc()}")
 
 def log_action(actor_id, target_user_id, connection_name, bucket_name, action_type, details):
     try:
@@ -961,6 +1048,20 @@ def browse_bucket(connection_id, bucket_name):
         ).all()
         creator_map = {uf.file_key: uf.user.name for uf in uploaded_files}
         
+        # Fetch cached preview keys list from preview-image bucket
+        preview_bucket = 'preview-image'
+        cached_previews = set()
+        try:
+            preview_pages = s3.get_paginator('list_objects_v2').paginate(
+                Bucket=preview_bucket,
+                Prefix=f"{bucket_name}/{prefix}"
+            )
+            for p_page in preview_pages:
+                for p_obj in p_page.get('Contents', []):
+                    cached_previews.add(p_obj.get('Key'))
+        except Exception:
+            pass
+        
         for page in pages:
             for cp in page.get('CommonPrefixes', []):
                 folders.append(cp.get('Prefix'))
@@ -974,16 +1075,39 @@ def browse_bucket(connection_id, bucket_name):
                 ext = key.split('.')[-1].lower() if '.' in key else ''
                 is_previewable = ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv']
                 
+                file_cat = 'other'
+                if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']:
+                    file_cat = 'image'
+                elif ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv']:
+                    file_cat = 'video'
+                
                 url = None
                 if is_previewable:
-                    try:
-                        url = fix_s3_url(s3_public.generate_presigned_url(
-                            'get_object',
-                            Params={'Bucket': bucket_name, 'Key': key},
-                            ExpiresIn=3600
-                        ))
-                    except Exception:
-                        pass
+                    preview_key = f"{bucket_name}/{key}.jpg"
+                    if preview_key in cached_previews:
+                        try:
+                            url = fix_s3_url(s3_public.generate_presigned_url(
+                                'get_object',
+                                Params={'Bucket': preview_bucket, 'Key': preview_key},
+                                ExpiresIn=3600
+                            ))
+                        except Exception:
+                            pass
+                    else:
+                        try:
+                            url = fix_s3_url(s3_public.generate_presigned_url(
+                                'get_object',
+                                Params={'Bucket': bucket_name, 'Key': key},
+                                ExpiresIn=3600
+                            ))
+                        except Exception:
+                            pass
+                        # Trigger background generation for missing preview
+                        from flask import current_app
+                        threading.Thread(
+                            target=generate_and_cache_preview_task,
+                            args=(current_app._get_current_object(), conn.id, bucket_name, key, file_cat)
+                        ).start()
 
                 files.append({
                     'key': key,
@@ -1198,6 +1322,17 @@ def multipart_complete(connection_id, bucket_name):
             db.session.add(uploaded_file)
         db.session.commit()
         
+        # Trigger background preview generation
+        ext = key.split('.')[-1].lower() if '.' in key else ''
+        is_previewable = ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv']
+        if is_previewable:
+            file_cat = 'image' if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] else 'video'
+            from flask import current_app
+            threading.Thread(
+                target=generate_and_cache_preview_task,
+                args=(current_app._get_current_object(), conn.id, bucket_name, key, file_cat)
+            ).start()
+        
         return jsonify({'status': 'success', 'size': actual_size})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -1348,6 +1483,17 @@ def confirm_upload(connection_id, bucket_name):
             )
             db.session.add(uploaded_file)
         db.session.commit()
+        
+        # Trigger background preview generation
+        ext = key.split('.')[-1].lower() if '.' in key else ''
+        is_previewable = ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv']
+        if is_previewable:
+            file_cat = 'image' if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] else 'video'
+            from flask import current_app
+            threading.Thread(
+                target=generate_and_cache_preview_task,
+                args=(current_app._get_current_object(), conn.id, bucket_name, key, file_cat)
+            ).start()
         
         return jsonify({'status': 'success', 'size': actual_size})
     except Exception as e:
