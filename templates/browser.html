@@ -331,8 +331,8 @@
                         {% if file_cat == 'image' and file.presigned_url %}
                             <img src="{{ file.presigned_url }}" alt="{{ file.name }}" loading="lazy">
                         {% elif file_cat == 'video' and file.presigned_url %}
-                            <video src="{{ file.presigned_url }}" muted preload="none" style="width:100%; height:100%; object-fit:cover;"
-                                   onmouseover="this.play().catch(e => {})" onmouseout="this.pause(); this.currentTime = 0;"></video>
+                            <video src="{{ file.presigned_url }}#t=0.1" muted preload="metadata" style="width:100%; height:100%; object-fit:cover;"
+                                   onmouseover="this.play().catch(e => {})" onmouseout="this.pause(); this.currentTime = 0.1;"></video>
                         {% else %}
                             {% if ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv'] %}
                                 <i class="fa-solid fa-film grid-card-icon video" style="color: #f43f5e;"></i>

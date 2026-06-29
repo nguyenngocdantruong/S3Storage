@@ -1049,20 +1049,6 @@ def browse_bucket(connection_id, bucket_name):
         ).all()
         creator_map = {uf.file_key: uf.user.name for uf in uploaded_files}
         
-        # Fetch cached preview keys list from preview-image bucket
-        preview_bucket = 'preview-image'
-        cached_previews = set()
-        try:
-            preview_pages = s3.get_paginator('list_objects_v2').paginate(
-                Bucket=preview_bucket,
-                Prefix=f"{bucket_name}/{prefix}"
-            )
-            for p_page in preview_pages:
-                for p_obj in p_page.get('Contents', []):
-                    cached_previews.add(p_obj.get('Key'))
-        except Exception:
-            pass
-        
         for page in pages:
             for cp in page.get('CommonPrefixes', []):
                 folders.append(cp.get('Prefix'))
@@ -1084,41 +1070,14 @@ def browse_bucket(connection_id, bucket_name):
                 
                 url = None
                 if is_previewable:
-                    if bucket_name == preview_bucket:
-                        try:
-                            url = fix_s3_url(s3_public.generate_presigned_url(
-                                'get_object',
-                                Params={'Bucket': bucket_name, 'Key': key},
-                                ExpiresIn=3600
-                            ))
-                        except Exception:
-                            pass
-                    else:
-                        preview_key = f"{bucket_name}/{key}.jpg"
-                        if preview_key in cached_previews:
-                            try:
-                                url = fix_s3_url(s3_public.generate_presigned_url(
-                                    'get_object',
-                                    Params={'Bucket': preview_bucket, 'Key': preview_key},
-                                    ExpiresIn=3600
-                                ))
-                            except Exception:
-                                pass
-                        else:
-                            try:
-                                url = fix_s3_url(s3_public.generate_presigned_url(
-                                    'get_object',
-                                    Params={'Bucket': bucket_name, 'Key': key},
-                                    ExpiresIn=3600
-                                ))
-                            except Exception:
-                                pass
-                            # Trigger background generation for missing preview
-                            from flask import current_app
-                            threading.Thread(
-                                target=generate_and_cache_preview_task,
-                                args=(current_app._get_current_object(), conn.id, bucket_name, key, file_cat)
-                            ).start()
+                    try:
+                        url = fix_s3_url(s3_public.generate_presigned_url(
+                            'get_object',
+                            Params={'Bucket': bucket_name, 'Key': key},
+                            ExpiresIn=3600
+                        ))
+                    except Exception:
+                        pass
 
                 files.append({
                     'key': key,
