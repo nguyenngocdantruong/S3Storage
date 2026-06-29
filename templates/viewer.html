@@ -17,7 +17,7 @@
     /* Layout styling */
     .viewer-layout-container {
         display: grid;
-        grid-template-columns: 1fr 340px;
+        grid-template-columns: minmax(0, 1fr) 340px;
         gap: 2rem;
         margin-top: 1rem;
         align-items: start;
@@ -26,16 +26,18 @@
     
     @media (max-width: 1024px) {
         .viewer-layout-container {
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr);
         }
     }
     
     .viewer-main-content {
         min-width: 0;
+        width: 100%;
     }
     
     .player-container-custom {
         width: 100%;
+        max-width: 100%;
     }
 
     /* Sidebar rightbar styles */

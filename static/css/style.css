@@ -365,11 +365,20 @@ body {
 
 .media-viewer {
     width: 100%;
+    max-width: 100%;
     border-radius: var(--radius-lg);
     background: black;
     overflow: hidden;
     aspect-ratio: 16/9;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+}
+
+.media-viewer video {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    object-fit: contain !important;
+    display: block;
 }
 
 .media-viewer.audio-mode {
