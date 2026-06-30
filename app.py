@@ -197,6 +197,13 @@ class UploadedFile(db.Model):
     user = db.relationship('User', backref=db.backref('uploaded_files', lazy=True))
     connection = db.relationship('S3Connection', backref=db.backref('uploaded_files', lazy=True))
 
+class ItemLike(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    connection_name = db.Column(db.String(100), nullable=False)
+    bucket_name = db.Column(db.String(100), nullable=False)
+    file_key = db.Column(db.String(255), nullable=False)
+    like_count = db.Column(db.Integer, default=0, nullable=False)
+
 
 
 # Helper: Fix S3 URL for Mixed Content issues (HTTPS -> HTTPS)
@@ -1184,6 +1191,10 @@ def browse_bucket(connection_id, bucket_name):
             files.sort(key=lambda x: x.get('name', '').lower(), reverse=reverse_sort)
             
         can_edit = check_bucket_edit_access(g.user, conn, bucket_name)
+        
+        # Load item likes map
+        likes = ItemLike.query.filter_by(connection_name=conn.name, bucket_name=bucket_name).all()
+        likes_map = {l.file_key: l.like_count for l in likes}
                 
         return render_template(
             'browser.html',
@@ -1195,7 +1206,8 @@ def browse_bucket(connection_id, bucket_name):
             bucket_owner_id=owner_id,
             can_edit=can_edit,
             sort_by=sort_by,
-            direction=direction
+            direction=direction,
+            likes_map=likes_map
         )
     except Exception as e:
         flash(f'Failed to browse bucket contents: {str(e)}', 'error')
@@ -1986,6 +1998,10 @@ def view_file(connection_id, bucket_name):
 
         can_edit = check_bucket_edit_access(g.user, conn, bucket_name)
 
+        # Get like count for the file
+        like_record = ItemLike.query.filter_by(connection_name=conn.name, bucket_name=bucket_name, file_key=key).first()
+        initial_likes = like_record.like_count if like_record else 0
+
         return render_template(
             'viewer.html',
             connection=conn,
@@ -1996,7 +2012,8 @@ def view_file(connection_id, bucket_name):
             presigned_url=file_url,
             is_local_endpoint=is_local_endpoint,
             resume_seconds=resume_seconds,
-            can_edit=can_edit
+            can_edit=can_edit,
+            initial_likes=initial_likes
         )
     except Exception as e:
         flash(f'Could not view file: {str(e)}', 'error')
@@ -2236,6 +2253,36 @@ def update_video_progress():
     db.session.commit()
 
     return jsonify({'status': 'success'})
+
+@app.route('/api/like', methods=['POST'])
+def like_item():
+    data = request.get_json() or {}
+    connection_name = data.get('connection_name')
+    bucket_name = data.get('bucket_name')
+    file_key = data.get('file_key')
+
+    if not all([connection_name, bucket_name, file_key]):
+        return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
+
+    like_record = ItemLike.query.filter_by(
+        connection_name=connection_name,
+        bucket_name=bucket_name,
+        file_key=file_key
+    ).first()
+
+    if not like_record:
+        like_record = ItemLike(
+            connection_name=connection_name,
+            bucket_name=bucket_name,
+            file_key=file_key,
+            like_count=0
+        )
+        db.session.add(like_record)
+
+    like_record.like_count += 1
+    db.session.commit()
+
+    return jsonify({'status': 'success', 'like_count': like_record.like_count})
 
 @app.route('/progress')
 @login_required
