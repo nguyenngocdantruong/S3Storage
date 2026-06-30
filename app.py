@@ -3034,8 +3034,16 @@ def background_remote_download(app_to_use, task_id):
         task = None
         
         try:
-            task = db.session.get(RemoteTask, task_id)
+            # Retry fetching task from DB in case of transaction visibility delay (race condition)
+            for attempt in range(5):
+                task = db.session.get(RemoteTask, task_id)
+                if task:
+                    break
+                time.sleep(0.5)
+                db.session.expire_all()
+                
             if not task:
+                app_to_use.logger.error(f"Remote Task {task_id} not found in database after retries.")
                 return
             
             conn = db.session.get(S3Connection, task.connection_id)
