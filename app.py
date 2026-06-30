@@ -2903,17 +2903,287 @@ def create_video_note():
         db.session.rollback()
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/video/notes/<int:note_id>', methods=['DELETE'])
+@app.route('/api/check-conflicts', methods=['POST'])
 @login_required
-def delete_video_note(note_id):
-    note = VideoNote.query.filter_by(id=note_id, user_id=g.user.id).first_or_404()
+def check_paste_conflicts():
+    data = request.get_json() or {}
+    dest_connection_id = data.get('dest_connection_id')
+    dest_bucket_name = data.get('dest_bucket_name')
+    dest_prefix = data.get('dest_prefix', '')
+    items = data.get('items', [])
+    
+    if not dest_connection_id or not dest_bucket_name:
+        return jsonify({'status': 'error', 'message': 'Missing destination Connection or Bucket'}), 400
+        
+    dest_conn = S3Connection.query.filter_by(connection_id=dest_connection_id).first_or_404()
+    if not check_bucket_edit_access(g.user, dest_conn, dest_bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied at destination.'}), 403
+        
+    dest_s3 = get_s3_client(dest_conn)
+    conflicts = []
+    
+    # Helper to check if S3 key exists
+    def s3_key_exists(s3_client, bucket, key):
+        try:
+            s3_client.head_object(Bucket=bucket, Key=key)
+            return True
+        except ClientError:
+            return False
+            
+    # Resolve all files including files inside selected folders
+    for item in items:
+        src_conn_id = item.get('connection_id')
+        src_bucket = item.get('bucket_name')
+        src_key = item.get('key')
+        item_type = item.get('type')
+        name = item.get('name')
+        
+        src_conn = S3Connection.query.filter_by(connection_id=src_conn_id).first()
+        if not src_conn:
+            continue
+            
+        src_s3 = get_s3_client(src_conn)
+        
+        if item_type == 'folder':
+            # Check if user tried pasting folder inside itself
+            if src_conn_id == dest_connection_id and src_bucket == dest_bucket_name:
+                if dest_prefix.startswith(src_key):
+                    return jsonify({'status': 'error', 'message': 'Cannot copy/move a folder into itself or its subfolders.'}), 400
+
+            # List all objects in the source folder
+            paginator = src_s3.get_paginator('list_objects_v2')
+            pages = paginator.paginate(Bucket=src_bucket, Prefix=src_key)
+            for page in pages:
+                for obj in page.get('Contents', []):
+                    obj_key = obj['Key']
+                    # Calculate target key: dest_prefix + folder_name/ + relative_path_inside_folder
+                    folder_name = src_key.rstrip('/').split('/')[-1]
+                    rel_path = obj_key[len(src_key):]
+                    target_key = f"{dest_prefix}{folder_name}/{rel_path}"
+                    
+                    # S3 directory marker keys ending with '/' can be skipped or checked
+                    if target_key.endswith('/'):
+                        continue
+                        
+                    if s3_key_exists(dest_s3, dest_bucket_name, target_key):
+                        size = obj.get('Size', 0)
+                        last_modified = obj.get('LastModified')
+                        last_modified_str = last_modified.strftime('%Y-%m-%d %H:%M:%S UTC') if last_modified else '—'
+                        conflicts.append({
+                            'source_key': obj_key,
+                            'dest_key': target_key,
+                            'name': target_key[len(dest_prefix):], # Show path relative to target folder
+                            'size': size,
+                            'last_modified': last_modified_str
+                        })
+        else: # file
+            target_key = dest_prefix + name
+            if s3_key_exists(dest_s3, dest_bucket_name, target_key):
+                size = 0
+                last_modified_str = '—'
+                try:
+                    meta = src_s3.head_object(Bucket=src_bucket, Key=src_key)
+                    size = meta.get('ContentLength', 0)
+                    last_mod = meta.get('LastModified')
+                    if last_mod:
+                        last_modified_str = last_mod.strftime('%Y-%m-%d %H:%M:%S UTC')
+                except Exception:
+                    pass
+                    
+                conflicts.append({
+                    'source_key': src_key,
+                    'dest_key': target_key,
+                    'name': name,
+                    'size': size,
+                    'last_modified': last_modified_str
+                })
+                
+    return jsonify({'status': 'success', 'conflicts': conflicts})
+
+@app.route('/api/paste', methods=['POST'])
+@login_required
+def paste_selected_items():
+    data = request.get_json() or {}
+    dest_connection_id = data.get('dest_connection_id')
+    dest_bucket_name = data.get('dest_bucket_name')
+    dest_prefix = data.get('dest_prefix', '')
+    action = data.get('action', 'copy') # 'copy' or 'move'
+    items = data.get('items', [])
+    resolutions = data.get('resolutions', {}) # {source_key: 'replace' | 'keep_both' | 'skip'}
+    
+    if not dest_connection_id or not dest_bucket_name:
+        return jsonify({'status': 'error', 'message': 'Missing destination parameters'}), 400
+        
+    dest_conn = S3Connection.query.filter_by(connection_id=dest_connection_id).first_or_404()
+    if not check_bucket_edit_access(g.user, dest_conn, dest_bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied at destination.'}), 403
+        
+    dest_s3 = get_s3_client(dest_conn)
+    
+    # Helper to check S3 key existence
+    def s3_key_exists(s3_client, bucket, key):
+        try:
+            s3_client.head_object(Bucket=bucket, Key=key)
+            return True
+        except ClientError:
+            return False
+            
+    # Helper to compute a unique key for keep_both
+    def get_unique_key(s3_client, bucket, key):
+        if not s3_key_exists(s3_client, bucket, key):
+            return key
+        is_dir_key = key.endswith('/')
+        if is_dir_key:
+            base = key.rstrip('/')
+            ext = '/'
+        else:
+            base, ext = os.path.splitext(key)
+            
+        counter = 1
+        while True:
+            candidate = f"{base} ({counter}){ext}"
+            if not s3_key_exists(s3_client, bucket, candidate):
+                return candidate
+            counter += 1
+
     try:
-        db.session.delete(note)
+        for item in items:
+            src_conn_id = item.get('connection_id')
+            src_bucket = item.get('bucket_name')
+            src_key = item.get('key')
+            item_type = item.get('type')
+            name = item.get('name')
+            
+            src_conn = S3Connection.query.filter_by(connection_id=src_conn_id).first()
+            if not src_conn:
+                continue
+            src_s3 = get_s3_client(src_conn)
+            
+            # Skip if user tried pasting folder inside itself
+            if item_type == 'folder' and src_conn_id == dest_connection_id and src_bucket == dest_bucket_name:
+                if dest_prefix.startswith(src_key):
+                    continue
+            
+            if item_type == 'folder':
+                # S3 Folders: copy recursively
+                folder_name = src_key.rstrip('/').split('/')[-1]
+                
+                target_folder_key = f"{dest_prefix}{folder_name}/"
+                folder_res = resolutions.get(src_key)
+                if folder_res == 'skip':
+                    continue
+                elif folder_res == 'keep_both':
+                    target_folder_key = get_unique_key(dest_s3, dest_bucket_name, target_folder_key)
+                    folder_name = target_folder_key.rstrip('/').split('/')[-1]
+                
+                paginator = src_s3.get_paginator('list_objects_v2')
+                pages = paginator.paginate(Bucket=src_bucket, Prefix=src_key)
+                
+                for page in pages:
+                    for obj in page.get('Contents', []):
+                        obj_key = obj['Key']
+                        rel_path = obj_key[len(src_key):]
+                        target_key = f"{dest_prefix}{folder_name}/{rel_path}"
+                        
+                        if target_key.endswith('/'):
+                            dest_s3.put_object(Bucket=dest_bucket_name, Key=target_key, Body=b'')
+                            if action == 'move' and src_key != target_key:
+                                src_s3.delete_object(Bucket=src_bucket, Key=obj_key)
+                            continue
+                            
+                        file_res = resolutions.get(obj_key)
+                        if file_res == 'skip':
+                            continue
+                        elif file_res == 'keep_both':
+                            target_key = get_unique_key(dest_s3, dest_bucket_name, target_key)
+                            
+                        paste_single_file(src_conn, src_bucket, obj_key, dest_conn, dest_bucket_name, target_key, action)
+                        
+                log_action(
+                    g.user.id, 
+                    None, 
+                    dest_conn.name, 
+                    dest_bucket_name, 
+                    'PASTE_FOLDER', 
+                    f"{action.upper()} folder '{src_key}' to '{target_folder_key}'"
+                )
+                
+            else: # file
+                target_key = dest_prefix + name
+                
+                file_res = resolutions.get(src_key)
+                if file_res == 'skip':
+                    continue
+                elif file_res == 'keep_both':
+                    target_key = get_unique_key(dest_s3, dest_bucket_name, target_key)
+                    
+                paste_single_file(src_conn, src_bucket, src_key, dest_conn, dest_bucket_name, target_key, action)
+                
+                log_action(
+                    g.user.id, 
+                    None, 
+                    dest_conn.name, 
+                    dest_bucket_name, 
+                    'PASTE_FILE', 
+                    f"{action.upper()} file '{src_key}' to '{target_key}'"
+                )
+                
         db.session.commit()
-        return jsonify({'status': 'success', 'message': 'Note deleted'})
+        return jsonify({'status': 'success', 'message': 'Paste operation completed successfully.'})
     except Exception as e:
         db.session.rollback()
+        app.logger.error("Paste Error: %s\n%s", str(e), traceback.format_exc())
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+def paste_single_file(src_conn, src_bucket, src_key, dest_conn, dest_bucket, dest_key, action):
+    src_s3 = get_s3_client(src_conn)
+    dest_s3 = get_s3_client(dest_conn)
+    
+    # Check if they are copying to themselves
+    if src_conn.id == dest_conn.id and src_bucket == dest_bucket and src_key == dest_key:
+        return
+        
+    if src_conn.id == dest_conn.id:
+        # Server-side copy
+        dest_s3.copy_object(
+            Bucket=dest_bucket,
+            CopySource={'Bucket': src_bucket, 'Key': src_key},
+            Key=dest_key
+        )
+    else:
+        # Cross-connection stream copy
+        response = src_s3.get_object(Bucket=src_bucket, Key=src_key)
+        dest_s3.upload_fileobj(
+            response['Body'],
+            Bucket=dest_bucket,
+            Key=dest_key,
+            ExtraArgs={'ContentType': response.get('ContentType', 'application/octet-stream')}
+        )
+        
+    if action == 'move':
+        # Delete source object
+        src_s3.delete_object(Bucket=src_bucket, Key=src_key)
+        
+        # Update UploadedFile database references
+        uf = UploadedFile.query.filter_by(connection_id=src_conn.id, bucket_name=src_bucket, file_key=src_key).first()
+        if uf:
+            uf.connection_id = dest_conn.id
+            uf.bucket_name = dest_bucket
+            uf.file_key = dest_key
+            
+        # Update VideoProgress references
+        vp = VideoProgress.query.filter_by(connection_name=src_conn.name, bucket_name=src_bucket, file_key=src_key).first()
+        if vp:
+            vp.connection_name = dest_conn.name
+            vp.bucket_name = dest_bucket
+            vp.file_key = dest_key
+            
+        # Update VideoNotes references
+        notes = VideoNote.query.filter_by(connection_name=src_conn.name, bucket_name=src_bucket, file_key=src_key).all()
+        for note in notes:
+            note.connection_name = dest_conn.name
+            note.bucket_name = dest_bucket
+            note.file_key = dest_key
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=7090, debug=True)

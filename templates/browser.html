@@ -139,7 +139,9 @@
                         {% set folder_name = folder.rstrip('/').split('/')[-1] + '/' %}
                         <tr class="browser-row" data-type="folder" data-category="folder" data-name="{{ folder_name | lower }}">
                             {% if can_edit %}
-                                <td></td>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" class="file-checkbox folder-checkbox" data-key="{{ folder }}" data-name="{{ folder_name.rstrip('/') }}" data-type="folder" style="cursor: pointer;">
+                                </td>
                             {% endif %}
                             <td>
                                 <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="file-item-name">
@@ -185,7 +187,7 @@
                         <tr class="browser-row" data-type="file" data-category="{{ file_cat }}" data-name="{{ file.name | lower }}">
                             {% if can_edit %}
                                 <td style="text-align: center;">
-                                    <input type="checkbox" class="file-checkbox" data-key="{{ file.key }}" data-name="{{ file.name }}" style="cursor: pointer;">
+                                    <input type="checkbox" class="file-checkbox file-item-checkbox" data-key="{{ file.key }}" data-name="{{ file.name }}" data-type="file" style="cursor: pointer;">
                                 </td>
                             {% endif %}
                             <td>
@@ -281,6 +283,9 @@
             {% for folder in folders %}
                 {% set folder_name = folder.rstrip('/').split('/')[-1] + '/' %}
                 <div class="grid-card" data-type="folder" data-category="folder" data-name="{{ folder_name | lower }}">
+                    {% if can_edit %}
+                        <input type="checkbox" class="file-checkbox grid-card-checkbox folder-checkbox" data-key="{{ folder }}" data-name="{{ folder_name.rstrip('/') }}" data-type="folder">
+                    {% endif %}
                     <div class="grid-card-preview">
                         <i class="fa-solid fa-folder grid-card-icon folder" style="color: #fbbf24;"></i>
                     </div>
@@ -690,6 +695,53 @@
                     <button type="submit" id="btn-upload-submit" class="btn btn-primary" disabled><i class="fa-solid fa-upload"></i> Upload</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Clipboard Floating Bar -->
+    <div id="clipboard-floating-bar" style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 1rem; z-index: 1500; box-shadow: 0 20px 40px rgba(0,0,0,0.6); display: none; align-items: center; justify-content: space-between; gap: 1.5rem; padding: 0.75rem 1.5rem; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); color: #fff; width: max-content; max-width: 90%;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <i class="fa-solid fa-copy" style="color: var(--accent-blue); font-size: 1.2rem;"></i>
+            <span style="font-weight: 500; font-size: 0.95rem;">Selected <span id="clipboard-selected-count" style="font-weight: 700; color: var(--accent-blue);">0</span> items</span>
+        </div>
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <button id="btn-clipboard-clear" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.35rem;">
+                <i class="fa-solid fa-xmark"></i> Clear
+            </button>
+            {% if can_edit %}
+                <button id="btn-clipboard-copy-here" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.35rem; background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); border: none;">
+                    <i class="fa-solid fa-paste"></i> Copy Here
+                </button>
+                <button id="btn-clipboard-move-here" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.35rem; border-color: #fbbf24; color: #fbbf24; background: rgba(251, 191, 36, 0.05);">
+                    <i class="fa-solid fa-file-export"></i> Move Here
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Conflict Resolution Modal -->
+    <div id="conflictModal" class="modal-overlay" style="z-index: 2500;">
+        <div class="modal-content upload-modal-content" style="max-width: 550px !important;">
+            <h2 style="font-size: 1.25rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <span>Paste Conflicts</span>
+                <button onclick="closeModal('conflictModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </h2>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                The following files already exist at the destination. Select an action for each:
+            </p>
+            <div id="conflict-items-list" style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.25rem; padding-right: 0.5rem; text-align: left;">
+                <!-- Conflicts filled dynamically -->
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; padding: 0.5rem; background: rgba(255, 255, 255, 0.02); border-radius: var(--radius-sm); border: 1px solid var(--glass-border);">
+                <input type="checkbox" id="conflict-apply-all" style="cursor: pointer;">
+                <label for="conflict-apply-all" style="font-size: 0.85rem; color: var(--text-primary); cursor: pointer; user-select: none;">Apply this choice to all remaining conflicts</label>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; width: 100%;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('conflictModal')">Cancel</button>
+                <button type="button" id="btn-conflict-submit" class="btn btn-primary">Continue</button>
+            </div>
         </div>
     </div>
 
@@ -1643,12 +1695,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.performBulkDelete = async () => {
-        const checkedBoxes = document.querySelectorAll('.file-checkbox:checked');
-        if (checkedBoxes.length === 0) return;
+        const checkedBoxes = Array.from(document.querySelectorAll('.file-checkbox:checked')).filter(cb => cb.getAttribute('data-type') !== 'folder');
+        if (checkedBoxes.length === 0) {
+            alert('Please select files only to delete.');
+            return;
+        }
 
         const count = checkedBoxes.length;
-        const keys = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-key'));
-        const names = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-name'));
+        const keys = checkedBoxes.map(cb => cb.getAttribute('data-key'));
+        const names = checkedBoxes.map(cb => cb.getAttribute('data-name'));
 
         const confirmMsg = `Are you sure you want to delete ${count} selected files?\n\n` + names.slice(0, 5).join('\n') + (names.length > 5 ? '\n...' : '');
         if (!confirm(confirmMsg)) return;
@@ -1677,6 +1732,354 @@ document.addEventListener('DOMContentLoaded', () => {
             updateBulkDeleteVisibility();
         }
     };
+
+    // --- S3 Clipboard (Copy/Move) JS Logic ---
+    const currentUserId = "{{ g.user.id }}";
+    const clipboardStorageKey = `s3_clipboard_${currentUserId}`;
+    
+    // Load clipboard selection
+    function getClipboardItems() {
+        try {
+            const data = localStorage.getItem(clipboardStorageKey);
+            return data ? JSON.parse(data) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+    
+    // Save clipboard selection
+    function saveClipboardItems(items) {
+        localStorage.setItem(clipboardStorageKey, JSON.stringify(items));
+        updateClipboardUI();
+    }
+    
+    // Check if an item is in clipboard
+    function isItemInClipboard(key, connectionId, bucketName) {
+        const items = getClipboardItems();
+        return items.some(item => item.key === key && item.connection_id === connectionId && item.bucket_name === bucketName);
+    }
+    
+    // Toggle item in clipboard
+    function toggleClipboardItem(checkbox) {
+        const key = checkbox.getAttribute('data-key');
+        const name = checkbox.getAttribute('data-name');
+        const type = checkbox.getAttribute('data-type') || 'file';
+        const connectionId = "{{ connection.connection_id }}";
+        const bucketName = "{{ bucket_name }}";
+        
+        let items = getClipboardItems();
+        if (checkbox.checked) {
+            // Add if not exists
+            if (!isItemInClipboard(key, connectionId, bucketName)) {
+                items.push({
+                    connection_id: connectionId,
+                    bucket_name: bucketName,
+                    key: key,
+                    name: name,
+                    type: type
+                });
+            }
+        } else {
+            // Remove
+            items = items.filter(item => !(item.key === key && item.connection_id === connectionId && item.bucket_name === bucketName));
+        }
+        saveClipboardItems(items);
+    }
+    
+    // Sync checkboxes with current localStorage clipboard state on page load/render
+    function syncCheckboxesFromClipboard() {
+        const connectionId = "{{ connection.connection_id }}";
+        const bucketName = "{{ bucket_name }}";
+        const checkboxes = document.querySelectorAll('.file-checkbox');
+        
+        checkboxes.forEach(cb => {
+            if (cb.id === 'select-all-files') return;
+            const key = cb.getAttribute('data-key');
+            if (isItemInClipboard(key, connectionId, bucketName)) {
+                cb.checked = true;
+            } else {
+                cb.checked = false;
+            }
+        });
+        
+        // Update Select All state
+        const itemCbs = Array.from(checkboxes).filter(cb => cb.id !== 'select-all-files');
+        if (itemCbs.length > 0) {
+            const allChecked = itemCbs.every(cb => cb.checked);
+            const someChecked = itemCbs.some(cb => cb.checked);
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = someChecked && !allChecked;
+            }
+        }
+        
+        updateBulkDeleteVisibility();
+    }
+    
+    // Format bytes to readable size
+    function formatBytes(bytes) {
+        if (!bytes) return '—';
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const dm = 1;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+    
+    // Update floating bar visibility & count
+    const clipboardBar = document.getElementById('clipboard-floating-bar');
+    const clipboardCountEl = document.getElementById('clipboard-selected-count');
+    
+    function updateClipboardUI() {
+        const items = getClipboardItems();
+        if (clipboardCountEl) {
+            clipboardCountEl.textContent = items.length;
+        }
+        if (clipboardBar) {
+            clipboardBar.style.display = items.length > 0 ? 'flex' : 'none';
+        }
+    }
+    
+    // Initialize event listeners on check/uncheck
+    document.querySelectorAll('.file-checkbox').forEach(cb => {
+        if (cb.id === 'select-all-files') return;
+        cb.addEventListener('change', () => {
+            toggleClipboardItem(cb);
+        });
+    });
+    
+    if (selectAllCheckbox) {
+        // Remove the original change listener from selectAllCheckbox so we don't double bind
+        const newSelectAll = selectAllCheckbox.cloneNode(true);
+        selectAllCheckbox.parentNode.replaceChild(newSelectAll, selectAllCheckbox);
+        
+        newSelectAll.addEventListener('change', () => {
+            const checkboxes = document.querySelectorAll('.file-checkbox');
+            const connectionId = "{{ connection.connection_id }}";
+            const bucketName = "{{ bucket_name }}";
+            let items = getClipboardItems();
+            
+            checkboxes.forEach(cb => {
+                if (cb.id === 'select-all-files') return;
+                const key = cb.getAttribute('data-key');
+                const name = cb.getAttribute('data-name');
+                const type = cb.getAttribute('data-type') || 'file';
+                
+                if (newSelectAll.checked) {
+                    cb.checked = true;
+                    if (!isItemInClipboard(key, connectionId, bucketName)) {
+                        items.push({
+                            connection_id: connectionId,
+                            bucket_name: bucketName,
+                            key: key,
+                            name: name,
+                            type: type
+                        });
+                    }
+                } else {
+                    cb.checked = false;
+                    items = items.filter(item => !(item.key === key && item.connection_id === connectionId && item.bucket_name === bucketName));
+                }
+            });
+            saveClipboardItems(items);
+        });
+    }
+    
+    // Clear selection handler
+    const btnClipboardClear = document.getElementById('btn-clipboard-clear');
+    if (btnClipboardClear) {
+        btnClipboardClear.addEventListener('click', () => {
+            saveClipboardItems([]);
+            syncCheckboxesFromClipboard();
+        });
+    }
+    
+    // Paste logic (Copy & Move)
+    let pasteAction = 'copy';
+    let pasteItems = [];
+    let pasteResolutions = {};
+    
+    const btnClipboardCopyHere = document.getElementById('btn-clipboard-copy-here');
+    const btnClipboardMoveHere = document.getElementById('btn-clipboard-move-here');
+    
+    if (btnClipboardCopyHere) {
+        btnClipboardCopyHere.addEventListener('click', () => initiatePaste('copy'));
+    }
+    if (btnClipboardMoveHere) {
+        btnClipboardMoveHere.addEventListener('click', () => initiatePaste('move'));
+    }
+    
+    async function initiatePaste(action) {
+        pasteAction = action;
+        pasteItems = getClipboardItems();
+        if (pasteItems.length === 0) return;
+        
+        const destConnectionId = "{{ connection.connection_id }}";
+        const destBucketName = "{{ bucket_name }}";
+        const destPrefix = "{{ prefix }}";
+        
+        // Show loading/disabled state on paste buttons
+        if (btnClipboardCopyHere) btnClipboardCopyHere.disabled = true;
+        if (btnClipboardMoveHere) btnClipboardMoveHere.disabled = true;
+        
+        try {
+            // Step 1: Check for conflicts
+            const response = await fetch("/api/check-conflicts", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    dest_connection_id: destConnectionId,
+                    dest_bucket_name: destBucketName,
+                    dest_prefix: destPrefix,
+                    items: pasteItems
+                })
+            });
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                if (data.conflicts && data.conflicts.length > 0) {
+                    // We have conflicts! Show conflict modal
+                    showConflictModal(data.conflicts);
+                } else {
+                    // No conflicts, execute paste immediately
+                    await executePaste({});
+                }
+            } else {
+                alert(data.message || 'Error checking paste conflicts.');
+                if (btnClipboardCopyHere) btnClipboardCopyHere.disabled = false;
+                if (btnClipboardMoveHere) btnClipboardMoveHere.disabled = false;
+            }
+        } catch (e) {
+            console.error(e);
+            alert('An error occurred during paste initialization.');
+            if (btnClipboardCopyHere) btnClipboardCopyHere.disabled = false;
+            if (btnClipboardMoveHere) btnClipboardMoveHere.disabled = false;
+        }
+    }
+    
+    function showConflictModal(conflicts) {
+        const listEl = document.getElementById('conflict-items-list');
+        listEl.innerHTML = '';
+        
+        conflicts.forEach((conflict, index) => {
+            const row = document.createElement('div');
+            row.className = 'conflict-item-row';
+            row.style.borderBottom = '1px solid var(--glass-border)';
+            row.style.paddingBottom = '0.75rem';
+            row.style.marginBottom = '0.75rem';
+            row.setAttribute('data-source-key', conflict.source_key);
+            
+            row.innerHTML = `
+                <div style="font-size: 0.9rem; font-weight: 500; margin-bottom: 0.25rem; color: #fff; word-break: break-all;">
+                    ${conflict.name}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; display: flex; gap: 1rem;">
+                    <span>Size: ${formatBytes(conflict.size)}</span>
+                    <span>Last modified: ${conflict.last_modified}</span>
+                </div>
+                <div style="display: flex; gap: 1.5rem; align-items: center;">
+                    <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer; color: var(--text-secondary);">
+                        <input type="radio" name="resolution-${index}" value="replace" checked style="cursor: pointer;"> Replace
+                    </label>
+                    <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer; color: var(--text-secondary);">
+                        <input type="radio" name="resolution-${index}" value="keep_both" style="cursor: pointer;"> Keep both
+                    </label>
+                    <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer; color: var(--text-secondary);">
+                        <input type="radio" name="resolution-${index}" value="skip" style="cursor: pointer;"> Skip
+                    </label>
+                </div>
+            `;
+            listEl.appendChild(row);
+        });
+        
+        // Handle "Apply to all" logic
+        const applyAllCb = document.getElementById('conflict-apply-all');
+        applyAllCb.checked = false;
+        
+        const handleApplyAllChange = () => {
+            if (applyAllCb.checked) {
+                // Find first selected radio value
+                const checkedRadio = document.querySelector('input[name="resolution-0"]:checked');
+                if (checkedRadio) {
+                    const firstRadioVal = checkedRadio.value;
+                    conflicts.forEach((c, idx) => {
+                        const radios = document.getElementsByName(`resolution-${idx}`);
+                        radios.forEach(r => {
+                            if (r.value === firstRadioVal) r.checked = true;
+                        });
+                    });
+                }
+            }
+        };
+        applyAllCb.addEventListener('change', handleApplyAllChange);
+        
+        openModal('conflictModal');
+    }
+    
+    // Conflict modal submission handler
+    const btnConflictSubmit = document.getElementById('btn-conflict-submit');
+    if (btnConflictSubmit) {
+        btnConflictSubmit.addEventListener('click', async () => {
+            const rows = document.querySelectorAll('.conflict-item-row');
+            const resolutions = {};
+            
+            rows.forEach((row, index) => {
+                const sourceKey = row.getAttribute('data-source-key');
+                const selectedVal = row.querySelector(`input[name="resolution-${index}"]:checked`).value;
+                resolutions[sourceKey] = selectedVal;
+            });
+            
+            closeModal('conflictModal');
+            await executePaste(resolutions);
+        });
+    }
+    
+    async function executePaste(resolutions) {
+        const destConnectionId = "{{ connection.connection_id }}";
+        const destBucketName = "{{ bucket_name }}";
+        const destPrefix = "{{ prefix }}";
+        
+        const pasteBtn = pasteAction === 'copy' ? btnClipboardCopyHere : btnClipboardMoveHere;
+        const originalText = pasteBtn.innerHTML;
+        pasteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Pasting...';
+        
+        try {
+            const response = await fetch("/api/paste", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    dest_connection_id: destConnectionId,
+                    dest_bucket_name: destBucketName,
+                    dest_prefix: destPrefix,
+                    action: pasteAction,
+                    items: pasteItems,
+                    resolutions: resolutions
+                })
+            });
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                saveClipboardItems([]);
+                window.location.reload();
+            } else {
+                alert(data.message || 'Error occurred during paste operation.');
+                pasteBtn.innerHTML = originalText;
+                if (btnClipboardCopyHere) btnClipboardCopyHere.disabled = false;
+                if (btnClipboardMoveHere) btnClipboardMoveHere.disabled = false;
+            }
+        } catch (e) {
+            console.error(e);
+            alert('An error occurred while pasting selected items.');
+            pasteBtn.innerHTML = originalText;
+            if (btnClipboardCopyHere) btnClipboardCopyHere.disabled = false;
+            if (btnClipboardMoveHere) btnClipboardMoveHere.disabled = false;
+        }
+    }
+    
+    // Sync selections on initial page load
+    syncCheckboxesFromClipboard();
+    updateClipboardUI();
 
 });
 </script>
