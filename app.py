@@ -3361,6 +3361,13 @@ def list_remote_tasks():
     tasks = RemoteTask.query.filter_by(user_id=g.user.id).order_by(RemoteTask.created_at.desc()).all()
     return render_template('tasks.html', tasks=tasks)
 
+@app.route('/remote-tasks/<task_id>')
+@login_required
+def list_remote_task_details(task_id):
+    task = RemoteTask.query.filter_by(id=task_id, user_id=g.user.id).first_or_404()
+    return render_template('task_detail.html', task=task)
+
+
 @app.route('/remote-tasks/<task_id>/delete', methods=['POST'])
 @login_required
 def delete_remote_task(task_id):

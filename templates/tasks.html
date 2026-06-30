@@ -38,7 +38,7 @@
                         {% elif task.link_type == 'torrent' %}{% set type_icon = 'fa-magnet fa-solid' %}
                         {% else %}{% set type_icon = 'fa-cloud-arrow-down fa-solid' %}
                         {% endif %}
-                        <tr class="task-row" id="task-row-{{ task.id }}" data-task-id="{{ task.id }}">
+                        <tr class="task-row" id="task-row-{{ task.id }}" data-task-id="{{ task.id }}" onclick="window.location='{{ url_for('list_remote_task_details', task_id=task.id) }}';" style="cursor: pointer;">
                             <td>
                                 <div style="display: flex; flex-direction: column; gap: 0.25rem; max-width: 320px;">
                                     <span class="task-filename" id="task-filename-{{ task.id }}" style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ task.filename or task.link }}">
@@ -80,7 +80,7 @@
                             <td style="color: var(--text-secondary); font-size: 0.85rem;">
                                 {{ task.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}
                             </td>
-                            <td style="text-align: right;">
+                            <td style="text-align: right;" onclick="event.stopPropagation();">
                                 <form action="{{ url_for('delete_remote_task', task_id=task.id) }}" method="POST" onsubmit="return confirm('Xóa lịch sử nhiệm vụ này?');" style="display: inline-block;">
                                     <button type="submit" class="btn btn-secondary" style="padding: 0.35rem; border-radius: var(--radius-md);" title="Xóa lịch sử">
                                         <i class="fa-solid fa-trash-can" style="color: var(--accent-rose);"></i>

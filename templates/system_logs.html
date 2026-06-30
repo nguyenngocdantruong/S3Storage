@@ -4,46 +4,73 @@
 
 {% block extra_head %}
 <style>
-    .console-container {
-        background: rgba(10, 12, 18, 0.95);
-        border: 1px solid var(--glass-border);
+    .terminal-window {
         border-radius: var(--radius-lg);
-        font-family: 'Courier New', Courier, monospace;
+        overflow: hidden;
+        border: 1px solid var(--glass-border);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+        background: #090c10;
+        margin-top: 1rem;
+    }
+    
+    .terminal-header {
+        background: #161b22;
+        padding: 0.75rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .terminal-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .dot-red { background: #ff5f56; }
+    .dot-yellow { background: #ffbd2e; }
+    .dot-green { background: #27c93f; }
+    
+    .console-container {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
         font-size: 0.85rem;
-        line-height: 1.5;
+        line-height: 1.6;
         padding: 1.5rem;
         height: 600px;
         overflow-y: auto;
-        color: #e2e8f0;
+        color: #c9d1d9;
+        text-align: left !important;
         box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
     }
     
     .log-line {
         white-space: pre-wrap;
         word-break: break-all;
-        margin-bottom: 0.35rem;
-        padding-bottom: 0.35rem;
+        margin-bottom: 0.4rem;
+        padding-bottom: 0.4rem;
         border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+        text-align: left !important;
     }
 
     .log-info {
-        color: #818cf8; /* indigo/blue */
+        color: #79c0ff; /* elegant blue */
     }
 
     .log-warning {
-        color: #fbbf24; /* yellow/amber */
+        color: #e3b341; /* clean warning color */
     }
 
     .log-error {
-        color: #f87171; /* red */
+        color: #ff7b72; /* beautiful glowing red */
         font-weight: 500;
-        background: rgba(248, 113, 113, 0.04);
-        padding-left: 4px;
-        border-left: 2px solid #ef4444;
+        background: rgba(255, 123, 114, 0.05);
+        padding-left: 8px;
+        border-left: 3px solid #ff7b72;
     }
 
     .log-traceback {
-        color: #94a3b8; /* gray-slate */
+        color: #8b949e; /* muted gray-slate for clean reading */
         padding-left: 1.5rem;
     }
 
@@ -71,9 +98,9 @@
         margin-right: 0.5rem;
     }
 
-    .badge-info { background: rgba(129, 140, 248, 0.15); color: #818cf8; }
-    .badge-warning { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
-    .badge-error { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+    .badge-info { background: rgba(121, 192, 255, 0.15); color: #79c0ff; }
+    .badge-warning { background: rgba(227, 179, 65, 0.15); color: #e3b341; }
+    .badge-error { background: rgba(255, 123, 114, 0.15); color: #ff7b72; }
 </style>
 {% endblock %}
 
@@ -128,37 +155,45 @@
         </div>
     </div>
 
-    <div class="console-container" id="consoleContainer">
-        {% if log_lines %}
-            {% for line in log_lines %}
-                {% set css_class = "" %}
-                {% if ' INFO ' in line %}
-                    {% set css_class = "log-info" %}
-                {% elif ' WARNING ' in line %}
-                    {% set css_class = "log-warning" %}
-                {% elif ' ERROR ' in line or ' CRITICAL ' in line %}
-                    {% set css_class = "log-error" %}
-                {% elif line.startswith('Traceback') or line.startswith('  File') or line.startswith('    ') %}
-                    {% set css_class = "log-traceback" %}
-                {% endif %}
-                
-                <div class="log-line {{ css_class }}">
-                    {# Parse timestamps and formats for better inline styling #}
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <span class="terminal-dot dot-red"></span>
+            <span class="terminal-dot dot-yellow"></span>
+            <span class="terminal-dot dot-green"></span>
+            <span style="margin-left: 0.5rem; font-family: monospace; font-size: 0.8rem; color: var(--text-secondary);">server_output.log</span>
+        </div>
+        <div class="console-container" id="consoleContainer">
+            {% if log_lines %}
+                {% for line in log_lines %}
+                    {% set css_class = "" %}
                     {% if ' INFO ' in line %}
-                        <span class="log-level-badge badge-info">INFO</span>
+                        {% set css_class = "log-info" %}
                     {% elif ' WARNING ' in line %}
-                        <span class="log-level-badge badge-warning">WARN</span>
-                    {% elif ' ERROR ' in line %}
-                        <span class="log-level-badge badge-error">ERR</span>
+                        {% set css_class = "log-warning" %}
+                    {% elif ' ERROR ' in line or ' CRITICAL ' in line %}
+                        {% set css_class = "log-error" %}
+                    {% elif line.startswith('Traceback') or line.startswith('  File') or line.startswith('    ') %}
+                        {% set css_class = "log-traceback" %}
                     {% endif %}
-                    {{ line }}
+                    
+                    <div class="log-line {{ css_class }}">
+                        {# Parse timestamps and formats for better inline styling #}
+                        {% if ' INFO ' in line %}
+                            <span class="log-level-badge badge-info">INFO</span>
+                        {% elif ' WARNING ' in line %}
+                            <span class="log-level-badge badge-warning">WARN</span>
+                        {% elif ' ERROR ' in line %}
+                            <span class="log-level-badge badge-error">ERR</span>
+                        {% endif %}
+                        {{ line }}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div style="color: var(--text-muted); text-align: center; padding-top: 5rem;">
+                    No matching logs found.
                 </div>
-            {% endfor %}
-        {% else %}
-            <div style="color: var(--text-muted); text-align: center; padding-top: 5rem;">
-                No matching logs found.
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </div>
 </div>
 
