@@ -81,10 +81,10 @@
             </select>
         </div>
         <div style="display: flex; gap: 0.25rem; border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 0.25rem; background: rgba(15, 23, 42, 0.4);">
-            <button id="btn-view-list" class="btn btn-secondary btn-view-toggle active" style="padding: 0.35rem 0.6rem; border-radius: var(--radius-md); font-size: 0.9rem;" title="List View">
+            <button id="btn-view-list" class="btn btn-secondary btn-view-toggle" style="padding: 0.35rem 0.6rem; border-radius: var(--radius-md); font-size: 0.9rem;" title="List View">
                 <i class="fa-solid fa-list"></i>
             </button>
-            <button id="btn-view-grid" class="btn btn-secondary btn-view-toggle" style="padding: 0.35rem 0.6rem; border-radius: var(--radius-md); font-size: 0.9rem;" title="Grid View">
+            <button id="btn-view-grid" class="btn btn-secondary btn-view-toggle active" style="padding: 0.35rem 0.6rem; border-radius: var(--radius-md); font-size: 0.9rem;" title="Grid View">
                 <i class="fa-solid fa-grip"></i>
             </button>
         </div>
@@ -801,28 +801,31 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const uploadForm = document.getElementById('upload-form');
-    if (!uploadForm) return;
 
     let fileInput, folderInput;
     function initInputs() {
         fileInput = document.getElementById('file');
         folderInput = document.getElementById('folder-input');
         
-        fileInput.addEventListener('change', () => {
-            const files = Array.from(fileInput.files).map(f => {
-                f.relativePath = f.name;
-                return f;
+        if (fileInput) {
+            fileInput.addEventListener('change', () => {
+                const files = Array.from(fileInput.files).map(f => {
+                    f.relativePath = f.name;
+                    return f;
+                });
+                handleFilesSelect(files);
             });
-            handleFilesSelect(files);
-        });
+        }
 
-        folderInput.addEventListener('change', () => {
-            const files = Array.from(folderInput.files).map(f => {
-                f.relativePath = f.webkitRelativePath || f.name;
-                return f;
+        if (folderInput) {
+            folderInput.addEventListener('change', () => {
+                const files = Array.from(folderInput.files).map(f => {
+                    f.relativePath = f.webkitRelativePath || f.name;
+                    return f;
+                });
+                handleFilesSelect(files);
             });
-            handleFilesSelect(files);
-        });
+        }
     }
 
     const btnSelectFiles = document.getElementById('btn-select-files');
@@ -1212,17 +1215,19 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
     };
 
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-    });
+    if (dropZone) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
 
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
-    });
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+        });
 
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
-    });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+        });
+    }
 
     async function readAllEntries(dirReader) {
         let allEntries = [];
@@ -1256,25 +1261,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return files;
     }
 
-    dropZone.addEventListener('drop', async (e) => {
-        const items = e.dataTransfer.items;
-        if (!items.length) return;
-        let files = [];
-        for (const item of items) {
-            const entry = item.webkitGetAsEntry();
-            if (entry) {
-                const entryFiles = await getFilesFromEntry(entry);
-                files.push(...entryFiles);
-            } else if (item.kind === 'file') {
-                const file = item.getAsFile();
-                if (file) {
-                    file.relativePath = file.name;
-                    files.push(file);
+    if (dropZone) {
+        dropZone.addEventListener('drop', async (e) => {
+            const items = e.dataTransfer.items;
+            if (!items.length) return;
+            let files = [];
+            for (const item of items) {
+                const entry = item.webkitGetAsEntry();
+                if (entry) {
+                    const entryFiles = await getFilesFromEntry(entry);
+                    files.push(...entryFiles);
+                } else if (item.kind === 'file') {
+                    const file = item.getAsFile();
+                    if (file) {
+                        file.relativePath = file.name;
+                        files.push(file);
+                    }
                 }
             }
-        }
-        handleFilesSelect(files);
-    });
+            handleFilesSelect(files);
+        });
+    }
 
     function handleFilesSelect(files) {
         if (!files.length) return;
@@ -1327,7 +1334,7 @@ document.addEventListener('DOMContentLoaded', () => {
             previewContainer.appendChild(item);
         });
 
-        submitBtn.disabled = false;
+        if (submitBtn) submitBtn.disabled = false;
     }
 
     function startUploadProcess() {
@@ -1499,43 +1506,51 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    uploadForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!selectedFiles.length) return;
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!selectedFiles.length) return;
 
-        // Collect all target keys for check
-        const targetKeys = selectedFiles.map(file => {
-            const displayName = file.relativePath || file.name;
-            return ( "{{ prefix }}" ) + displayName;
-        });
-
-        const originalBtnText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking conflicts...';
-
-        try {
-            const res = await fetch("/api/connection/{{ connection.connection_id }}/bucket/{{ bucket_name }}/check-existing", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ keys: targetKeys })
+            // Collect all target keys for check
+            const targetKeys = selectedFiles.map(file => {
+                const displayName = file.relativePath || file.name;
+                return ( "{{ prefix }}" ) + displayName;
             });
-            const data = await res.json();
-            
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalBtnText;
 
-            if (data.status === 'success' && data.existing && data.existing.length > 0) {
-                showConflictResolver(data.existing);
-            } else {
+            const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking conflicts...';
+            }
+
+            try {
+                const res = await fetch("/api/connection/{{ connection.connection_id }}/bucket/{{ bucket_name }}/check-existing", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keys: targetKeys })
+                });
+                const data = await res.json();
+                
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                }
+
+                if (data.status === 'success' && data.existing && data.existing.length > 0) {
+                    showConflictResolver(data.existing);
+                } else {
+                    startUploadProcess();
+                }
+            } catch (err) {
+                console.error(err);
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                }
                 startUploadProcess();
             }
-        } catch (err) {
-            console.error(err);
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalBtnText;
-            startUploadProcess();
-        }
-    });
+        });
+    }
 
     // Widget Minimize / Expand logic
     const widget = document.getElementById('upload-queue-widget');
@@ -1567,7 +1582,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const paginatedTotalEl = document.getElementById('paginated-total');
     
     const storageKey = `viewMode_${ "{{ connection.connection_id }}" }_${ "{{ bucket_name }}" }_${ "{{ prefix }}" }`;
-    let currentViewMode = localStorage.getItem(storageKey) || 'list';
+    let currentViewMode = localStorage.getItem(storageKey) || 'grid';
     let currentPage = 1;
     const itemsPerPage = 15;
     let filteredItems = [];

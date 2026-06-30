@@ -6,246 +6,279 @@
 <div class="header-actions">
     <div>
         <h1 class="page-title">S3 Connections</h1>
-        <p style="color: var(--text-secondary); margin-top: 0.25rem;">Configure and manage your S3 Compatible Storage connections.</p>
+        <p style="color: var(--text-secondary); margin-top: 0.25rem;">Configure and manage your S3 Compatible Storage
+            connections.</p>
     </div>
     {% if g.user.role == 'Admin' %}
-        <button class="btn btn-primary" onclick="openModal('addConnectionModal')">
-            <i class="fa-solid fa-plus"></i> Add Connection
-        </button>
+    <button class="btn btn-primary" onclick="openModal('addConnectionModal')">
+        <i class="fa-solid fa-plus"></i> Add Connection
+    </button>
     {% endif %}
 </div>
 
 <!-- Connections Grid -->
 <div class="grid-cols-3">
     {% if connections %}
-        {% for conn in connections %}
-            <div class="glass-card" style="position: relative;">
-                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.5rem;">
-                    <div>
-                        <h3 style="font-size: 1.25rem; font-weight: 600; color: #fff;">{{ conn.name }}</h3>
-                        <span class="badge" style="margin-top: 0.5rem; text-transform: uppercase;">
-                            {% if 'amazonaws.com' in conn.endpoint_url or not conn.endpoint_url %}
-                                AWS S3
-                            {% else %}
-                                Compatible S3
-                            {% endif %}
-                        </span>
-                    </div>
-                    {% if g.user.role == 'Admin' %}
-                        <div style="display: flex; gap: 0.5rem;">
-                            <button class="btn btn-secondary edit-conn-btn" 
-                                    style="padding: 0.5rem; border-radius: var(--radius-md);" 
-                                    title="Edit Connection"
-                                    data-id="{{ conn.connection_id }}"
-                                    data-name="{{ conn.name }}"
-                                    data-endpoint="{{ conn.endpoint_url or '' }}"
-                                    data-access-key="{{ conn.access_key }}"
-                                    data-secret-key="{{ conn.secret_key }}"
-                                    data-region="{{ conn.region_name or 'us-east-1' }}"
-                                    data-upload-endpoint="{{ conn.upload_endpoint or '' }}">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                            </button>
-                            <form action="{{ url_for('delete_connection', connection_id=conn.connection_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this connection?');">
-                                <button class="btn btn-danger" style="padding: 0.5rem; border-radius: var(--radius-md);" title="Delete Connection">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </form>
-                        </div>
-                    {% endif %}
-                </div>
-                
-                <div style="font-size: 0.875rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem;">
-                    {% if g.user.role == 'Admin' or conn.owner_id == g.user.id %}
-                        <div style="display: flex; gap: 0.5rem;">
-                            <i class="fa-solid fa-link" style="width: 16px;"></i>
-                            <span style="word-break: break-all;">{{ conn.endpoint_url or 'Default AWS S3' }}</span>
-                        </div>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <i class="fa-solid fa-key" style="width: 16px;"></i>
-                            <span>{{ conn.access_key[:8] }}...</span>
-                        </div>
+    {% for conn in connections %}
+    <div class="glass-card" style="position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.5rem;">
+            <div>
+                <h3 style="font-size: 1.25rem; font-weight: 600; color: #fff;">{{ conn.name }}</h3>
+                <span class="badge" style="margin-top: 0.5rem; text-transform: uppercase;">
+                    {% if 'amazonaws.com' in conn.endpoint_url or not conn.endpoint_url %}
+                    AWS S3
                     {% else %}
-                        <div style="display: flex; gap: 0.5rem;">
-                            <i class="fa-solid fa-user" style="width: 16px;"></i>
-                            <span>Người sở hữu: {{ conn.owner.name if conn.owner else 'Hệ thống' }}</span>
-                        </div>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <i class="fa-solid fa-calendar-days" style="width: 16px;"></i>
-                            <span>Ngày tạo: {{ conn.created_at.strftime('%d/%m/%Y') if conn.created_at else 'N/A' }}</span>
-                        </div>
+                    Compatible S3
                     {% endif %}
-                </div>
-                
-                <a href="{{ url_for('view_connection', connection_id=conn.connection_id) }}" class="btn btn-secondary" style="width: 100%;">
-                    <i class="fa-solid fa-folder-open"></i> Browse Buckets
-                </a>
+                </span>
             </div>
-        {% endfor %}
-    {% else %}
-        <div class="glass-card" style="grid-column: 1 / -1; text-align: center; padding: 4rem 2rem;">
-            <i class="fa-solid fa-cloud-arrow-up" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1.5rem;"></i>
-            <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem;">No Connections Yet</h3>
-            <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto 1.5rem auto;">
-                Connect to Amazon S3, MinIO, Cloudflare R2, DigitalOcean Spaces, or any S3-compatible service to start viewing media.
-            </p>
             {% if g.user.role == 'Admin' %}
-                <button class="btn btn-primary" onclick="openModal('addConnectionModal')">
-                    <i class="fa-solid fa-plus"></i> Add Your First Connection
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-secondary edit-conn-btn"
+                    style="padding: 0.5rem; border-radius: var(--radius-md);" title="Edit Connection"
+                    data-id="{{ conn.connection_id }}" data-name="{{ conn.name }}"
+                    data-endpoint="{{ conn.endpoint_url or '' }}" data-access-key="{{ conn.access_key }}"
+                    data-secret-key="{{ conn.secret_key }}" data-region="{{ conn.region_name or 'us-east-1' }}"
+                    data-upload-endpoint="{{ conn.upload_endpoint or '' }}">
+                    <i class="fa-solid fa-pen-to-square"></i>
                 </button>
-            {% else %}
-                <p style="color: var(--accent-rose); font-weight: 500;">
-                    Please contact an administrator to add S3 connection credentials.
-                </p>
+                <form action="{{ url_for('delete_connection', connection_id=conn.connection_id) }}" method="POST"
+                    onsubmit="return confirm('Are you sure you want to delete this connection?');">
+                    <button class="btn btn-danger" style="padding: 0.5rem; border-radius: var(--radius-md);"
+                        title="Delete Connection">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </form>
+            </div>
             {% endif %}
         </div>
+
+        <div
+            style="font-size: 0.875rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem;">
+            {% if g.user.role == 'Admin' or conn.owner_id == g.user.id %}
+            <div style="display: flex; gap: 0.5rem;">
+                <i class="fa-solid fa-link" style="width: 16px;"></i>
+                <span style="word-break: break-all;">{{ conn.endpoint_url or 'Default AWS S3' }}</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <i class="fa-solid fa-key" style="width: 16px;"></i>
+                <span>{{ conn.access_key[:8] }}...</span>
+            </div>
+            {% else %}
+            <div style="display: flex; gap: 0.5rem;">
+                <i class="fa-solid fa-user" style="width: 16px;"></i>
+                <span>Owner: {{ conn.owner.name if conn.owner else 'Hệ thống' }}</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <i class="fa-solid fa-calendar-days" style="width: 16px;"></i>
+                <span>Created At: {{ conn.created_at.strftime('%d/%m/%Y') if conn.created_at else 'N/A' }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <a href="{{ url_for('view_connection', connection_id=conn.connection_id) }}" class="btn btn-secondary"
+            style="width: 100%;">
+            <i class="fa-solid fa-folder-open"></i> Browse Buckets
+        </a>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="glass-card" style="grid-column: 1 / -1; text-align: center; padding: 4rem 2rem;">
+        <i class="fa-solid fa-cloud-arrow-up"
+            style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1.5rem;"></i>
+        <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem;">No Connections Yet</h3>
+        <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto 1.5rem auto;">
+            Connect to Amazon S3, MinIO, Cloudflare R2, DigitalOcean Spaces, or any S3-compatible service to start
+            viewing media.
+        </p>
+        {% if g.user.role == 'Admin' %}
+        <button class="btn btn-primary" onclick="openModal('addConnectionModal')">
+            <i class="fa-solid fa-plus"></i> Add Your First Connection
+        </button>
+        {% else %}
+        <p style="color: var(--accent-rose); font-weight: 500;">
+            Please contact an administrator to add S3 connection credentials.
+        </p>
+        {% endif %}
+    </div>
     {% endif %}
 </div>
 
 {% if g.user.role == 'Admin' %}
-    <!-- Add Connection Modal -->
-    <style>
+<!-- Add Connection Modal -->
+<style>
     .adv-details summary::-webkit-details-marker {
         display: none;
     }
+
     .adv-details summary {
         list-style: none;
     }
-    </style>
-    <div id="addConnectionModal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 760px;">
-            <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
-                <span>Add S3 Connection</span>
-                <button onclick="closeModal('addConnectionModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
-            </h2>
-            
-            <form action="{{ url_for('add_connection') }}" method="POST">
-                <div class="form-group" style="background: rgba(59, 130, 246, 0.05); border: 1px dashed rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.5rem; text-align: center;">
-                    <label for="import_json" style="cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; color: #93c5fd; font-weight: 600; font-size: 0.9rem;">
-                        <i class="fa-solid fa-file-import"></i> Nhập cấu hình từ File JSON
-                    </label>
-                    <input type="file" id="import_json" accept=".json" style="display: none;">
-                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Chọn file JSON chứa url, accessKey, secretKey để điền tự động.</span>
+</style>
+<div id="addConnectionModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 760px;">
+        <h2
+            style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+            <span>Add S3 Connection</span>
+            <button onclick="closeModal('addConnectionModal')"
+                style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i
+                    class="fa-solid fa-xmark"></i></button>
+        </h2>
+
+        <form action="{{ url_for('add_connection') }}" method="POST">
+            <div class="form-group"
+                style="background: rgba(59, 130, 246, 0.05); border: 1px dashed rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.5rem; text-align: center;">
+                <label for="import_json"
+                    style="cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; color: #93c5fd; font-weight: 600; font-size: 0.9rem;">
+                    <i class="fa-solid fa-file-import"></i> Nhập cấu hình từ File JSON
+                </label>
+                <input type="file" id="import_json" accept=".json" style="display: none;">
+                <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Chọn
+                    file JSON chứa url, accessKey, secretKey để điền tự động.</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+                <div class="form-group">
+                    <label for="name">Friendly Name</label>
+                    <input type="text" id="name" name="name" class="form-control" placeholder="e.g. My MinIO Server"
+                        required>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
-                    <div class="form-group">
-                        <label for="name">Friendly Name</label>
-                        <input type="text" id="name" name="name" class="form-control" placeholder="e.g. My MinIO Server" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="connection_id">Connection ID (slug)</label>
-                        <input type="text" id="connection_id" name="connection_id" class="form-control" placeholder="e.g. aws-midso (leave blank to auto-generate)">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="access_key">Access Key</label>
-                        <input type="text" id="access_key" name="access_key" class="form-control" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="secret_key">Secret Key</label>
-                        <input type="password" id="secret_key" name="secret_key" class="form-control" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="endpoint_url">Endpoint URL (leave empty for AWS S3)</label>
-                        <input type="url" id="endpoint_url" name="endpoint_url" class="form-control" placeholder="https://play.min.io">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="region_name">Region Name</label>
-                        <input type="text" id="region_name" name="region_name" class="form-control" value="us-east-1">
-                    </div>
+                <div class="form-group">
+                    <label for="connection_id">Connection ID (slug)</label>
+                    <input type="text" id="connection_id" name="connection_id" class="form-control"
+                        placeholder="e.g. aws-midso (leave blank to auto-generate)">
                 </div>
 
-                <details class="adv-details" style="border-top: 1px solid var(--glass-border); padding-top: 1rem; margin-top: 1.5rem; width: 100%;">
-                    <summary style="font-size: 0.9rem; font-weight: 600; color: #93c5fd; cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 0.5rem; outline: none; list-style: none;">
-                        <i class="fa-solid fa-gear"></i> Advanced connection settings
-                    </summary>
-                    <div style="margin-top: 1.25rem;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label for="upload_endpoint">Upload Endpoint URL (Optional)</label>
-                            <input type="url" id="upload_endpoint" name="upload_endpoint" class="form-control" placeholder="e.g. http://192.168.1.50:9000">
-                            <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
-                                Cấu hình endpoint riêng dành cho Client tải file trực tiếp. Nếu để trống, mặc định dùng Endpoint URL.
-                            </span>
-                        </div>
-                    </div>
-                </details>
-                
-                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 1.25rem;">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('addConnectionModal')">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Connection</button>
+                <div class="form-group">
+                    <label for="access_key">Access Key</label>
+                    <input type="text" id="access_key" name="access_key" class="form-control" required>
                 </div>
-            </form>
-        </div>
+
+                <div class="form-group">
+                    <label for="secret_key">Secret Key</label>
+                    <input type="password" id="secret_key" name="secret_key" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="endpoint_url">Endpoint URL (leave empty for AWS S3)</label>
+                    <input type="url" id="endpoint_url" name="endpoint_url" class="form-control"
+                        placeholder="https://play.min.io">
+                </div>
+
+                <div class="form-group">
+                    <label for="region_name">Region Name</label>
+                    <input type="text" id="region_name" name="region_name" class="form-control" value="us-east-1">
+                </div>
+            </div>
+
+            <details class="adv-details"
+                style="border-top: 1px solid var(--glass-border); padding-top: 1rem; margin-top: 1.5rem; width: 100%;">
+                <summary
+                    style="font-size: 0.9rem; font-weight: 600; color: #93c5fd; cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 0.5rem; outline: none; list-style: none;">
+                    <i class="fa-solid fa-gear"></i> Advanced connection settings
+                </summary>
+                <div style="margin-top: 1.25rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="upload_endpoint">Upload Endpoint URL (Optional)</label>
+                        <input type="url" id="upload_endpoint" name="upload_endpoint" class="form-control"
+                            placeholder="e.g. http://192.168.1.50:9000">
+                        <span
+                            style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                            Cấu hình endpoint riêng dành cho Client tải file trực tiếp. Nếu để trống, mặc định dùng
+                            Endpoint URL.
+                        </span>
+                    </div>
+                </div>
+            </details>
+
+            <div
+                style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 1.25rem;">
+                <button type="button" class="btn btn-secondary"
+                    onclick="closeModal('addConnectionModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Connection</button>
+            </div>
+        </form>
     </div>
-    <!-- Edit Connection Modal -->
-    <div id="editConnectionModal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 760px;">
-            <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
-                <span>Edit S3 Connection</span>
-                <button onclick="closeModal('editConnectionModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
-            </h2>
-            
-            <form id="editConnectionForm" action="" method="POST">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
-                    <div class="form-group">
-                        <label for="edit_name">Friendly Name</label>
-                        <input type="text" id="edit_name" name="name" class="form-control" placeholder="e.g. My MinIO Server" required>
-                    </div>
+</div>
+<!-- Edit Connection Modal -->
+<div id="editConnectionModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 760px;">
+        <h2
+            style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+            <span>Edit S3 Connection</span>
+            <button onclick="closeModal('editConnectionModal')"
+                style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i
+                    class="fa-solid fa-xmark"></i></button>
+        </h2>
 
-                    <div class="form-group">
-                        <label for="edit_connection_id_disp">Connection ID (slug)</label>
-                        <input type="text" id="edit_connection_id_disp" class="form-control" disabled style="opacity: 0.6; cursor: not-allowed;">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="edit_access_key">Access Key</label>
-                        <input type="text" id="edit_access_key" name="access_key" class="form-control" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="edit_secret_key">Secret Key</label>
-                        <input type="password" id="edit_secret_key" name="secret_key" class="form-control" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="edit_endpoint_url">Endpoint URL (leave empty for AWS S3)</label>
-                        <input type="url" id="edit_endpoint_url" name="endpoint_url" class="form-control" placeholder="https://play.min.io">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="edit_region_name">Region Name</label>
-                        <input type="text" id="edit_region_name" name="region_name" class="form-control" value="us-east-1">
-                    </div>
+        <form id="editConnectionForm" action="" method="POST">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+                <div class="form-group">
+                    <label for="edit_name">Friendly Name</label>
+                    <input type="text" id="edit_name" name="name" class="form-control"
+                        placeholder="e.g. My MinIO Server" required>
                 </div>
 
-                <details class="adv-details" style="border-top: 1px solid var(--glass-border); padding-top: 1rem; margin-top: 1.5rem; width: 100%;">
-                    <summary style="font-size: 0.9rem; font-weight: 600; color: #93c5fd; cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 0.5rem; outline: none; list-style: none;">
-                        <i class="fa-solid fa-gear"></i> Advanced connection settings
-                    </summary>
-                    <div style="margin-top: 1.25rem;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label for="edit_upload_endpoint">Upload Endpoint URL (Optional)</label>
-                            <input type="url" id="edit_upload_endpoint" name="upload_endpoint" class="form-control" placeholder="e.g. http://192.168.1.50:9000">
-                            <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
-                                Cấu hình endpoint riêng dành cho Client tải file trực tiếp. Nếu để trống, mặc định dùng Endpoint URL.
-                            </span>
-                        </div>
-                    </div>
-                </details>
-                
-                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 1.25rem;">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('editConnectionModal')">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                <div class="form-group">
+                    <label for="edit_connection_id_disp">Connection ID (slug)</label>
+                    <input type="text" id="edit_connection_id_disp" class="form-control" disabled
+                        style="opacity: 0.6; cursor: not-allowed;">
                 </div>
-            </form>
-        </div>
+
+                <div class="form-group">
+                    <label for="edit_access_key">Access Key</label>
+                    <input type="text" id="edit_access_key" name="access_key" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_secret_key">Secret Key</label>
+                    <input type="password" id="edit_secret_key" name="secret_key" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_endpoint_url">Endpoint URL (leave empty for AWS S3)</label>
+                    <input type="url" id="edit_endpoint_url" name="endpoint_url" class="form-control"
+                        placeholder="https://play.min.io">
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_region_name">Region Name</label>
+                    <input type="text" id="edit_region_name" name="region_name" class="form-control" value="us-east-1">
+                </div>
+            </div>
+
+            <details class="adv-details"
+                style="border-top: 1px solid var(--glass-border); padding-top: 1rem; margin-top: 1.5rem; width: 100%;">
+                <summary
+                    style="font-size: 0.9rem; font-weight: 600; color: #93c5fd; cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 0.5rem; outline: none; list-style: none;">
+                    <i class="fa-solid fa-gear"></i> Advanced connection settings
+                </summary>
+                <div style="margin-top: 1.25rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="edit_upload_endpoint">Upload Endpoint URL (Optional)</label>
+                        <input type="url" id="edit_upload_endpoint" name="upload_endpoint" class="form-control"
+                            placeholder="e.g. http://192.168.1.50:9000">
+                        <span
+                            style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                            Cấu hình endpoint riêng dành cho Client tải file trực tiếp. Nếu để trống, mặc định dùng
+                            Endpoint URL.
+                        </span>
+                    </div>
+                </div>
+            </details>
+
+            <div
+                style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 1.25rem;">
+                <button type="button" class="btn btn-secondary"
+                    onclick="closeModal('editConnectionModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
     </div>
+</div>
 
-    <script>
+<script>
     document.addEventListener('DOMContentLoaded', () => {
         // Toast helper matching base.html flash-messages container
         function showToast(message, category = 'error') {
@@ -255,9 +288,9 @@
             msgEl.className = `flash-message ${category}`;
             msgEl.innerHTML = `
                 <span>
-                    ${category === 'success' 
-                        ? '<i class="fa-solid fa-circle-check" style="color: var(--accent-emerald); margin-right: 8px;"></i>' 
-                        : '<i class="fa-solid fa-circle-exclamation" style="color: var(--accent-rose); margin-right: 8px;"></i>'}
+                    ${category === 'success'
+                    ? '<i class="fa-solid fa-circle-check" style="color: var(--accent-emerald); margin-right: 8px;"></i>'
+                    : '<i class="fa-solid fa-circle-exclamation" style="color: var(--accent-rose); margin-right: 8px;"></i>'}
                     ${message}
                 </span>
                 <button onclick="this.parentElement.remove()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
@@ -414,6 +447,6 @@
             });
         }
     });
-    </script>
+</script>
 {% endif %}
 {% endblock %}
