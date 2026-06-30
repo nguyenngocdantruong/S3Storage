@@ -23,5 +23,5 @@ COPY . .
 # Expose port 7090
 EXPOSE 7090
 
-# Run the app with gunicorn
-CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:7090", "app:app"]
+# Run the app with gunicorn using threaded workers
+CMD ["gunicorn", "--workers", "2", "--threads", "4", "--bind", "0.0.0.0:7090", "app:app"]

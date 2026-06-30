@@ -3334,10 +3334,9 @@ def remote_download(connection_id, bucket_name):
     db.session.add(task)
     db.session.commit()
 
-    from flask import current_app
     threading.Thread(
         target=background_remote_download,
-        args=(current_app._get_current_object(), task_id)
+        args=(app, task_id)
     ).start()
 
     return jsonify({
