@@ -66,6 +66,12 @@
                             <span>S3 Connections</span>
                         </a>
                     </li>
+                    <li class="nav-item {% if request.path == '/remote-tasks' %}active{% endif %}">
+                        <a href="{{ url_for('list_remote_tasks') }}">
+                            <i class="fa-solid fa-cloud-arrow-down"></i>
+                            <span>Remote Downloads</span>
+                        </a>
+                    </li>
                     <li class="nav-item {% if request.path == '/progress' %}active{% endif %}">
                         <a href="{{ url_for('list_progress') }}">
                             <i class="fa-solid fa-chart-line"></i>

@@ -3345,5 +3345,25 @@ def get_task_status(task_id):
         }
     })
 
+@app.route('/remote-tasks')
+@login_required
+def list_remote_tasks():
+    tasks = RemoteTask.query.filter_by(user_id=g.user.id).order_by(RemoteTask.created_at.desc()).all()
+    return render_template('tasks.html', tasks=tasks)
+
+@app.route('/remote-tasks/<task_id>/delete', methods=['POST'])
+@login_required
+def delete_remote_task(task_id):
+    task = RemoteTask.query.filter_by(id=task_id, user_id=g.user.id).first_or_404()
+    try:
+        db.session.delete(task)
+        db.session.commit()
+        flash('Task deleted from history.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Failed to delete task: {e}', 'error')
+    return redirect(url_for('list_remote_tasks'))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=7090, debug=True)
+
