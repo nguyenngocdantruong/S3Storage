@@ -1607,6 +1607,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (bubble) bubble.addEventListener('click', expandWidget);
 
     // Client-side search, filtering and pagination logic
+    const selectAllCheckbox = document.getElementById('select-all-files');
+    const fileCheckboxes = document.querySelectorAll('.file-checkbox');
+    const bulkDeleteBtn = document.getElementById('btn-bulk-delete');
+    const bulkDeleteCount = document.getElementById('bulk-delete-count');
     const searchInput = document.getElementById('search-input');
     const filterSelect = document.getElementById('filter-select');
     const prevPageBtn = document.getElementById('btn-prev-page');
@@ -1750,11 +1754,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateTable();
     }
-
-    const selectAllCheckbox = document.getElementById('select-all-files');
-    const fileCheckboxes = document.querySelectorAll('.file-checkbox');
-    const bulkDeleteBtn = document.getElementById('btn-bulk-delete');
-    const bulkDeleteCount = document.getElementById('bulk-delete-count');
 
     const updateBulkDeleteVisibility = () => {
         const checkedKeys = new Set();
