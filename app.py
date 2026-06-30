@@ -3348,17 +3348,22 @@ def paste_single_file(src_conn, src_bucket, src_key, dest_conn, dest_bucket, des
         )
         
     if action == 'move':
-        # Delete source object
+        # Delete source S3 object
         src_s3.delete_object(Bucket=src_bucket, Key=src_key)
         
-        # Update UploadedFile database references
+        # 1. Clean up destination's old DB references (in case of overwrite/replace)
+        UploadedFile.query.filter_by(connection_id=dest_conn.id, bucket_name=dest_bucket, file_key=dest_key).delete(synchronize_session=False)
+        VideoProgress.query.filter_by(connection_name=dest_conn.name, bucket_name=dest_bucket, file_key=dest_key).delete(synchronize_session=False)
+        VideoNote.query.filter_by(connection_name=dest_conn.name, bucket_name=dest_bucket, file_key=dest_key).delete(synchronize_session=False)
+        ItemLike.query.filter_by(connection_name=dest_conn.name, bucket_name=dest_bucket, file_key=dest_key).delete(synchronize_session=False)
+
+        # 2. Update source's UploadedFile reference to the destination
         uf = UploadedFile.query.filter_by(connection_id=src_conn.id, bucket_name=src_bucket, file_key=src_key).first()
         if uf:
             uf.connection_id = dest_conn.id
             uf.bucket_name = dest_bucket
             uf.file_key = dest_key
         else:
-            # If the source file did not have uploader metadata, create one under current user
             new_uf = UploadedFile(
                 connection_id=dest_conn.id,
                 bucket_name=dest_bucket,
@@ -3367,36 +3372,46 @@ def paste_single_file(src_conn, src_bucket, src_key, dest_conn, dest_bucket, des
             )
             db.session.add(new_uf)
             
-        # Update VideoProgress references
-        vp = VideoProgress.query.filter_by(connection_name=src_conn.name, bucket_name=src_bucket, file_key=src_key).first()
-        if vp:
-            vp.connection_name = dest_conn.name
-            vp.bucket_name = dest_bucket
-            vp.file_key = dest_key
+        # 3. Update ALL VideoProgress records for the file to the destination
+        VideoProgress.query.filter_by(connection_name=src_conn.name, bucket_name=src_bucket, file_key=src_key).update({
+            VideoProgress.connection_name: dest_conn.name,
+            VideoProgress.bucket_name: dest_bucket,
+            VideoProgress.file_key: dest_key,
+            VideoProgress.file_name: dest_key.split('/')[-1]
+        }, synchronize_session=False)
             
-        # Update VideoNotes references
-        notes = VideoNote.query.filter_by(connection_name=src_conn.name, bucket_name=src_bucket, file_key=src_key).all()
-        for note in notes:
-            note.connection_name = dest_conn.name
-            note.bucket_name = dest_bucket
-            note.file_key = dest_key
-    else:
-        # Find the source file's uploader
+        # 4. Update ALL VideoNote records for the file to the destination
+        VideoNote.query.filter_by(connection_name=src_conn.name, bucket_name=src_bucket, file_key=src_key).update({
+            VideoNote.connection_name: dest_conn.name,
+            VideoNote.bucket_name: dest_bucket,
+            VideoNote.file_key: dest_key
+        }, synchronize_session=False)
+
+        # 5. Update ItemLike records to the destination
+        ItemLike.query.filter_by(connection_name=src_conn.name, bucket_name=src_bucket, file_key=src_key).update({
+            ItemLike.connection_name: dest_conn.name,
+            ItemLike.bucket_name: dest_bucket,
+            ItemLike.file_key: dest_key
+        }, synchronize_session=False)
+
+    else: # copy
+        # Clean up destination's old DB references (in case of overwrite/replace)
+        UploadedFile.query.filter_by(connection_id=dest_conn.id, bucket_name=dest_bucket, file_key=dest_key).delete(synchronize_session=False)
+        VideoProgress.query.filter_by(connection_name=dest_conn.name, bucket_name=dest_bucket, file_key=dest_key).delete(synchronize_session=False)
+        VideoNote.query.filter_by(connection_name=dest_conn.name, bucket_name=dest_bucket, file_key=dest_key).delete(synchronize_session=False)
+        ItemLike.query.filter_by(connection_name=dest_conn.name, bucket_name=dest_bucket, file_key=dest_key).delete(synchronize_session=False)
+
+        # Find the source file's uploader metadata to retain creator in copy
         src_uf = UploadedFile.query.filter_by(connection_id=src_conn.id, bucket_name=src_bucket, file_key=src_key).first()
         creator_id = src_uf.user_id if src_uf else (g.user.id if g.user else 1)
         
-        existing_uf = UploadedFile.query.filter_by(connection_id=dest_conn.id, bucket_name=dest_bucket, file_key=dest_key).first()
-        if existing_uf:
-            existing_uf.user_id = creator_id
-            existing_uf.created_at = datetime.utcnow()
-        else:
-            new_uf = UploadedFile(
-                connection_id=dest_conn.id,
-                bucket_name=dest_bucket,
-                file_key=dest_key,
-                user_id=creator_id
-            )
-            db.session.add(new_uf)
+        new_uf = UploadedFile(
+            connection_id=dest_conn.id,
+            bucket_name=dest_bucket,
+            file_key=dest_key,
+            user_id=creator_id
+        )
+        db.session.add(new_uf)
 
 @app.route('/api/connection/<connection_id>/bucket/<bucket_name>/check-existing', methods=['POST'])
 @login_required
