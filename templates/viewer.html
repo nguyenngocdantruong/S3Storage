@@ -808,36 +808,57 @@
         }
     });
 
+    // Debounced and batched likes mapping
+    const pendingLikes = {};
+
     // Item likes click event
     document.querySelectorAll('.btn-like-item').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+        btn.addEventListener('click', (e) => {
             e.preventDefault();
             
             const key = btn.getAttribute('data-key');
-            btn.disabled = true;
             
-            try {
-                const res = await fetch('/api/like', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        connection_name: "{{ connection.name }}",
-                        bucket_name: "{{ bucket_name }}",
-                        file_key: key
-                    })
-                });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    const span = document.getElementById('like-count-display-viewer');
-                    if (span) {
-                        span.textContent = data.like_count;
-                    }
-                }
-            } catch (err) {
-                console.error("Like error:", err);
-            } finally {
-                btn.disabled = false;
+            // Immediate UI update
+            const span = document.getElementById('like-count-display-viewer');
+            if (span) {
+                span.textContent = parseInt(span.textContent || 0) + 1;
             }
+            
+            if (!pendingLikes[key]) {
+                pendingLikes[key] = { count: 0, timeout: null };
+            }
+            pendingLikes[key].count += 1;
+            
+            if (pendingLikes[key].timeout) {
+                clearTimeout(pendingLikes[key].timeout);
+            }
+            
+            pendingLikes[key].timeout = setTimeout(async () => {
+                const finalCount = pendingLikes[key].count;
+                delete pendingLikes[key];
+                
+                try {
+                    const res = await fetch('/api/like', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            connection_name: "{{ connection.name }}",
+                            bucket_name: "{{ bucket_name }}",
+                            file_key: key,
+                            count: finalCount
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        const span = document.getElementById('like-count-display-viewer');
+                        if (span) {
+                            span.textContent = data.like_count;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Like commit error:", err);
+                }
+            }, 500);
         });
     });
 

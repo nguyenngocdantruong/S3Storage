@@ -2260,9 +2260,15 @@ def like_item():
     connection_name = data.get('connection_name')
     bucket_name = data.get('bucket_name')
     file_key = data.get('file_key')
+    count = data.get('count', 1)
 
     if not all([connection_name, bucket_name, file_key]):
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
+
+    try:
+        count = int(count)
+    except (TypeError, ValueError):
+        count = 1
 
     like_record = ItemLike.query.filter_by(
         connection_name=connection_name,
@@ -2279,7 +2285,7 @@ def like_item():
         )
         db.session.add(like_record)
 
-    like_record.like_count += 1
+    like_record.like_count += count
     db.session.commit()
 
     return jsonify({'status': 'success', 'like_count': like_record.like_count})

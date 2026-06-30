@@ -80,6 +80,16 @@
                 <option value="text">Documents</option>
             </select>
         </div>
+        <div>
+            <select id="sort-select" class="general-access-select" style="min-width: 180px; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 0.9rem; padding: 0.5rem 2rem 0.5rem 1rem;">
+                <option value="name_asc" {% if sort_by == 'name' and direction == 'asc' %}selected{% endif %}>Tên (A-Z)</option>
+                <option value="name_desc" {% if sort_by == 'name' and direction == 'desc' %}selected{% endif %}>Tên (Z-A)</option>
+                <option value="size_asc" {% if sort_by == 'size' and direction == 'asc' %}selected{% endif %}>Dung lượng (Tăng dần)</option>
+                <option value="size_desc" {% if sort_by == 'size' and direction == 'desc' %}selected{% endif %}>Dung lượng (Giảm dần)</option>
+                <option value="last_modified_asc" {% if sort_by == 'last_modified' and direction == 'asc' %}selected{% endif %}>Ngày sửa đổi (Cũ nhất)</option>
+                <option value="last_modified_desc" {% if sort_by == 'last_modified' and direction == 'desc' %}selected{% endif %}>Ngày sửa đổi (Mới nhất)</option>
+            </select>
+        </div>
         <div style="display: flex; gap: 0.25rem; border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 0.25rem; background: rgba(15, 23, 42, 0.4);">
             <button id="btn-view-list" class="btn btn-secondary btn-view-toggle" style="padding: 0.35rem 0.6rem; border-radius: var(--radius-md); font-size: 0.9rem;" title="List View">
                 <i class="fa-solid fa-list"></i>
@@ -2240,36 +2250,72 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // Sort selection handler
+    const sortSelect = document.getElementById('sort-select');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', () => {
+            const val = sortSelect.value;
+            const parts = val.split('_');
+            const direction = parts.pop();
+            const sortBy = parts.join('_');
+            
+            const url = new URL(window.location.href);
+            url.searchParams.set('sort', sortBy);
+            url.searchParams.set('direction', direction);
+            window.location.href = url.toString();
+        });
+    }
+
+    // Debounced and batched likes mapping
+    const pendingLikes = {};
+
     // Item likes click event
     document.querySelectorAll('.btn-like-item').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+        btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             
             const key = btn.getAttribute('data-key');
-            btn.disabled = true;
             
-            try {
-                const res = await fetch('/api/like', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        connection_name: "{{ connection.name }}",
-                        bucket_name: "{{ bucket_name }}",
-                        file_key: key
-                    })
-                });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    document.querySelectorAll(`.like-count-display[data-key="${CSS.escape(key)}"]`).forEach(span => {
-                        span.textContent = data.like_count;
-                    });
-                }
-            } catch (err) {
-                console.error("Like error:", err);
-            } finally {
-                btn.disabled = false;
+            // Immediate UI update
+            document.querySelectorAll(`.like-count-display[data-key="${CSS.escape(key)}"]`).forEach(span => {
+                span.textContent = parseInt(span.textContent || 0) + 1;
+            });
+            
+            if (!pendingLikes[key]) {
+                pendingLikes[key] = { count: 0, timeout: null };
             }
+            pendingLikes[key].count += 1;
+            
+            if (pendingLikes[key].timeout) {
+                clearTimeout(pendingLikes[key].timeout);
+            }
+            
+            pendingLikes[key].timeout = setTimeout(async () => {
+                const finalCount = pendingLikes[key].count;
+                delete pendingLikes[key];
+                
+                try {
+                    const res = await fetch('/api/like', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            connection_name: "{{ connection.name }}",
+                            bucket_name: "{{ bucket_name }}",
+                            file_key: key,
+                            count: finalCount
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        document.querySelectorAll(`.like-count-display[data-key="${CSS.escape(key)}"]`).forEach(span => {
+                            span.textContent = data.like_count;
+                        });
+                    }
+                } catch (err) {
+                    console.error("Like commit error:", err);
+                }
+            }, 500);
         });
     });
 
