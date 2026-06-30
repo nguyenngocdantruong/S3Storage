@@ -436,8 +436,17 @@
         </div>
         <!-- Pagination Controls -->
         <div class="pagination-container" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 1rem; border-top: 1px solid var(--glass-border); padding-top: 1.25rem;">
-            <div style="font-size: 0.88rem; color: var(--text-secondary);">
-                Showing <span id="paginated-start">0</span> to <span id="paginated-end">0</span> of <span id="paginated-total">0</span> items
+            <div style="display: flex; align-items: center; gap: 1rem; font-size: 0.88rem; color: var(--text-secondary); flex-wrap: wrap;">
+                <span>Showing <span id="paginated-start">0</span> to <span id="paginated-end">0</span> of <span id="paginated-total">0</span> items</span>
+                <span style="display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem;">
+                    <span>Per page:</span>
+                    <select id="items-per-page-select" class="general-access-select" style="min-width: auto; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 0.85rem; padding: 0.25rem 1.5rem 0.25rem 0.5rem; outline: none; cursor: pointer;">
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </span>
             </div>
             <div style="display: flex; gap: 0.5rem;">
                 <button id="btn-prev-page" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto; width: auto;">
@@ -754,6 +763,9 @@
             <span style="font-weight: 500; font-size: 0.95rem;">Selected <span id="clipboard-selected-count" style="font-weight: 700; color: var(--accent-blue);">0</span> items</span>
         </div>
         <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <button id="btn-clipboard-download" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.35rem; border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(59, 130, 246, 0.05);">
+                <i class="fa-solid fa-download"></i> Download
+            </button>
             <button id="btn-clipboard-clear" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.35rem;">
                 <i class="fa-solid fa-xmark"></i> Clear
             </button>
@@ -1602,11 +1614,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const paginatedStartEl = document.getElementById('paginated-start');
     const paginatedEndEl = document.getElementById('paginated-end');
     const paginatedTotalEl = document.getElementById('paginated-total');
-    
     const storageKey = `viewMode_${ "{{ connection.connection_id }}" }_${ "{{ bucket_name }}" }_${ "{{ prefix }}" }`;
     let currentViewMode = localStorage.getItem(storageKey) || 'grid';
     let currentPage = 1;
-    const itemsPerPage = 15;
+    const perPageStorageKey = `perPage_${ "{{ connection.connection_id }}" }`;
+    const perPageSelect = document.getElementById('items-per-page-select');
+    let itemsPerPage = parseInt(localStorage.getItem(perPageStorageKey)) || 15;
+    if (perPageSelect) {
+        perPageSelect.value = itemsPerPage.toString();
+        perPageSelect.addEventListener('change', () => {
+            itemsPerPage = parseInt(perPageSelect.value) || 15;
+            localStorage.setItem(perPageStorageKey, itemsPerPage);
+            currentPage = 1;
+            updateTable();
+        });
+    }
     let filteredItems = [];
 
     // View Mode Toggle Listeners
@@ -1696,6 +1718,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (prevPageBtn) {
             prevPageBtn.disabled = (currentPage === 1);
             nextPageBtn.disabled = (currentPage === totalPages || totalItems === 0);
+        }
+        if (typeof syncCheckboxesFromClipboard === 'function') {
+            syncCheckboxesFromClipboard();
         }
     }
 
@@ -1975,14 +2000,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        // Update Select All state
-        const itemCbs = Array.from(checkboxes).filter(cb => cb.id !== 'select-all-files');
-        if (itemCbs.length > 0) {
-            const allChecked = itemCbs.every(cb => cb.checked);
-            const someChecked = itemCbs.some(cb => cb.checked);
+        // Update Select All state for the current page
+        if (typeof filteredItems !== 'undefined' && filteredItems.length > 0) {
+            const startIdx = (currentPage - 1) * itemsPerPage;
+            const endIdx = Math.min(filteredItems.length, startIdx + itemsPerPage);
+            const pageItems = filteredItems.slice(startIdx, endIdx);
+            const pageCbs = pageItems.map(item => item.querySelector('.file-checkbox')).filter(Boolean);
+            
             if (selectAllCheckbox) {
-                selectAllCheckbox.checked = allChecked;
-                selectAllCheckbox.indeterminate = someChecked && !allChecked;
+                if (pageCbs.length > 0) {
+                    const allChecked = pageCbs.every(cb => cb.checked);
+                    const someChecked = pageCbs.some(cb => cb.checked);
+                    selectAllCheckbox.checked = allChecked;
+                    selectAllCheckbox.indeterminate = someChecked && !allChecked;
+                } else {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                }
+            }
+        } else {
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
             }
         }
         
@@ -2028,13 +2067,17 @@ document.addEventListener('DOMContentLoaded', () => {
         selectAllCheckbox.parentNode.replaceChild(newSelectAll, selectAllCheckbox);
         
         newSelectAll.addEventListener('change', () => {
-            const checkboxes = document.querySelectorAll('.file-checkbox');
             const connectionId = "{{ connection.connection_id }}";
             const bucketName = "{{ bucket_name }}";
             let items = getClipboardItems();
             
-            checkboxes.forEach(cb => {
-                if (cb.id === 'select-all-files') return;
+            const startIdx = (currentPage - 1) * itemsPerPage;
+            const endIdx = Math.min(filteredItems.length, startIdx + itemsPerPage);
+            const pageItems = filteredItems.slice(startIdx, endIdx);
+            
+            pageItems.forEach(item => {
+                const cb = item.querySelector('.file-checkbox');
+                if (!cb) return;
                 const key = cb.getAttribute('data-key');
                 const name = cb.getAttribute('data-name');
                 const type = cb.getAttribute('data-type') || 'file';
@@ -2054,8 +2097,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     cb.checked = false;
                     items = items.filter(item => !(item.key === key && item.connection_id === connectionId && item.bucket_name === bucketName));
                 }
+                
+                // Synchronize checkboxes with the same key
+                document.querySelectorAll(`.file-checkbox[data-key="${CSS.escape(key)}"]`).forEach(otherCb => {
+                    otherCb.checked = newSelectAll.checked;
+                });
             });
             saveClipboardItems(items);
+            updateBulkDeleteVisibility();
         });
     }
     
@@ -2248,6 +2297,72 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnClipboardCopyHere) btnClipboardCopyHere.disabled = false;
             if (btnClipboardMoveHere) btnClipboardMoveHere.disabled = false;
         }
+    }
+    
+    // Download clipboard selection
+    const btnClipboardDownload = document.getElementById('btn-clipboard-download');
+    if (btnClipboardDownload) {
+        btnClipboardDownload.addEventListener('click', async () => {
+            const items = getClipboardItems();
+            if (items.length === 0) return;
+            
+            const originalText = btnClipboardDownload.innerHTML;
+            btnClipboardDownload.disabled = true;
+            btnClipboardDownload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Downloading...';
+            
+            try {
+                if (items.length === 1 && items[0].type === 'file') {
+                    const item = items[0];
+                    const url = `/connection/${item.connection_id}/bucket/${item.bucket_name}/proxy-file?key=${encodeURIComponent(item.key)}`;
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = item.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    const destConnectionId = "{{ connection.connection_id }}";
+                    const destBucketName = "{{ bucket_name }}";
+                    const response = await fetch(`/connection/${destConnectionId}/bucket/${destBucketName}/download-zip`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ items: items })
+                    });
+                    
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        
+                        const disposition = response.headers.get('content-disposition');
+                        let filename = 'download.zip';
+                        if (disposition && disposition.indexOf('attachment') !== -1) {
+                            const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                            const matches = filenameRegex.exec(disposition);
+                            if (matches != null && matches[1]) {
+                                filename = matches[1].replace(/['"]/g, '');
+                            }
+                        }
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    } else {
+                        const errData = await response.json();
+                        alert(errData.message || 'Error occurred during zip download.');
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                alert('An error occurred while downloading.');
+            } finally {
+                btnClipboardDownload.disabled = false;
+                btnClipboardDownload.innerHTML = originalText;
+            }
+        });
     }
     
     // Sort selection handler

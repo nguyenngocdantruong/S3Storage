@@ -2212,6 +2212,123 @@ def flv_to_mp4(connection_id, bucket_name):
         
     except Exception as e:
         return f"Error converting video: {str(e)}", 500
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/download-zip', methods=['POST'])
+def download_zip(connection_id, bucket_name):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    
+    mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit', 'public_upload']
+    
+    if not is_public and g.user is None:
+        return jsonify({'status': 'error', 'message': 'Authentication required'}), 401
+        
+    if not check_bucket_access(g.user, conn, bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied'}), 403
+
+    # Parse items
+    data = request.get_json() or {}
+    items = data.get('items', [])
+    if not items:
+        return jsonify({'status': 'error', 'message': 'No items selected'}), 400
+
+    try:
+        s3 = get_s3_client(conn)
+        all_files = []
+        
+        for item in items:
+            key = item.get('key')
+            item_type = item.get('type', 'file')
+            
+            if item_type == 'file':
+                all_files.append((key, key))
+            else:
+                prefix = key if key.endswith('/') else key + '/'
+                paginator = s3.get_paginator('list_objects_v2')
+                pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
+                
+                parts = prefix.rstrip('/').split('/')
+                if len(parts) > 1:
+                    parent_prefix = '/'.join(parts[:-1]) + '/'
+                else:
+                    parent_prefix = ''
+                    
+                for page in pages:
+                    for obj in page.get('Contents', []):
+                        obj_key = obj.get('Key')
+                        if obj_key == prefix:
+                            continue
+                        rel_path = obj_key[len(parent_prefix):] if obj_key.startswith(parent_prefix) else obj_key
+                        all_files.append((obj_key, rel_path))
+
+        if not all_files:
+            return jsonify({'status': 'error', 'message': 'No files found to download'}), 404
+
+        class ZipStreamWriter:
+            def __init__(self):
+                self.buffer = io.BytesIO()
+                self.offset = 0
+
+            def write(self, data):
+                self.buffer.write(data)
+                self.offset += len(data)
+                return len(data)
+
+            def tell(self):
+                return self.offset
+
+            def flush(self):
+                self.buffer.flush()
+
+            def get_data(self):
+                val = self.buffer.getvalue()
+                self.buffer.seek(0)
+                self.buffer.truncate(0)
+                return val
+
+        def generate_zip():
+            import zipfile
+            stream = ZipStreamWriter()
+            with zipfile.ZipFile(stream, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+                for obj_key, rel_path in all_files:
+                    try:
+                        response = s3.get_object(Bucket=bucket_name, Key=obj_key)
+                        body = response['Body']
+                        
+                        zinfo = zipfile.ZipInfo(rel_path)
+                        if 'LastModified' in response:
+                            dt = response['LastModified']
+                            zinfo.date_time = (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+                        
+                        with zf.open(zinfo, mode='w') as dest_file:
+                            for chunk in body.iter_chunks(chunk_size=1024*64):
+                                dest_file.write(chunk)
+                                data = stream.get_data()
+                                if data:
+                                    yield data
+                    except Exception as e:
+                        app.logger.error(f"Error zipping file {obj_key}: {e}")
+                        try:
+                            zf.writestr(f"error-{obj_key.replace('/', '-')}.txt", f"Failed to download {obj_key}: {str(e)}")
+                        except Exception:
+                            pass
+                        data = stream.get_data()
+                        if data:
+                            yield data
+            data = stream.get_data()
+            if data:
+                yield data
+
+        filename = f"download-{datetime.now().strftime('%Y%m%d%H%M%S')}.zip"
+        headers = {
+            'Content-Type': 'application/zip',
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Cache-Control': 'no-cache',
+        }
+        return Response(stream_with_context(generate_zip()), headers=headers)
+        
+    except Exception as e:
+        app.logger.error(f"Error creating zip download: {e}\n{traceback.format_exc()}")
+        return jsonify({'status': 'error', 'message': f'Internal Server Error: {str(e)}'}), 500
 
 
 # --- Video Playback Tracking Routes ---
