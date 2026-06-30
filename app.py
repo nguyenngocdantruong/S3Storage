@@ -18,6 +18,7 @@ import io
 from PIL import Image
 import uuid
 import yt_dlp
+import click
 
 app = Flask(__name__)
 
@@ -42,6 +43,13 @@ def handle_exception(e):
     if request.path.startswith('/api/'):
         return jsonify({'status': 'error', 'message': str(e)}), 500
     return e
+
+@app.cli.command("run-remote-download")
+@click.argument("task_id")
+def run_remote_download_cli(task_id):
+    app.logger.info(f"[CLI] Starting remote download command for task_id={task_id}")
+    background_remote_download(app, task_id)
+
 secret_key_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), '.secret_key')
 if os.path.exists(secret_key_path):
     with open(secret_key_path, 'rb') as f:
@@ -3305,15 +3313,22 @@ def remote_download(connection_id, bucket_name):
     )
     db.session.add(task)
     db.session.commit()
-    app.logger.info(f"[Remote Download] Task created in DB with ID={task_id}. Starting background thread...")
+    app.logger.info(f"[Remote Download] Task created in DB with ID={task_id}. Starting background subprocess...")
 
-    t = threading.Thread(
-        target=background_remote_download,
-        args=(app, task_id)
-    )
-    t.daemon = True
-    t.start()
-    app.logger.info(f"[Remote Download] Background thread started for task_id={task_id}")
+    import subprocess
+    import sys
+    
+    cmd = [sys.executable, "-m", "flask", "--app", "app", "run-remote-download", task_id]
+    try:
+        subprocess.Popen(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True
+        )
+        app.logger.info(f"[Remote Download] Subprocess spawned successfully for task_id={task_id}")
+    except Exception as e:
+        app.logger.error(f"[Remote Download] Failed to spawn subprocess: {e}")
 
     return jsonify({
         'status': 'success',
