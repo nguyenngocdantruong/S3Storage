@@ -3027,32 +3027,41 @@ def background_remote_download(app_to_use, task_id):
     import tempfile
     import requests
     from botocore.exceptions import ClientError
+    import traceback
     
+    app_to_use.logger.info(f"[Remote Thread] background_remote_download spawned for task_id={task_id}")
     with app_to_use.app_context():
+        app_to_use.logger.info(f"[Remote Thread] Context entered for task_id={task_id}")
         temp_dir = tempfile.gettempdir()
         local_filename = None
         task = None
         
         try:
+            app_to_use.logger.info(f"[Remote Thread] Querying DB for task_id={task_id}")
             # Retry fetching task from DB in case of transaction visibility delay (race condition)
             for attempt in range(5):
                 task = db.session.get(RemoteTask, task_id)
                 if task:
+                    app_to_use.logger.info(f"[Remote Thread] Found task on attempt {attempt}")
                     break
+                app_to_use.logger.info(f"[Remote Thread] Task not found on attempt {attempt}. Retrying...")
                 time.sleep(0.5)
                 db.session.expire_all()
                 
             if not task:
-                app_to_use.logger.error(f"Remote Task {task_id} not found in database after retries.")
+                app_to_use.logger.error(f"[Remote Thread] Remote Task {task_id} not found in database after retries.")
                 return
             
+            app_to_use.logger.info(f"[Remote Thread] Querying S3 connection for ID={task.connection_id}")
             conn = db.session.get(S3Connection, task.connection_id)
             if not conn:
+                app_to_use.logger.error(f"[Remote Thread] S3 Connection not found for task_id={task_id}")
                 task.status = 'failed'
                 task.error_message = 'S3 Connection not found.'
                 db.session.commit()
                 return
                 
+            app_to_use.logger.info(f"[Remote Thread] Setting task status to downloading for task_id={task_id}")
             task.status = 'downloading'
             db.session.commit()
             
@@ -3320,6 +3329,7 @@ def remote_download(connection_id, bucket_name):
     if not link:
         return jsonify({'status': 'error', 'message': 'Download link cannot be empty.'}), 400
 
+    app.logger.info(f"[Remote Download] Creating task for link={link}, type={link_type}, bucket={bucket_name}")
     task_id = str(uuid.uuid4())
     task = RemoteTask(
         id=task_id,
@@ -3333,11 +3343,15 @@ def remote_download(connection_id, bucket_name):
     )
     db.session.add(task)
     db.session.commit()
+    app.logger.info(f"[Remote Download] Task created in DB with ID={task_id}. Starting background thread...")
 
-    threading.Thread(
+    t = threading.Thread(
         target=background_remote_download,
         args=(app, task_id)
-    ).start()
+    )
+    t.daemon = True
+    t.start()
+    app.logger.info(f"[Remote Download] Background thread started for task_id={task_id}")
 
     return jsonify({
         'status': 'success',
