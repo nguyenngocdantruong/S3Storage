@@ -207,6 +207,14 @@ def fix_s3_url(url):
         return url.replace('http://', 'https://', 1)
     return url
 
+# Helper: Check if S3 key exists
+def s3_key_exists(s3_client, bucket, key):
+    try:
+        s3_client.head_object(Bucket=bucket, Key=key)
+        return True
+    except ClientError:
+        return False
+
 # Helper: Get boto3 client
 def get_s3_client(connection, endpoint_url=None):
     config = Config(
@@ -3301,6 +3309,66 @@ def paste_single_file(src_conn, src_bucket, src_key, dest_conn, dest_bucket, des
                 user_id=creator_id
             )
             db.session.add(new_uf)
+
+@app.route('/api/connection/<connection_id>/bucket/<bucket_name>/check-existing', methods=['POST'])
+@login_required
+def check_existing_files(connection_id, bucket_name):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    if not check_bucket_access(g.user, conn, bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied'}), 403
+        
+    data = request.get_json() or {}
+    keys = data.get('keys', [])
+    
+    existing_keys = []
+    if not keys:
+        return jsonify({'status': 'success', 'existing': []})
+        
+    try:
+        s3 = get_s3_client(conn)
+        for key in keys:
+            if s3_key_exists(s3, bucket_name, key):
+                existing_keys.append(key)
+        return jsonify({'status': 'success', 'existing': existing_keys})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/connection/<connection_id>/bucket/<bucket_name>/resolve-unique-keys', methods=['POST'])
+@login_required
+def resolve_unique_keys(connection_id, bucket_name):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    if not check_bucket_access(g.user, conn, bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied'}), 403
+        
+    data = request.get_json() or {}
+    keys = data.get('keys', [])
+    
+    resolved = {}
+    if not keys:
+        return jsonify({'status': 'success', 'resolved': {}})
+        
+    try:
+        s3 = get_s3_client(conn)
+        for key in keys:
+            resolved_key = key
+            if s3_key_exists(s3, bucket_name, key):
+                is_dir = key.endswith('/')
+                if is_dir:
+                    base = key.rstrip('/')
+                    ext = '/'
+                else:
+                    base, ext = os.path.splitext(key)
+                counter = 1
+                while True:
+                    candidate = f"{base}_{counter}{ext}"
+                    if not s3_key_exists(s3, bucket_name, candidate):
+                        resolved_key = candidate
+                        break
+                    counter += 1
+            resolved[key] = resolved_key
+        return jsonify({'status': 'success', 'resolved': resolved})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=7090, debug=True)

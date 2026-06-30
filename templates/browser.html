@@ -698,6 +698,33 @@
         </div>
     </div>
 
+    <!-- Upload Conflict Modal -->
+    <div id="uploadConflictModal" class="modal-overlay" style="z-index: 2000;">
+        <div class="modal-content upload-modal-content" style="max-width: 500px !important;">
+            <h2 style="font-size: 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <span>Trùng lặp tệp tin</span>
+                <button onclick="closeModal('uploadConflictModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </h2>
+            <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; text-align: left;">
+                Các tệp tin sau đã tồn tại trong thư mục này. Bạn muốn xử lý như thế nào?
+            </div>
+            <div id="conflict-files-list" style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: var(--radius-md); padding: 0.5rem; margin-bottom: 1.5rem; text-align: left; display: flex; flex-direction: column; gap: 0.5rem;">
+                <!-- Dynamically filled -->
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
+                <button type="button" id="btn-conflict-replace" class="btn btn-primary" style="width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-arrows-rotate"></i> Ghi đè (Thay thế)
+                </button>
+                <button type="button" id="btn-conflict-keepboth" class="btn btn-secondary" style="width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-copy"></i> Giữ cả hai (Đổi tên thành _1, _2...)
+                </button>
+                <button type="button" id="btn-conflict-skip" class="btn btn-secondary" style="width: 100%; justify-content: center; border-color: rgba(239, 68, 68, 0.3); color: var(--accent-rose); display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-ban"></i> Bỏ qua các tệp tin trùng
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Clipboard Floating Bar -->
     <div id="clipboard-floating-bar" style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 1rem; z-index: 1500; box-shadow: 0 20px 40px rgba(0,0,0,0.6); display: none; align-items: center; justify-content: space-between; gap: 1.5rem; padding: 0.75rem 1.5rem; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); color: #fff; width: max-content; max-width: 90%;">
         <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -975,7 +1002,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (!state.uploadId) {
                 statusEl.textContent = 'Initiating...';
-                const uploadName = file.relativePath || file.name;
+                const uploadName = file.customName || file.relativePath || file.name;
                 
                 const initRes = await fetch("{{ url_for('multipart_initiate', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
                     method: 'POST',
@@ -1303,8 +1330,7 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = false;
     }
 
-    uploadForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    function startUploadProcess() {
         if (!selectedFiles.length) return;
 
         const widgetBody = document.getElementById('upload-queue-body');
@@ -1329,7 +1355,7 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (file.size < 1048576) sizeStr = `${(file.size / 1024).toFixed(1)} KB`;
             else sizeStr = `${(file.size / 1048576).toFixed(1)} MB`;
 
-            const displayName = file.relativePath || file.name;
+            const displayName = file.customName || file.relativePath || file.name;
 
             item.innerHTML = `
                 <div class="preview-item-header" style="margin-bottom: 0.25rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
@@ -1399,6 +1425,116 @@ document.addEventListener('DOMContentLoaded', () => {
             uploadQueue.push(fileId);
         });
         processQueue();
+    }
+
+    function showConflictResolver(existingKeys) {
+        const listContainer = document.getElementById('conflict-files-list');
+        listContainer.innerHTML = '';
+        existingKeys.forEach(key => {
+            const filename = key.split('/').pop();
+            const el = document.createElement('div');
+            el.className = 'conflict-file-item';
+            el.style.cssText = 'font-size: 0.85rem; color: #fff; padding: 0.25rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 0.5rem;';
+            el.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="color: var(--accent-rose);"></i> <span style="word-break: break-all;">${filename}</span>`;
+            listContainer.appendChild(el);
+        });
+
+        openModal('uploadConflictModal');
+
+        // Setup button handlers
+        const replaceBtn = document.getElementById('btn-conflict-replace');
+        const keepbothBtn = document.getElementById('btn-conflict-keepboth');
+        const skipBtn = document.getElementById('btn-conflict-skip');
+
+        const cleanUpAndStart = () => {
+            closeModal('uploadConflictModal');
+            replaceBtn.onclick = null;
+            keepbothBtn.onclick = null;
+            skipBtn.onclick = null;
+            startUploadProcess();
+        };
+
+        // Ghi đè (replace)
+        replaceBtn.onclick = () => {
+            cleanUpAndStart();
+        };
+
+        // Bỏ qua (skip)
+        skipBtn.onclick = () => {
+            selectedFiles = selectedFiles.filter(file => {
+                const fullKey = ( "{{ prefix }}" ) + (file.relativePath || file.name);
+                return !existingKeys.includes(fullKey);
+            });
+            cleanUpAndStart();
+        };
+
+        // Giữ cả hai (keep both)
+        keepbothBtn.onclick = async () => {
+            keepbothBtn.disabled = true;
+            keepbothBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
+            try {
+                const res = await fetch("/api/connection/{{ connection.connection_id }}/bucket/{{ bucket_name }}/resolve-unique-keys", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keys: existingKeys })
+                });
+                const data = await res.json();
+                if (data.status === 'success' && data.resolved) {
+                    selectedFiles.forEach(file => {
+                        const fullKey = ( "{{ prefix }}" ) + (file.relativePath || file.name);
+                        if (data.resolved[fullKey]) {
+                            const newFullKey = data.resolved[fullKey];
+                            const newName = newFullKey.split('/').pop();
+                            file.customName = newName;
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to resolve unique keys", err);
+            } finally {
+                keepbothBtn.disabled = false;
+                keepbothBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Giữ cả hai (Đổi tên thành _1, _2...)';
+            }
+            cleanUpAndStart();
+        };
+    }
+
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!selectedFiles.length) return;
+
+        // Collect all target keys for check
+        const targetKeys = selectedFiles.map(file => {
+            const displayName = file.relativePath || file.name;
+            return ( "{{ prefix }}" ) + displayName;
+        });
+
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking conflicts...';
+
+        try {
+            const res = await fetch("/api/connection/{{ connection.connection_id }}/bucket/{{ bucket_name }}/check-existing", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keys: targetKeys })
+            });
+            const data = await res.json();
+            
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+
+            if (data.status === 'success' && data.existing && data.existing.length > 0) {
+                showConflictResolver(data.existing);
+            } else {
+                startUploadProcess();
+            }
+        } catch (err) {
+            console.error(err);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+            startUploadProcess();
+        }
     });
 
     // Widget Minimize / Expand logic
@@ -1649,13 +1785,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.status === 'success') {
                     window.location.reload();
                 } else {
-                    alert(data.message || 'Failed to rename item.');
+                    showToast(data.message || 'Failed to rename item.', 'error');
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Rename';
                 }
             } catch (err) {
                 console.error(err);
-                alert('An error occurred during rename.');
+                showToast('An error occurred during rename.', 'error');
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Rename';
             }
