@@ -2,7 +2,73 @@
 
 {% block title %}Dashboard - S3 Storage{% endblock %}
 
+{% block extra_head %}
+{% if stats_data %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endif %}
+{% endblock %}
+
 {% block content %}
+{% if stats_data %}
+<!-- Visual Admin Dashboard Section -->
+<div class="glass-card" style="margin-bottom: 2rem; padding: 1.5rem;">
+    <h2 style="font-size: 1.25rem; font-weight: 700; color: #fff; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fa-solid fa-chart-pie" style="color: var(--accent-purple);"></i>
+        Hệ thống Dashboard & Báo cáo trực quan
+    </h2>
+    
+    <!-- Quick Stats Row -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1rem; display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(16, 185, 129, 0.1); color: var(--accent-emerald); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                <i class="fa-solid fa-users"></i>
+            </div>
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Người Dùng</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #fff;">{{ stats_data.total_users }}</div>
+            </div>
+        </div>
+        
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1rem; display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(59, 130, 246, 0.1); color: #60a5fa; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                <i class="fa-solid fa-network-wired"></i>
+            </div>
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Kết Nối S3</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #fff;">{{ stats_data.total_connections }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+        <!-- Provider Distribution -->
+        <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; align-items: center;">
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; align-self: flex-start;">Loại Kết Nối S3</h4>
+            <div style="position: relative; height: 200px; width: 100%;">
+                <canvas id="providerChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Audit Action Stats -->
+        <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1.25rem;">
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem;">Thống kê Hoạt động (Logs)</h4>
+            <div style="position: relative; height: 200px; width: 100%;">
+                <canvas id="actionChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Activity Trend -->
+        <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1.25rem;">
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem;">Xu hướng Hoạt động (7 Ngày)</h4>
+            <div style="position: relative; height: 200px; width: 100%;">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="header-actions">
     <div>
         <h1 class="page-title">S3 Connections</h1>
@@ -446,6 +512,95 @@
                 }
             });
         }
+
+        // Initialize Chart.js
+        {% if stats_data %}
+        const stats = {{ stats_data|tojson }};
+        
+        // 1. Provider Distribution Chart
+        const providerCtx = document.getElementById('providerChart').getContext('2d');
+        new Chart(providerCtx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(stats.connection_dist),
+                datasets: [{
+                    data: Object.values(stats.connection_dist),
+                    backgroundColor: ['#10b981', '#3b82f6'],
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.08)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#f3f4f6', font: { family: 'Outfit' } }
+                    }
+                }
+            }
+        });
+
+        // 2. Action Type Frequency Chart
+        const actionCtx = document.getElementById('actionChart').getContext('2d');
+        new Chart(actionCtx, {
+            type: 'bar',
+            data: {
+                labels: stats.action_stats.labels,
+                datasets: [{
+                    label: 'Số lượt',
+                    data: stats.action_stats.counts,
+                    backgroundColor: 'rgba(16, 185, 129, 0.65)',
+                    borderColor: '#10b981',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 10 } } },
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { family: 'Outfit' } } }
+                }
+            }
+        });
+
+        // 3. Activity Trend Chart
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: stats.activity_trend.labels.map(l => l.substring(5)), // MM-DD
+                datasets: [{
+                    label: 'Hoạt động',
+                    data: stats.activity_trend.counts,
+                    fill: true,
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#3b82f6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 10 } } },
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { family: 'Outfit' }, stepSize: 1 } }
+                }
+            }
+        });
+        {% endif %}
     });
 </script>
 {% endif %}

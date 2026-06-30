@@ -204,6 +204,17 @@ class ItemLike(db.Model):
     file_key = db.Column(db.String(255), nullable=False)
     like_count = db.Column(db.Integer, default=0, nullable=False)
 
+class S3FileIndex(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    connection_id = db.Column(db.Integer, db.ForeignKey('s3_connection.id'), nullable=False)
+    bucket_name = db.Column(db.String(100), nullable=False)
+    file_key = db.Column(db.String(512), nullable=False)
+    file_name = db.Column(db.String(255), nullable=False)
+    size = db.Column(db.BigInteger, default=0)
+    last_modified = db.Column(db.DateTime, nullable=True)
+
+    connection = db.relationship('S3Connection', backref=db.backref('file_indexes', lazy=True, cascade='all, delete-orphan'))
+
 
 
 # Helper: Fix S3 URL for Mixed Content issues (HTTPS -> HTTPS)
@@ -780,7 +791,163 @@ def profile():
 @app.route('/')
 def dashboard():
     connections = S3Connection.query.order_by(S3Connection.created_at.desc()).all()
-    return render_template('dashboard.html', connections=connections)
+    
+    # Gather statistics for Admin Visual Dashboard Charts
+    stats_data = {}
+    if g.user and g.user.role == 'Admin':
+        try:
+            total_users = User.query.count()
+            total_connections = S3Connection.query.count()
+            
+            aws_count = 0
+            compat_count = 0
+            for c in connections:
+                if c.endpoint_url and 'amazonaws.com' in c.endpoint_url.lower():
+                    aws_count += 1
+                elif not c.endpoint_url:
+                    aws_count += 1
+                else:
+                    compat_count += 1
+
+            from sqlalchemy import func
+            action_stats = db.session.query(
+                AuditLog.action_type, func.count(AuditLog.id)
+            ).group_by(AuditLog.action_type).all()
+            action_labels = [a[0] or 'OTHER' for a in action_stats]
+            action_counts = [a[1] for a in action_stats]
+
+            # Last 7 days activity trend
+            seven_days_ago = datetime.utcnow() - timedelta(days=7)
+            daily_activity = db.session.query(
+                func.date(AuditLog.timestamp), func.count(AuditLog.id)
+            ).filter(AuditLog.timestamp >= seven_days_ago).group_by(func.date(AuditLog.timestamp)).all()
+
+            activity_trend = {}
+            for i in range(7):
+                d = (datetime.utcnow() - timedelta(days=i)).date()
+                activity_trend[d.strftime('%Y-%m-%d')] = 0
+            for date_val, count in daily_activity:
+                date_str = str(date_val) if date_val else ""
+                if date_str in activity_trend:
+                    activity_trend[date_str] = count
+
+            sorted_trend = sorted(activity_trend.items())
+            trend_labels = [item[0] for item in sorted_trend]
+            trend_counts = [item[1] for item in sorted_trend]
+
+            stats_data = {
+                'total_users': total_users,
+                'total_connections': total_connections,
+                'connection_dist': {'AWS': aws_count, 'Compatible': compat_count},
+                'action_stats': {'labels': action_labels, 'counts': action_counts},
+                'activity_trend': {'labels': trend_labels, 'counts': trend_counts}
+            }
+        except Exception as e:
+            app.logger.error(f"Error gathering stats: {e}")
+
+    return render_template('dashboard.html', connections=connections, stats_data=stats_data)
+
+@app.route('/search')
+def global_search():
+    if g.user is None:
+        return redirect(url_for('login'))
+        
+    query = request.args.get('q', '').strip()
+    results = []
+    
+    if query:
+        # User owned connections
+        owned_conn_ids = [c.id for c in g.user.owned_connections]
+        # Mapped buckets
+        mapped_buckets = UserBucket.query.filter_by(user_id=g.user.id).all()
+        # Shared buckets
+        shared_access = BucketAccess.query.filter_by(user_id=g.user.id).all()
+        
+        allowed = set()
+        for mb in mapped_buckets:
+            allowed.add((mb.connection_id, mb.bucket_name))
+        for sa in shared_access:
+            allowed.add((sa.connection_id, sa.bucket_name))
+            
+        public_mappings = UserBucket.query.filter(UserBucket.access_type.in_(['public', 'public_view', 'public_edit', 'public_upload'])).all()
+        for pm in public_mappings:
+            allowed.add((pm.connection_id, pm.bucket_name))
+
+        if g.user.role == 'Admin':
+            results = S3FileIndex.query.filter(S3FileIndex.file_name.like(f'%{query}%')).limit(100).all()
+        else:
+            raw_matches = S3FileIndex.query.filter(S3FileIndex.file_name.like(f'%{query}%')).limit(500).all()
+            for item in raw_matches:
+                if item.connection_id in owned_conn_ids or (item.connection_id, item.bucket_name) in allowed:
+                    results.append(item)
+                    if len(results) >= 100:
+                        break
+
+    total_indexed = 0
+    if g.user.role == 'Admin':
+        total_indexed = S3FileIndex.query.count()
+    else:
+        owned_conn_ids = [c.id for c in g.user.owned_connections]
+        total_indexed = S3FileIndex.query.filter(S3FileIndex.connection_id.in_(owned_conn_ids) if owned_conn_ids else False).count()
+        
+    return render_template('search.html', query=query, results=results, total_indexed=total_indexed)
+
+@app.route('/search/sync', methods=['POST'])
+def sync_search_index():
+    if g.user is None:
+        return jsonify({'status': 'error', 'message': 'Authentication required'}), 401
+        
+    if g.user.role == 'Admin':
+        connections = S3Connection.query.all()
+    else:
+        connections = g.user.owned_connections
+        
+    try:
+        synced_count = 0
+        for conn in connections:
+            s3 = get_s3_client(conn)
+            try:
+                if g.user.role == 'Admin':
+                    response = s3.list_buckets()
+                    buckets = [b['Name'] for b in response.get('Buckets', [])]
+                else:
+                    user_buckets = UserBucket.query.filter_by(user_id=g.user.id, connection_id=conn.id).all()
+                    buckets = [ub.bucket_name for ub in user_buckets]
+                    
+                S3FileIndex.query.filter_by(connection_id=conn.id).delete()
+                
+                for bucket in buckets:
+                    try:
+                        paginator = s3.get_paginator('list_objects_v2')
+                        page_iterator = paginator.paginate(Bucket=bucket, PaginationConfig={'MaxItems': 5000})
+                        
+                        for page in page_iterator:
+                            for obj in page.get('Contents', []):
+                                key = obj['Key']
+                                if key.endswith('/') or key == '':
+                                    continue
+                                    
+                                name = key.split('/')[-1] or key
+                                idx = S3FileIndex(
+                                    connection_id=conn.id,
+                                    bucket_name=bucket,
+                                    file_key=key,
+                                    file_name=name,
+                                    size=obj.get('Size', 0),
+                                    last_modified=obj.get('LastModified')
+                                )
+                                db.session.add(idx)
+                                synced_count += 1
+                    except Exception as e:
+                        app.logger.error(f"Failed to index bucket {bucket}: {e}")
+            except Exception as e:
+                app.logger.error(f"Failed to list buckets for connection {conn.name}: {e}")
+                
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': f'Đã cập nhật chỉ mục tìm kiếm thành công! Đã quét {synced_count} tệp.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': f'Lỗi khi đồng bộ chỉ mục: {str(e)}'}), 500
 
 @app.route('/connection/add', methods=['POST'])
 @admin_required
@@ -2099,9 +2266,11 @@ def office_to_pdf(connection_id, bucket_name):
         # Download file from S3 to temporary directory
         s3.download_file(bucket_name, key, input_path)
         
-        # Convert to pdf using libreoffice
+        # Convert to pdf using libreoffice with a unique isolated user profile to avoid lock conflicts
+        user_profile_dir = os.path.join(temp_dir, 'user_profile')
+        user_installation_url = f"file:///{user_profile_dir.replace(os.sep, '/')}"
         result = subprocess.run(
-            ['soffice', '--headless', '--convert-to', 'pdf', '--outdir', temp_dir, input_path],
+            ['soffice', f'-env:UserInstallation={user_installation_url}', '--headless', '--convert-to', 'pdf', '--outdir', temp_dir, input_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -2494,6 +2663,24 @@ def toggle_user_status(user_id):
     
     status_str = "kích hoạt" if user.is_active else "vô hiệu hóa"
     flash(f"Tài khoản {user.name} đã được {status_str}.", 'success')
+    return redirect(url_for('manage_users'))
+
+@app.route('/admin/user/<int:user_id>/update-role', methods=['POST'])
+@admin_required
+def update_user_role(user_id):
+    user = db.get_or_404(User, user_id)
+    if user.id == g.user.id:
+        flash('Bạn không thể tự thay đổi quyền của chính mình.', 'error')
+        return redirect(url_for('manage_users'))
+        
+    role = request.form.get('role')
+    if role not in ['Admin', 'User']:
+        flash('Quyền hạn không hợp lệ.', 'error')
+        return redirect(url_for('manage_users'))
+        
+    user.role = role
+    db.session.commit()
+    flash(f"Đã thay đổi quyền của {user.name} thành {role}.", 'success')
     return redirect(url_for('manage_users'))
 
 @app.route('/admin/functions')

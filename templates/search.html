@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+
+{% block title %}Global Search - S3 Storage{% endblock %}
+
+{% block content %}
+<div class="header-actions">
+    <div>
+        <h1 class="page-title">Global File Search</h1>
+        <p style="color: var(--text-secondary); margin-top: 0.25rem;">Tìm kiếm tệp tin nhanh chóng trên tất cả các kết nối S3 đã được lập chỉ mục.</p>
+    </div>
+    <div>
+        <button id="syncIndexBtn" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-rotate"></i> Cập nhật chỉ mục tìm kiếm
+        </button>
+    </div>
+</div>
+
+<div class="glass-card" style="margin-bottom: 2rem; padding: 1.5rem;">
+    <form action="{{ url_for('global_search') }}" method="GET" style="display: flex; gap: 1rem; align-items: center; width: 100%;">
+        <div style="flex-grow: 1; position: relative;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+            <input type="text" name="q" class="form-control" placeholder="Nhập tên tệp cần tìm..." value="{{ query or '' }}" required style="padding-left: 2.75rem;">
+        </div>
+        <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem;">Tìm kiếm</button>
+    </form>
+    
+    {% if total_indexed > 0 %}
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.75rem; text-align: right;">
+            Tổng số tệp đã lập chỉ mục: <strong style="color: var(--accent-purple);">{{ total_indexed }}</strong>
+        </div>
+    {% endif %}
+</div>
+
+{% if query %}
+<div class="glass-card">
+    <h3 style="font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fa-solid fa-square-poll-horizontal" style="color: var(--accent-purple);"></i>
+        Kết quả tìm kiếm cho: "{{ query }}"
+    </h3>
+    
+    <div class="data-table-container">
+        {% if results %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Tên Tệp</th>
+                        <th>S3 Connection</th>
+                        <th>Bucket</th>
+                        <th>Kích thước</th>
+                        <th>Ngày sửa đổi</th>
+                        <th style="text-align: right;">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in results %}
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    {% set lower_name = item.file_name.lower() %}
+                                    {% if lower_name.endswith('.mp4') or lower_name.endswith('.mkv') or lower_name.endswith('.mov') or lower_name.endswith('.flv') %}
+                                        <i class="fa-solid fa-file-video" style="color: #f43f5e; font-size: 1.15rem;"></i>
+                                    {% elif lower_name.endswith('.mp3') or lower_name.endswith('.wav') or lower_name.endswith('.m4a') or lower_name.endswith('.flac') %}
+                                        <i class="fa-solid fa-file-audio" style="color: #10b981; font-size: 1.15rem;"></i>
+                                    {% elif lower_name.endswith('.jpg') or lower_name.endswith('.jpeg') or lower_name.endswith('.png') or lower_name.endswith('.gif') or lower_name.endswith('.webp') %}
+                                        <i class="fa-solid fa-file-image" style="color: #a855f7; font-size: 1.15rem;"></i>
+                                    {% elif lower_name.endswith('.pdf') %}
+                                        <i class="fa-solid fa-file-pdf" style="color: #ef4444; font-size: 1.15rem;"></i>
+                                    {% elif lower_name.endswith('.txt') or lower_name.endswith('.md') or lower_name.endswith('.conf') %}
+                                        <i class="fa-solid fa-file-lines" style="color: #38bdf8; font-size: 1.15rem;"></i>
+                                    {% else %}
+                                        <i class="fa-solid fa-file" style="color: var(--text-secondary); font-size: 1.15rem;"></i>
+                                    {% endif %}
+                                    <div style="font-weight: 500; color: #fff; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ item.file_name }}">
+                                        {{ item.file_name }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span style="font-size: 0.85rem; color: var(--text-secondary);">{{ item.connection.name }}</span>
+                            </td>
+                            <td>
+                                <span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #93c5fd; font-size: 0.75rem;">{{ item.bucket_name }}</span>
+                            </td>
+                            <td>
+                                <span style="font-size: 0.85rem; color: var(--text-secondary);">
+                                    {% if item.size >= 1073741824 %}
+                                        {{ (item.size / 1073741824) | round(2) }} GB
+                                    {% elif item.size >= 1048576 %}
+                                        {{ (item.size / 1048576) | round(1) }} MB
+                                    {% else %}
+                                        {{ (item.size / 1024) | round(0) }} KB
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <span style="font-size: 0.85rem; color: var(--text-muted);">{{ item.last_modified.strftime('%d/%m/%Y %H:%M') if item.last_modified else 'N/A' }}</span>
+                            </td>
+                            <td style="text-align: right;">
+                                <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
+                                    <a href="{{ url_for('proxy_file', connection_id=item.connection.connection_id, bucket_name=item.bucket_name) }}?key={{ item.file_key | urlencode }}" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" download title="Download">
+                                        <i class="fa-solid fa-download"></i>
+                                    </a>
+                                    {% set last_slash = item.file_key.rfind('/') %}
+                                    {% set folder_prefix = item.file_key[:last_slash + 1] if last_slash != -1 else '' %}
+                                    <a href="{{ url_for('browse_bucket', connection_id=item.connection.connection_id, bucket_name=item.bucket_name) }}?prefix={{ folder_prefix | urlencode }}" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Browse Folder">
+                                        <i class="fa-solid fa-folder-open"></i> Thư mục
+                                    </a>
+                                    <a href="{{ url_for('viewer_interface', connection_id=item.connection.connection_id, bucket_name=item.bucket_name) }}?key={{ item.file_key | urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">
+                                        <i class="fa-solid fa-play"></i> Xem
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div style="text-align: center; padding: 4rem 2rem; color: var(--text-muted);">
+                <i class="fa-solid fa-circle-info" style="font-size: 3rem; margin-bottom: 1rem; color: var(--text-muted);"></i>
+                <p style="font-size: 1rem; margin-bottom: 0.5rem;">Không tìm thấy tệp tin nào khớp với từ khóa tìm kiếm.</p>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">Hãy thử kiểm tra lại từ khóa hoặc cập nhật chỉ mục tìm kiếm bằng nút phía trên.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const syncBtn = document.getElementById('syncIndexBtn');
+    if (syncBtn) {
+        syncBtn.addEventListener('click', async () => {
+            const originalHTML = syncBtn.innerHTML;
+            syncBtn.disabled = true;
+            syncBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang cập nhật chỉ mục...';
+            
+            try {
+                const response = await fetch("{{ url_for('sync_search_index') }}", {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'success') {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert('Lỗi: ' + (data.message || 'Không thể đồng bộ chỉ mục.'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Lỗi kết nối máy chủ.');
+            } finally {
+                syncBtn.disabled = false;
+                syncBtn.innerHTML = originalHTML;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

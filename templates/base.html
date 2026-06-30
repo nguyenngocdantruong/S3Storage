@@ -66,6 +66,12 @@
                             <span>S3 Connections</span>
                         </a>
                     </li>
+                    <li class="nav-item {% if request.path == '/search' %}active{% endif %}">
+                        <a href="{{ url_for('global_search') }}">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <span>Global Search</span>
+                        </a>
+                    </li>
                     <li class="nav-item {% if request.path == '/progress' %}active{% endif %}">
                         <a href="{{ url_for('list_progress') }}">
                             <i class="fa-solid fa-chart-line"></i>

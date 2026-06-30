@@ -23,18 +23,18 @@
         align-items: start;
         transition: grid-template-columns 0.3s ease;
     }
-    
+
     @media (max-width: 1024px) {
         .viewer-layout-container {
             grid-template-columns: minmax(0, 1fr);
         }
     }
-    
+
     .viewer-main-content {
         min-width: 0;
         width: 100%;
     }
-    
+
     .player-container-custom {
         width: 100%;
         max-width: 100%;
@@ -57,7 +57,7 @@
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         transition: transform 0.3s ease, opacity 0.3s ease;
     }
-    
+
     .sidebar-header {
         display: flex;
         justify-content: space-between;
@@ -65,24 +65,24 @@
         border-bottom: 1px solid var(--glass-border);
         padding-bottom: 0.75rem;
     }
-    
+
     .sidebar-header h3 {
         font-size: 1.1rem;
         font-weight: 700;
         color: #fff;
         margin: 0;
     }
-    
+
     .sidebar-header .file-count {
         font-size: 0.75rem;
         color: var(--text-secondary);
     }
-    
+
     .sidebar-search {
         position: relative;
         width: 100%;
     }
-    
+
     .sidebar-search i {
         position: absolute;
         left: 0.75rem;
@@ -91,7 +91,7 @@
         color: var(--text-secondary);
         font-size: 0.85rem;
     }
-    
+
     .sidebar-search input {
         width: 100%;
         padding: 0.5rem 0.5rem 0.5rem 2rem;
@@ -102,11 +102,11 @@
         font-size: 0.85rem;
         outline: none;
     }
-    
+
     .sidebar-search input:focus {
         border-color: var(--accent-purple);
     }
-    
+
     .sidebar-file-list {
         overflow-y: auto;
         display: flex;
@@ -115,47 +115,47 @@
         flex-grow: 1;
         padding-right: 0.25rem;
     }
-    
+
     /* Custom premium scrollbar for sidebar file list */
     .sidebar-file-list::-webkit-scrollbar {
         width: 6px;
     }
-    
+
     .sidebar-file-list::-webkit-scrollbar-track {
         background: rgba(255, 255, 255, 0.01);
         border-radius: 99px;
     }
-    
+
     .sidebar-file-list::-webkit-scrollbar-thumb {
         background: rgba(139, 92, 246, 0.3);
         border-radius: 99px;
         transition: var(--transition-smooth);
     }
-    
+
     .sidebar-file-list::-webkit-scrollbar-thumb:hover {
         background: rgba(139, 92, 246, 0.6);
     }
-    
+
     /* Custom premium scrollbar for PDF render viewport */
     .pdf-render-viewport::-webkit-scrollbar {
         width: 8px;
         height: 8px;
     }
-    
+
     .pdf-render-viewport::-webkit-scrollbar-track {
         background: rgba(255, 255, 255, 0.01);
         border-radius: 99px;
     }
-    
+
     .pdf-render-viewport::-webkit-scrollbar-thumb {
         background: rgba(139, 92, 246, 0.3);
         border-radius: 99px;
     }
-    
+
     .pdf-render-viewport::-webkit-scrollbar-thumb:hover {
         background: rgba(139, 92, 246, 0.6);
     }
-    
+
     .sidebar-file-item {
         display: flex;
         flex-direction: column;
@@ -168,33 +168,33 @@
         text-decoration: none;
         color: var(--text-primary);
     }
-    
+
     .sidebar-file-item:hover {
         background: rgba(255, 255, 255, 0.05);
         border-color: var(--glass-border);
     }
-    
+
     .sidebar-file-item.active {
         background: rgba(139, 92, 246, 0.15);
         border-color: rgba(139, 92, 246, 0.4);
     }
-    
+
     .sidebar-file-item.active .item-name {
         color: #fff;
         font-weight: 600;
     }
-    
+
     .sidebar-item-header {
         display: flex;
         align-items: center;
         gap: 0.5rem;
     }
-    
+
     .sidebar-item-header i {
         font-size: 1rem;
         flex-shrink: 0;
     }
-    
+
     .sidebar-item-header .item-name {
         font-size: 0.85rem;
         white-space: nowrap;
@@ -203,7 +203,7 @@
         flex-grow: 1;
         color: var(--text-primary);
     }
-    
+
     .sidebar-item-meta {
         display: flex;
         justify-content: space-between;
@@ -211,7 +211,7 @@
         font-size: 0.75rem;
         color: var(--text-secondary);
     }
-    
+
     .sidebar-progress-bar {
         width: 100%;
         height: 4px;
@@ -220,13 +220,13 @@
         overflow: hidden;
         margin-top: 0.25rem;
     }
-    
+
     .sidebar-progress-fill {
         height: 100%;
         background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));
         border-radius: 99px;
     }
-    
+
     .loading-spinner {
         display: flex;
         justify-content: center;
@@ -247,7 +247,7 @@
         overflow: hidden;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
     }
-    
+
     .pdf-toolbar {
         display: flex;
         justify-content: space-between;
@@ -258,7 +258,7 @@
         flex-wrap: wrap;
         gap: 0.5rem;
     }
-    
+
     .pdf-render-viewport {
         flex-grow: 1;
         height: 75vh;
@@ -299,12 +299,13 @@
         width: 100%;
     }
 
-    #share-expires-in:hover, #share-expires-in:focus {
+    #share-expires-in:hover,
+    #share-expires-in:focus {
         color: #fff;
         border-color: var(--accent-purple);
         box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
     }
-    
+
     #share-expires-in option {
         background: #1e293b;
         color: #fff;
@@ -316,7 +317,7 @@
         grid-template-columns: 1fr 0px;
         gap: 0;
     }
-    
+
     .viewer-layout-container.sidebar-collapsed .viewer-sidebar {
         transform: scaleX(0);
         opacity: 0;
@@ -354,28 +355,44 @@
     .folder-header:hover {
         background: rgba(255, 255, 255, 0.05);
     }
-    
+
     /* Markdown Preview Styling */
-    .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+    .markdown-body h1,
+    .markdown-body h2,
+    .markdown-body h3 {
         border-bottom: 1px solid var(--glass-border);
         padding-bottom: 0.3em;
         margin-top: 1.5em;
         margin-bottom: 1em;
         color: #fff;
     }
-    .markdown-body h1 { font-size: 1.8rem; }
-    .markdown-body h2 { font-size: 1.4rem; }
-    .markdown-body h3 { font-size: 1.1rem; }
-    .markdown-body p, .markdown-body ul, .markdown-body ol {
+
+    .markdown-body h1 {
+        font-size: 1.8rem;
+    }
+
+    .markdown-body h2 {
+        font-size: 1.4rem;
+    }
+
+    .markdown-body h3 {
+        font-size: 1.1rem;
+    }
+
+    .markdown-body p,
+    .markdown-body ul,
+    .markdown-body ol {
         line-height: 1.6;
         margin-bottom: 1.2em;
     }
+
     .markdown-body code {
         background: rgba(255, 255, 255, 0.1);
         padding: 0.2rem 0.4rem;
         border-radius: var(--radius-sm);
         font-family: monospace;
     }
+
     .markdown-body pre {
         background: #090d16;
         padding: 1rem;
@@ -383,11 +400,12 @@
         overflow-x: auto;
         border: 1px solid var(--glass-border);
     }
+
     .markdown-body pre code {
         background: transparent;
         padding: 0;
     }
-    
+
     /* Subtitle Styles */
     .subtitle-control-panel {
         display: flex;
@@ -400,12 +418,14 @@
         border-radius: var(--radius-md);
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
+
     .subtitle-select-container {
         display: flex;
         align-items: center;
         gap: 0.75rem;
         flex: 1;
     }
+
     .subtitle-select {
         flex: 1;
         background: rgba(15, 23, 42, 0.8);
@@ -419,10 +439,12 @@
         font-family: inherit;
         font-size: 0.9rem;
     }
+
     .subtitle-select:focus {
         border-color: var(--accent-purple);
         box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
     }
+
     video::cue {
         background: rgba(15, 23, 42, 0.85) !important;
         color: #fff !important;
@@ -445,34 +467,37 @@
     <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
     {% set prefix = '/'.join(key.split('/')[:-1]) %}
     {% if prefix %}
-        {% set prefix_param = prefix + '/' %}
+    {% set prefix_param = prefix + '/' %}
     {% else %}
-        {% set prefix_param = '' %}
+    {% set prefix_param = '' %}
     {% endif %}
-    <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix_param) }}">{{ bucket_name }}</a>
+    <a
+        href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix_param) }}">{{
+        bucket_name }}</a>
     <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
     <span>{{ filename }}</span>
 </div>
 
 <div class="header-actions">
     <div>
-        <h1 class="page-title" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; word-break: break-all; overflow-wrap: anywhere;">
+        <h1 class="page-title"
+            style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; word-break: break-all; overflow-wrap: anywhere;">
             {% if file_type == 'video' %}
-                <i class="fa-solid fa-film" style="color: var(--accent-rose);"></i>
+            <i class="fa-solid fa-film" style="color: var(--accent-rose);"></i>
             {% elif file_type == 'audio' %}
-                <i class="fa-solid fa-music" style="color: var(--accent-emerald);"></i>
+            <i class="fa-solid fa-music" style="color: var(--accent-emerald);"></i>
             {% elif file_type == 'pdf' %}
-                <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i>
+            <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i>
             {% elif file_type == 'powerpoint' %}
-                <i class="fa-solid fa-file-powerpoint" style="color: #ea580c;"></i>
+            <i class="fa-solid fa-file-powerpoint" style="color: #ea580c;"></i>
             {% elif file_type == 'docx' %}
-                <i class="fa-solid fa-file-word docx-icon"></i>
+            <i class="fa-solid fa-file-word docx-icon"></i>
             {% elif file_type == 'image' %}
-                <i class="fa-solid fa-file-image" style="color: var(--accent-purple);"></i>
+            <i class="fa-solid fa-file-image" style="color: var(--accent-purple);"></i>
             {% elif file_type == 'text' %}
-                <i class="fa-solid fa-file-lines" style="color: #38bdf8;"></i>
+            <i class="fa-solid fa-file-lines" style="color: #38bdf8;"></i>
             {% else %}
-                <i class="fa-solid fa-file" style="color: var(--text-secondary);"></i>
+            <i class="fa-solid fa-file" style="color: var(--text-secondary);"></i>
             {% endif %}
             {{ filename }}
         </h1>
@@ -480,13 +505,15 @@
             Location: {{ bucket_name }}/{{ key }}
         </p>
     </div>
-    
+
     <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-        <button class="btn btn-secondary btn-like-item" data-key="{{ key }}" style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.5rem 0.75rem; background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.3); color: #fda4af;">
-            <i class="fa-solid fa-heart"></i> <span id="like-count-display-viewer">{{ initial_likes }}</span> Thích
+        <button class="btn btn-secondary btn-like-item" data-key="{{ key }}"
+            style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.5rem 0.75rem; background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.3); color: #fda4af;">
+            <i class="fa-solid fa-heart"></i> <span id="like-count-display-viewer">{{ initial_likes }}</span> Likes
         </button>
         <button id="toggle-sidebar-btn" class="btn btn-secondary">
-            <i id="toggle-sidebar-icon" class="fa-solid fa-right-to-bracket"></i> <span id="toggle-sidebar-text">Collapse Sidebar</span>
+            <i id="toggle-sidebar-icon" class="fa-solid fa-right-to-bracket"></i> <span
+                id="toggle-sidebar-text">Collapse Sidebar</span>
         </button>
         <a href="{{ presigned_url }}" download class="btn btn-primary">
             <i class="fa-solid fa-download"></i> Download File
@@ -499,178 +526,216 @@
     <div class="viewer-main-content">
         <div class="player-container-custom">
             {% if file_type == 'video' %}
-                <div class="media-viewer" style="position: relative;">
-                    {% if filename.lower().endswith('.flv') or key.lower().endswith('.flv') %}
-                        {% set flv_hls_url = url_for('flv_hls_playlist', connection_id=connection.connection_id, bucket_name=bucket_name, key=key) %}
-                        <video id="tracked-video" data-hls="true" data-src="{{ flv_hls_url }}" controls autoplay style="width: 100%; height: 100%; object-fit: contain;"></video>
-                    {% else %}
-                        <video id="tracked-video" src="{{ presigned_url }}" controls autoplay style="width: 100%; height: 100%; object-fit: contain;"></video>
-                    {% endif %}
-                    <!-- HUD overlay for keyboard shortcut actions -->
-                    <div id="video-hud" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.85); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 0.5rem 1rem; color: #fff; z-index: 100; font-weight: 600; display: none; pointer-events: none; opacity: 0; transition: opacity 0.3s; font-size: 0.9rem;">
-                        Play
+            <div class="media-viewer" style="position: relative;">
+                {% if filename.lower().endswith('.flv') or key.lower().endswith('.flv') %}
+                {% set flv_hls_url = url_for('flv_hls_playlist', connection_id=connection.connection_id,
+                bucket_name=bucket_name, key=key) %}
+                <video id="tracked-video" data-hls="true" data-src="{{ flv_hls_url }}" controls autoplay
+                    style="width: 100%; height: 100%; object-fit: contain;"></video>
+                {% else %}
+                <video id="tracked-video" src="{{ presigned_url }}" controls autoplay
+                    style="width: 100%; height: 100%; object-fit: contain;"></video>
+                {% endif %}
+                <!-- HUD overlay for keyboard shortcut actions -->
+                <div id="video-hud"
+                    style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.85); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 0.5rem 1rem; color: #fff; z-index: 100; font-weight: 600; display: none; pointer-events: none; opacity: 0; transition: opacity 0.3s; font-size: 0.9rem;">
+                    Play
+                </div>
+            </div>
+
+            <!-- Subtitle Selector Panel -->
+            <div class="subtitle-control-panel" id="subtitle-panel" style="display: none;">
+                <div class="subtitle-select-container">
+                    <i class="fa-solid fa-closed-captioning"
+                        style="color: var(--accent-purple); font-size: 1.25rem;"></i>
+                    <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Subtitles:</span>
+                    <select id="subtitle-select" class="subtitle-select">
+                        <option value="">None (Disabled)</option>
+                    </select>
+                </div>
+                <div id="sub-status" style="font-size: 0.8rem; color: var(--text-muted); display: none;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Loading...
+                </div>
+            </div>
+
+            <!-- Resume Playback Modal -->
+            <div id="resumeModal" class="modal-overlay" style="display: none;">
+                <div class="modal-content" style="max-width: 480px; text-align: center;">
+                    <i class="fa-solid fa-clock-rotate-left"
+                        style="font-size: 3rem; color: var(--accent-purple); margin-bottom: 1.5rem; display: block;"></i>
+                    <h3 style="font-size: 1.25rem; margin-bottom: 1rem; color: #fff;">Resume Playback?</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.95rem;">
+                        You stopped at <strong id="resume-time-display" style="color: #fff;">00:00</strong>. Would you
+                        like to resume watching from where you left off?
+                    </p>
+                    <div style="display: flex; gap: 1rem; justify-content: center;">
+                        <button id="btn-resume-no" class="btn btn-secondary" style="flex: 1;">Watch from
+                            beginning</button>
+                        <button id="btn-resume-yes" class="btn btn-primary" style="flex: 1;">Resume</button>
                     </div>
                 </div>
-                
-                <!-- Subtitle Selector Panel -->
-                <div class="subtitle-control-panel" id="subtitle-panel" style="display: none;">
-                    <div class="subtitle-select-container">
-                        <i class="fa-solid fa-closed-captioning" style="color: var(--accent-purple); font-size: 1.25rem;"></i>
-                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Subtitles:</span>
-                        <select id="subtitle-select" class="subtitle-select">
-                            <option value="">None (Disabled)</option>
-                        </select>
-                    </div>
-                    <div id="sub-status" style="font-size: 0.8rem; color: var(--text-muted); display: none;">
-                        <i class="fa-solid fa-spinner fa-spin"></i> Loading...
-                    </div>
+            </div>
+
+
+            {% elif file_type == 'audio' %}
+            <div class="media-viewer audio-mode">
+                <div class="audio-artwork">
+                    <i class="fa-solid fa-music"></i>
                 </div>
-                
-                <!-- Resume Playback Modal -->
-                <div id="resumeModal" class="modal-overlay" style="display: none;">
-                    <div class="modal-content" style="max-width: 480px; text-align: center;">
-                        <i class="fa-solid fa-clock-rotate-left" style="font-size: 3rem; color: var(--accent-purple); margin-bottom: 1.5rem; display: block;"></i>
-                        <h3 style="font-size: 1.25rem; margin-bottom: 1rem; color: #fff;">Resume Playback?</h3>
-                        <p style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.95rem;">
-                            You stopped at <strong id="resume-time-display" style="color: #fff;">00:00</strong>. Would you like to resume watching from where you left off?
-                        </p>
-                        <div style="display: flex; gap: 1rem; justify-content: center;">
-                            <button id="btn-resume-no" class="btn btn-secondary" style="flex: 1;">Watch from beginning</button>
-                            <button id="btn-resume-yes" class="btn btn-primary" style="flex: 1;">Resume</button>
-                        </div>
+                <h2 style="font-size: 1.5rem; text-align: center;">{{ filename }}</h2>
+                <audio src="{{ presigned_url }}" controls autoplay class="custom-audio-player"></audio>
+            </div>
+
+            {% elif file_type in ['pdf', 'powerpoint', 'docx'] %}
+            <div class="pdf-viewer-custom" id="pdf-viewer-card">
+                <div class="pdf-toolbar">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <button class="btn btn-secondary" id="pdf-prev-btn"
+                            style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto;">
+                            <i class="fa-solid fa-arrow-left"></i> Previous
+                        </button>
+                        <span style="font-size: 0.9rem; color: var(--text-primary);">
+                            Page <span id="pdf-current-page">1</span> / <span id="pdf-total-pages">1</span>
+                        </span>
+                        <button class="btn btn-secondary" id="pdf-next-btn"
+                            style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto;">
+                            Next <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <button class="btn btn-secondary" id="pdf-zoom-out"
+                            style="padding: 0.4rem 0.6rem; font-size: 0.85rem; min-height: auto;">
+                            <i class="fa-solid fa-magnifying-glass-minus"></i>
+                        </button>
+                        <span style="font-size: 0.9rem; color: var(--text-primary);" id="pdf-zoom-val">120%</span>
+                        <button class="btn btn-secondary" id="pdf-zoom-in"
+                            style="padding: 0.4rem 0.6rem; font-size: 0.85rem; min-height: auto;">
+                            <i class="fa-solid fa-magnifying-glass-plus"></i>
+                        </button>
+                        <button class="btn btn-secondary" id="pdf-fullscreen-btn"
+                            style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto;">
+                            <i class="fa-solid fa-expand"></i> Fullscreen
+                        </button>
                     </div>
                 </div>
 
-                
-            {% elif file_type == 'audio' %}
-                <div class="media-viewer audio-mode">
-                    <div class="audio-artwork">
-                        <i class="fa-solid fa-music"></i>
-                    </div>
-                    <h2 style="font-size: 1.5rem; text-align: center;">{{ filename }}</h2>
-                    <audio src="{{ presigned_url }}" controls autoplay class="custom-audio-player"></audio>
-                </div>
-                
-            {% elif file_type in ['pdf', 'powerpoint', 'docx'] %}
-                <div class="pdf-viewer-custom" id="pdf-viewer-card">
-                    <div class="pdf-toolbar">
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <button class="btn btn-secondary" id="pdf-prev-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto;">
-                                <i class="fa-solid fa-arrow-left"></i> Previous
-                            </button>
-                            <span style="font-size: 0.9rem; color: var(--text-primary);">
-                                Page <span id="pdf-current-page">1</span> / <span id="pdf-total-pages">1</span>
-                            </span>
-                            <button class="btn btn-secondary" id="pdf-next-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto;">
-                                Next <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <button class="btn btn-secondary" id="pdf-zoom-out" style="padding: 0.4rem 0.6rem; font-size: 0.85rem; min-height: auto;">
-                                <i class="fa-solid fa-magnifying-glass-minus"></i>
-                            </button>
-                            <span style="font-size: 0.9rem; color: var(--text-primary);" id="pdf-zoom-val">120%</span>
-                            <button class="btn btn-secondary" id="pdf-zoom-in" style="padding: 0.4rem 0.6rem; font-size: 0.85rem; min-height: auto;">
-                                <i class="fa-solid fa-magnifying-glass-plus"></i>
-                            </button>
-                            <button class="btn btn-secondary" id="pdf-fullscreen-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; min-height: auto;">
-                                <i class="fa-solid fa-expand"></i> Fullscreen
-                            </button>
+                <div class="pdf-render-viewport" id="pdf-render-viewport">
+                    <div style="position: relative; display: inline-block;">
+                        <canvas id="pdf-canvas"
+                            style="box-shadow: 0 10px 25px rgba(0,0,0,0.5); background: white; max-width: 100%; display: block;"></canvas>
+                        <!-- Text Selection Layer overlay -->
+                        <div id="pdf-text-layer" class="textLayer"
+                            style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; opacity: 1; pointer-events: auto;">
                         </div>
                     </div>
-                    
-                    <div class="pdf-render-viewport" id="pdf-render-viewport">
-                        <div style="position: relative; display: inline-block;">
-                            <canvas id="pdf-canvas" style="box-shadow: 0 10px 25px rgba(0,0,0,0.5); background: white; max-width: 100%; display: block;"></canvas>
-                            <!-- Text Selection Layer overlay -->
-                            <div id="pdf-text-layer" class="textLayer" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; opacity: 1; pointer-events: auto;"></div>
-                        </div>
-                        <div id="pdf-loading-overlay" style="position: absolute; inset: 0; background: rgba(30, 41, 59, 0.85); display: flex; justify-content: center; align-items: center; z-index: 10; color: #fff; flex-direction: column; gap: 1rem;">
-                            <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
-                            <span>Loading document...</span>
-                        </div>
+                    <div id="pdf-loading-overlay"
+                        style="position: absolute; inset: 0; background: rgba(30, 41, 59, 0.85); display: flex; justify-content: center; align-items: center; z-index: 10; color: #fff; flex-direction: column; gap: 1rem;">
+                        <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+                        <span>Loading document...</span>
                     </div>
                 </div>
-                
+            </div>
+
             {% elif file_type == 'image' %}
-                <div class="media-viewer" style="display: flex; justify-content: center; align-items: center; background: #0f172a; padding: 1.5rem; min-height: 450px;">
-                    <img src="{{ presigned_url }}" alt="{{ filename }}" style="max-width: 100%; max-height: 75vh; object-fit: contain; border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-                </div>
-                
+            <div class="media-viewer"
+                style="display: flex; justify-content: center; align-items: center; background: #0f172a; padding: 1.5rem; min-height: 450px;">
+                <img src="{{ presigned_url }}" alt="{{ filename }}"
+                    style="max-width: 100%; max-height: 75vh; object-fit: contain; border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+            </div>
+
             {% elif file_type == 'text' %}
-                <div class="glass-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; min-height: 500px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">
-                                 <i class="fa-solid fa-code"></i> File Contents
-                            </span>
-                            <span id="file-mode-badge" style="font-size: 0.75rem; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 0.15rem 0.5rem; border-radius: 99px; text-transform: uppercase; font-weight: 600;">Text</span>
-                            <span id="edit-indicator" style="font-size: 0.75rem; background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); padding: 0.15rem 0.5rem; border-radius: 99px; font-weight: 600; display: none;">Modified</span>
-                        </div>
-                        
-                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                            {% if can_edit %}
-                                <button class="btn btn-secondary" id="btn-format-code" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem;">
-                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Format
-                                </button>
-                                {% if filename.lower().endswith('.md') %}
-                                    <button class="btn btn-secondary" id="btn-toggle-preview" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem;">
-                                        <i class="fa-solid fa-eye"></i> Preview
-                                    </button>
-                                {% endif %}
-                                <button class="btn btn-success" id="btn-save-text" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem; background: #10b981; border: 1px solid #059669; color: #fff;" disabled>
-                                    <i class="fa-solid fa-floppy-disk"></i> Save
-                                </button>
-                            {% endif %}
-                            <button class="btn btn-secondary" onclick="copyTextContent()" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem;">
-                                <i class="fa-solid fa-copy"></i> Copy
-                            </button>
-                        </div>
+            <div class="glass-card"
+                style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; min-height: 500px;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">
+                            <i class="fa-solid fa-code"></i> File Contents
+                        </span>
+                        <span id="file-mode-badge"
+                            style="font-size: 0.75rem; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 0.15rem 0.5rem; border-radius: 99px; text-transform: uppercase; font-weight: 600;">Text</span>
+                        <span id="edit-indicator"
+                            style="font-size: 0.75rem; background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); padding: 0.15rem 0.5rem; border-radius: 99px; font-weight: 600; display: none;">Modified</span>
                     </div>
-                    
-                    <div style="flex: 1; min-height: 450px; position: relative;">
-                        <!-- Ace Editor Container -->
-                        <div id="text-editor" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 1px solid var(--glass-border); border-radius: var(--radius-md); font-family: 'Courier New', Courier, monospace;">Loading content...</div>
-                        
-                        <!-- Markdown Preview Container -->
+
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        {% if can_edit %}
+                        <button class="btn btn-secondary" id="btn-format-code"
+                            style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem;">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Format
+                        </button>
                         {% if filename.lower().endswith('.md') %}
-                            <div id="markdown-preview" class="markdown-body" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow-y: auto; display: none; padding: 1.5rem; background: #0b111e; border: 1px solid var(--glass-border); border-radius: var(--radius-md); text-align: left; color: #cbd5e1;"></div>
+                        <button class="btn btn-secondary" id="btn-toggle-preview"
+                            style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem;">
+                            <i class="fa-solid fa-eye"></i> Preview
+                        </button>
                         {% endif %}
+                        <button class="btn btn-success" id="btn-save-text"
+                            style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem; background: #10b981; border: 1px solid #059669; color: #fff;"
+                            disabled>
+                            <i class="fa-solid fa-floppy-disk"></i> Save
+                        </button>
+                        {% endif %}
+                        <button class="btn btn-secondary" onclick="copyTextContent()"
+                            style="padding: 0.4rem 0.8rem; font-size: 0.8rem; min-height: auto; width: auto; display: inline-flex; align-items: center; gap: 0.25rem;">
+                            <i class="fa-solid fa-copy"></i> Copy
+                        </button>
                     </div>
                 </div>
-                
-            {% else %}
-                <div class="glass-card" style="text-align: center; padding: 4rem 2rem;">
-                    <i class="fa-solid fa-file-circle-question" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1.5rem;"></i>
-                    <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem;">Preview Not Available</h3>
-                    <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto 1.5rem auto;">
-                        We don't support online previewing for this file format yet. You can download the file to view it on your machine.
-                    </p>
-                    <a href="{{ presigned_url }}" download class="btn btn-primary">
-                        <i class="fa-solid fa-download"></i> Download File
-                    </a>
+
+                <div style="flex: 1; min-height: 450px; position: relative;">
+                    <!-- Ace Editor Container -->
+                    <div id="text-editor"
+                        style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 1px solid var(--glass-border); border-radius: var(--radius-md); font-family: 'Courier New', Courier, monospace;">
+                        Loading content...</div>
+
+                    <!-- Markdown Preview Container -->
+                    {% if filename.lower().endswith('.md') %}
+                    <div id="markdown-preview" class="markdown-body"
+                        style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow-y: auto; display: none; padding: 1.5rem; background: #0b111e; border: 1px solid var(--glass-border); border-radius: var(--radius-md); text-align: left; color: #cbd5e1;">
+                    </div>
+                    {% endif %}
                 </div>
+            </div>
+
+            {% else %}
+            <div class="glass-card" style="text-align: center; padding: 4rem 2rem;">
+                <i class="fa-solid fa-file-circle-question"
+                    style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1.5rem;"></i>
+                <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem;">Preview Not Available</h3>
+                <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto 1.5rem auto;">
+                    We don't support online previewing for this file format yet. You can download the file to view it on
+                    your machine.
+                </p>
+                <a href="{{ presigned_url }}" download class="btn btn-primary">
+                    <i class="fa-solid fa-download"></i> Download File
+                </a>
+            </div>
             {% endif %}
         </div>
     </div>
-    
+
     <!-- Right side file list rightbar -->
     <div class="viewer-sidebar">
         <!-- Sidebar Tabs -->
-        <div class="sidebar-header" style="display: flex; gap: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem; margin-bottom: 0.5rem; justify-content: flex-start; align-items: center;">
-            <div id="tab-files" class="sidebar-tab active" style="font-size: 1rem; font-weight: 700; color: #fff; cursor: pointer; border-bottom: 2px solid var(--accent-purple); padding-bottom: 0.25rem; display: flex; align-items: center; gap: 0.35rem;">
+        <div class="sidebar-header"
+            style="display: flex; gap: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem; margin-bottom: 0.5rem; justify-content: flex-start; align-items: center;">
+            <div id="tab-files" class="sidebar-tab active"
+                style="font-size: 1rem; font-weight: 700; color: #fff; cursor: pointer; border-bottom: 2px solid var(--accent-purple); padding-bottom: 0.25rem; display: flex; align-items: center; gap: 0.35rem;">
                 <i class="fa-solid fa-folder-open"></i>
                 <span>Files</span>
-                <span id="sidebar-file-count" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal; margin-left: 0.25rem;"></span>
+                <span id="sidebar-file-count"
+                    style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal; margin-left: 0.25rem;"></span>
             </div>
             {% if file_type == 'video' %}
-            <div id="tab-notes" class="sidebar-tab" style="font-size: 1rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; padding-bottom: 0.25rem; display: flex; align-items: center; gap: 0.35rem; border-bottom: 2px solid transparent;">
+            <div id="tab-notes" class="sidebar-tab"
+                style="font-size: 1rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; padding-bottom: 0.25rem; display: flex; align-items: center; gap: 0.35rem; border-bottom: 2px solid transparent;">
                 <i class="fa-solid fa-note-sticky"></i>
                 <span>Notes</span>
             </div>
             {% endif %}
         </div>
-        
+
         <!-- Files Tab Content -->
         <div id="tab-content-files" style="display: flex; flex-direction: column; gap: 1rem; flex: 1; min-height: 0;">
             <div class="sidebar-search">
@@ -689,23 +754,33 @@
         <!-- Notes Tab Content -->
         <div id="tab-content-notes" style="display: none; flex-direction: column; gap: 1rem; flex: 1; min-height: 0;">
             <!-- Scrollable Notes List -->
-            <div id="notes-list" style="overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; flex-grow: 1; padding-right: 0.25rem;">
+            <div id="notes-list"
+                style="overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; flex-grow: 1; padding-right: 0.25rem;">
                 <div style="color: var(--text-muted); text-align: center; padding: 2rem 1rem; font-size: 0.9rem;">
-                    <i class="fa-solid fa-pen-to-square" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--text-muted);"></i>
+                    <i class="fa-solid fa-pen-to-square"
+                        style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--text-muted);"></i>
                     No notes for this video yet.
                 </div>
             </div>
-            
+
             <!-- Note Form -->
-            <div id="note-form" style="border-top: 1px solid var(--glass-border); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary);">
-                    <span>Note time: <strong id="note-time-display" style="color: var(--accent-purple);">00:00</strong></span>
-                    <button class="btn btn-secondary" id="note-time-sync-btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; min-height: auto; width: auto; display: flex; align-items: center; gap: 0.25rem;" title="Sync with current video time">
+            <div id="note-form"
+                style="border-top: 1px solid var(--glass-border); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary);">
+                    <span>Note time: <strong id="note-time-display"
+                            style="color: var(--accent-purple);">00:00</strong></span>
+                    <button class="btn btn-secondary" id="note-time-sync-btn"
+                        style="padding: 0.25rem 0.5rem; font-size: 0.75rem; min-height: auto; width: auto; display: flex; align-items: center; gap: 0.25rem;"
+                        title="Sync with current video time">
                         <i class="fa-solid fa-arrows-rotate"></i> Sync
                     </button>
                 </div>
-                <textarea id="note-textarea" class="form-control" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 0.85rem; padding: 0.5rem; resize: none; height: 70px; outline: none; width: 100%;" placeholder="Enter note... (video will pause automatically)"></textarea>
-                <button class="btn btn-primary" id="note-save-btn" style="width: 100%; padding: 0.5rem; font-size: 0.85rem; font-weight: 600;">
+                <textarea id="note-textarea" class="form-control"
+                    style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 0.85rem; padding: 0.5rem; resize: none; height: 70px; outline: none; width: 100%;"
+                    placeholder="Enter note... (video will pause automatically)"></textarea>
+                <button class="btn btn-primary" id="note-save-btn"
+                    style="width: 100%; padding: 0.5rem; font-size: 0.85rem; font-weight: 600;">
                     <i class="fa-solid fa-save"></i> Save note
                 </button>
             </div>
@@ -717,19 +792,26 @@
 <!-- Drag Drop Upload overlay -->
 <div id="drag-overlay" class="drag-overlay">
     <div style="text-align: center; color: #fff;">
-        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 5rem; color: var(--accent-purple); margin-bottom: 2rem; animation: pulse-glow 2s infinite;"></i>
+        <i class="fa-solid fa-cloud-arrow-up"
+            style="font-size: 5rem; color: var(--accent-purple); margin-bottom: 2rem; animation: pulse-glow 2s infinite;"></i>
         <h2 style="font-size: 2rem; font-weight: 700;">Drag & Drop files here to upload to S3</h2>
-        <p style="color: var(--text-secondary); margin-top: 0.5rem;">Upload directly to the current directory in the bucket</p>
+        <p style="color: var(--text-secondary); margin-top: 0.5rem;">Upload directly to the current directory in the
+            bucket</p>
     </div>
 </div>
 
 <!-- Upload Queue Widget -->
-<div id="upload-queue-widget" style="position: fixed; bottom: 20px; right: 20px; width: 320px; background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); z-index: 2000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; flex-direction: column; overflow: hidden; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);">
-    <div style="padding: 1rem; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: rgba(15,23,42,0.6);">
+<div id="upload-queue-widget"
+    style="position: fixed; bottom: 20px; right: 20px; width: 320px; background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); z-index: 2000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; flex-direction: column; overflow: hidden; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);">
+    <div
+        style="padding: 1rem; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: rgba(15,23,42,0.6);">
         <h4 style="margin: 0; color: #fff; font-size: 0.95rem;">Uploading (<span id="upload-queue-count">0</span>)</h4>
-        <button onclick="document.getElementById('upload-queue-widget').style.display='none';" style="background:none; border:none; color:var(--text-secondary); cursor:pointer;"><i class="fa-solid fa-chevron-down"></i></button>
+        <button onclick="document.getElementById('upload-queue-widget').style.display='none';"
+            style="background:none; border:none; color:var(--text-secondary); cursor:pointer;"><i
+                class="fa-solid fa-chevron-down"></i></button>
     </div>
-    <div id="upload-queue-items" style="max-height: 250px; overflow-y: auto; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; scrollbar-width: thin;">
+    <div id="upload-queue-items"
+        style="max-height: 250px; overflow-y: auto; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; scrollbar-width: thin;">
         <!-- Upload queue item rows inserted dynamically -->
     </div>
 </div>
@@ -737,13 +819,17 @@
 <!-- Share Link Expiry Modal -->
 <div id="shareLinkModal" class="modal-overlay" style="display: none;">
     <div class="modal-content" style="max-width: 480px;">
-        <h2 style="font-size: 1.35rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; color: #fff;">
+        <h2
+            style="font-size: 1.35rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; color: #fff;">
             <span>Share Link</span>
-            <button onclick="closeShareModal()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            <button onclick="closeShareModal()"
+                style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i
+                    class="fa-solid fa-xmark"></i></button>
         </h2>
         <div class="form-group">
             <label for="share-expires-in">Expiration Time</label>
-            <select id="share-expires-in" class="form-control" style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--glass-border); color: #fff;">
+            <select id="share-expires-in" class="form-control"
+                style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--glass-border); color: #fff;">
                 <option value="600">10 minutes</option>
                 <option value="3600" selected>1 hour</option>
                 <option value="7200">2 hours</option>
@@ -751,17 +837,19 @@
                 <option value="604800">7 days</option>
             </select>
         </div>
-        
+
         <div class="form-group" id="share-link-result-container" style="display: none; margin-top: 1.5rem;">
             <label>Link URL</label>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
-                <input type="text" id="share-link-input" class="form-control" readonly style="flex: 1; background: rgba(0,0,0,0.3);">
-                <button class="btn btn-primary" onclick="copyShareLink()" style="padding: 0.75rem 1rem; min-height: auto; font-size: 0.85rem;">
+                <input type="text" id="share-link-input" class="form-control" readonly
+                    style="flex: 1; background: rgba(0,0,0,0.3);">
+                <button class="btn btn-primary" onclick="copyShareLink()"
+                    style="padding: 0.75rem 1rem; min-height: auto; font-size: 0.85rem;">
                     <i class="fa-solid fa-copy"></i> Copy
                 </button>
             </div>
         </div>
-        
+
         <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
             <button class="btn btn-secondary" onclick="closeShareModal()">Close</button>
             <button class="btn btn-primary" id="generate-share-link-btn">Generate Link</button>
@@ -779,7 +867,7 @@
     const currentPrefix = "{{ prefix_param }}";
 
     function getFileIconClass(type) {
-        switch(type) {
+        switch (type) {
             case 'video': return 'fa-solid fa-film file-icon video';
             case 'audio': return 'fa-solid fa-music file-icon audio';
             case 'pdf': return 'fa-solid fa-file-pdf file-icon pdf';
@@ -796,9 +884,9 @@
         const container = document.querySelector('.viewer-layout-container');
         const icon = document.getElementById('toggle-sidebar-icon');
         const text = document.getElementById('toggle-sidebar-text');
-        
+
         container.classList.toggle('sidebar-collapsed');
-        
+
         if (container.classList.contains('sidebar-collapsed')) {
             icon.className = 'fa-solid fa-indent';
             text.textContent = 'Mở rộng Sidebar';
@@ -815,28 +903,28 @@
     document.querySelectorAll('.btn-like-item').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            
+
             const key = btn.getAttribute('data-key');
-            
+
             // Immediate UI update
             const span = document.getElementById('like-count-display-viewer');
             if (span) {
                 span.textContent = parseInt(span.textContent || 0) + 1;
             }
-            
+
             if (!pendingLikes[key]) {
                 pendingLikes[key] = { count: 0, timeout: null };
             }
             pendingLikes[key].count += 1;
-            
+
             if (pendingLikes[key].timeout) {
                 clearTimeout(pendingLikes[key].timeout);
             }
-            
+
             pendingLikes[key].timeout = setTimeout(async () => {
                 const finalCount = pendingLikes[key].count;
                 delete pendingLikes[key];
-                
+
                 try {
                     const res = await fetch('/api/like', {
                         method: 'POST',
@@ -864,7 +952,7 @@
 
     // Share link generation logic
     let activeShareKey = '';
-    window.openShareModal = function(e, key) {
+    window.openShareModal = function (e, key) {
         e.preventDefault();
         e.stopPropagation();
         activeShareKey = key;
@@ -872,7 +960,7 @@
         document.getElementById('shareLinkModal').style.display = 'flex';
     };
 
-    window.closeShareModal = function() {
+    window.closeShareModal = function () {
         document.getElementById('shareLinkModal').style.display = 'none';
     };
 
@@ -888,23 +976,23 @@
                 expires_in: expiresIn
             })
         })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                const input = document.getElementById('share-link-input');
-                input.value = data.share_link;
-                document.getElementById('share-link-result-container').style.display = 'block';
-            } else {
-                alert('Không thể tạo liên kết: ' + data.message);
-            }
-        })
-        .catch(err => {
-            console.error("Lỗi chia sẻ:", err);
-            alert('Lỗi kết nối đến server.');
-        });
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const input = document.getElementById('share-link-input');
+                    input.value = data.share_link;
+                    document.getElementById('share-link-result-container').style.display = 'block';
+                } else {
+                    alert('Không thể tạo liên kết: ' + data.message);
+                }
+            })
+            .catch(err => {
+                console.error("Lỗi chia sẻ:", err);
+                alert('Lỗi kết nối đến server.');
+            });
     });
 
-    window.copyShareLink = function() {
+    window.copyShareLink = function () {
         const input = document.getElementById('share-link-input');
         input.select();
         document.execCommand('copy');
@@ -915,11 +1003,11 @@
     // Parse files list into Tree structure
     function buildFileTree(files) {
         const root = { name: "Root", type: "folder", children: {}, files: [] };
-        
+
         files.forEach(file => {
             const parts = file.key.split('/');
             let current = root;
-            
+
             for (let i = 0; i < parts.length - 1; i++) {
                 const part = parts[i];
                 if (!current.children[part]) {
@@ -927,10 +1015,10 @@
                 }
                 current = current.children[part];
             }
-            
+
             current.files.push(file);
         });
-        
+
         return root;
     }
 
@@ -958,13 +1046,13 @@
             const folderEl = document.createElement('div');
             folderEl.className = 'sidebar-folder-node';
             folderEl.style.paddingLeft = depth > 0 ? '0.5rem' : '0';
-            
+
             const folderId = 'folder-' + Math.random().toString(36).substring(2, 9);
-            
+
             const isActive = hasActiveFile(folderNode);
             const displayStyle = isActive ? 'display:flex;' : 'display:none;';
             const iconStyle = isActive ? 'transform: rotate(90deg);' : '';
-            
+
             folderEl.innerHTML = `
                 <div class="folder-header" onclick="toggleFolder('${folderId}')" style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem; cursor:pointer; border-radius:var(--radius-md); transition:background 0.2s;">
                     <i class="fa-solid fa-chevron-right folder-toggle-icon" id="icon-${folderId}" style="font-size:0.7rem; transition:transform 0.2s; color:var(--text-secondary); ${iconStyle}"></i>
@@ -973,20 +1061,20 @@
                 </div>
                 <div class="folder-children" id="${folderId}" style="${displayStyle} margin-left:0.5rem; border-left:1px solid var(--glass-border); padding-left:0.5rem; gap: 0.25rem; flex-direction: column;"></div>
             `;
-            
+
             container.appendChild(folderEl);
             const childrenContainer = folderEl.querySelector('.folder-children');
             renderTree(folderNode, childrenContainer, depth + 1);
         }
-        
+
         // Render files in folder
         node.files.forEach(file => {
             const item = document.createElement('a');
             item.className = 'sidebar-file-item' + (file.key === currentKey ? ' active' : '');
-            
+
             const url = `{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}?key=${encodeURIComponent(file.key)}`;
             item.href = url;
-            
+
             let progressHtml = '';
             if (file.progress && file.progress.pct > 0) {
                 const pct = file.progress.pct;
@@ -1004,14 +1092,14 @@
                     </div>
                 `;
             }
-            
+
             let sizeStr = '';
             if (file.size !== null && file.size !== undefined) {
                 const kb = file.size / 1024;
                 if (kb < 1024) sizeStr = `${kb.toFixed(1)} KB`;
                 else sizeStr = `${(kb / 1024).toFixed(1)} MB`;
             }
-            
+
             item.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:start; gap:0.5rem;">
                     <div class="sidebar-item-header" style="flex:1; min-width:0;">
@@ -1028,7 +1116,7 @@
                 </div>
                 ${progressHtml}
             `;
-            
+
             container.appendChild(item);
 
             if (file.key === currentKey) {
@@ -1039,7 +1127,7 @@
         });
     }
 
-    window.toggleFolder = function(folderId) {
+    window.toggleFolder = function (folderId) {
         const children = document.getElementById(folderId);
         const icon = document.getElementById('icon-' + folderId);
         if (children.style.display === 'none' || children.style.display === '') {
@@ -1062,15 +1150,15 @@
             filesList.innerHTML = '';
             currentRenderedCount = 0;
         }
-        
+
         const nextBatch = searchMatches.slice(currentRenderedCount, currentRenderedCount + lazyLimit);
         nextBatch.forEach(file => {
             const item = document.createElement('a');
             item.className = 'sidebar-file-item' + (file.key === currentKey ? ' active' : '');
-            
+
             const url = `{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}?key=${encodeURIComponent(file.key)}`;
             item.href = url;
-            
+
             let progressHtml = '';
             if (file.progress && file.progress.pct > 0) {
                 const pct = file.progress.pct;
@@ -1088,14 +1176,14 @@
                     </div>
                 `;
             }
-            
+
             let sizeStr = '';
             if (file.size !== null && file.size !== undefined) {
                 const kb = file.size / 1024;
                 if (kb < 1024) sizeStr = `${kb.toFixed(1)} KB`;
                 else sizeStr = `${(kb / 1024).toFixed(1)} MB`;
             }
-            
+
             let displayName = file.name;
             if (displayName.length > 70) {
                 const parts = displayName.split('.');
@@ -1106,7 +1194,7 @@
                     displayName = displayName.substring(0, 50) + '...';
                 }
             }
-            
+
             item.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:start; gap:0.5rem;">
                     <div class="sidebar-item-header" style="flex:1; min-width:0;">
@@ -1124,7 +1212,7 @@
                 ${progressHtml}
             `;
             filesList.appendChild(item);
-            
+
             if (file.key === currentKey) {
                 setTimeout(() => {
                     item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1173,7 +1261,7 @@
                     if (fileCountSpan) {
                         fileCountSpan.textContent = `(${data.files.length})`;
                     }
-                    
+
                     window.sidebarFiles = data.files;
                     renderFolderTree(data.files);
                     if (window.initSubtitles) {
@@ -1190,7 +1278,7 @@
         document.getElementById('sidebar-filter').addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase().trim();
             if (!window.sidebarFiles) return;
-            
+
             if (query) {
                 searchMatches = window.sidebarFiles.filter(file => file.name.toLowerCase().includes(query));
                 renderFlatResults();
@@ -1210,7 +1298,7 @@
                     if (fileCountSpan) {
                         fileCountSpan.textContent = `(${data.files.length})`;
                     }
-                    
+
                     window.sidebarFiles = data.files;
                     const query = document.getElementById('sidebar-filter').value.toLowerCase().trim();
                     if (query) {
@@ -1243,7 +1331,7 @@
     window.addEventListener('drop', (e) => {
         e.preventDefault();
         document.getElementById('drag-overlay').style.display = 'none';
-        
+
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             uploadFiles(files);
@@ -1254,7 +1342,7 @@
         const widget = document.getElementById('upload-queue-widget');
         widget.style.display = 'flex';
         const itemsContainer = document.getElementById('upload-queue-items');
-        
+
         Array.from(files).forEach(file => {
             const uploadId = 'upload-' + Math.random().toString(36).substring(2, 9);
             const itemEl = document.createElement('div');
@@ -1266,7 +1354,7 @@
             itemEl.style.display = 'flex';
             itemEl.style.flexDirection = 'column';
             itemEl.style.gap = '0.35rem';
-            
+
             itemEl.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
                     <span style="font-size:0.8rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#fff;" title="${file.name}">${file.name}</span>
@@ -1282,11 +1370,11 @@
             `;
             itemsContainer.appendChild(itemEl);
             updateQueueCount();
-            
+
             // Initiate multipart upload
             const CHUNK_SIZE = 6 * 1024 * 1024; // 6MB chunk
             const totalParts = Math.ceil(file.size / CHUNK_SIZE) || 1;
-            
+
             fetch(`/connection/${connectionId}/bucket/${bucketName}/multipart/initiate`, {
                 method: 'POST',
                 headers: {
@@ -1299,19 +1387,19 @@
                     prefix: currentPrefix
                 })
             })
-            .then(res => res.json())
-            .then(resData => {
-                if (resData.status === 'success') {
-                    const uploadS3Id = resData.uploadId;
-                    const key = resData.key;
-                    uploadPartsSeq(file, uploadS3Id, key, totalParts, CHUNK_SIZE, uploadId);
-                } else {
-                    markUploadFailed(uploadId, resData.message || 'Lỗi khởi tạo');
-                }
-            })
-            .catch(err => {
-                markUploadFailed(uploadId, 'Lỗi API');
-            });
+                .then(res => res.json())
+                .then(resData => {
+                    if (resData.status === 'success') {
+                        const uploadS3Id = resData.uploadId;
+                        const key = resData.key;
+                        uploadPartsSeq(file, uploadS3Id, key, totalParts, CHUNK_SIZE, uploadId);
+                    } else {
+                        markUploadFailed(uploadId, resData.message || 'Lỗi khởi tạo');
+                    }
+                })
+                .catch(err => {
+                    markUploadFailed(uploadId, 'Lỗi API');
+                });
         });
     }
 
@@ -1324,24 +1412,24 @@
             if (currentPart > totalParts) {
                 const pctSpan = document.getElementById(`pct-${uploadQueueId}`);
                 if (pctSpan) pctSpan.textContent = 'Đang ghép...';
-                
+
                 fetch(`/connection/${connectionId}/bucket/${bucketName}/multipart/complete`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ uploadId: uploadId, key: key, parts: parts })
                 })
-                .then(res => res.json())
-                .then(completeData => {
-                    if (completeData.status === 'success') {
-                        markUploadSuccess(uploadQueueId);
-                        reloadFilesList();
-                    } else {
-                        markUploadFailed(uploadQueueId, 'Ghép file lỗi: ' + completeData.message);
-                    }
-                })
-                .catch(err => {
-                    markUploadFailed(uploadQueueId, 'Lỗi hoàn tất upload');
-                });
+                    .then(res => res.json())
+                    .then(completeData => {
+                        if (completeData.status === 'success') {
+                            markUploadSuccess(uploadQueueId);
+                            reloadFilesList();
+                        } else {
+                            markUploadFailed(uploadQueueId, 'Ghép file lỗi: ' + completeData.message);
+                        }
+                    })
+                    .catch(err => {
+                        markUploadFailed(uploadQueueId, 'Lỗi hoàn tất upload');
+                    });
                 return;
             }
 
@@ -1355,73 +1443,73 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ uploadId: uploadId, key: key, partNumber: partNumber })
             })
-            .then(res => res.json())
-            .then(presignData => {
-                if (presignData.status === 'success') {
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('PUT', presignData.url, true);
+                .then(res => res.json())
+                .then(presignData => {
+                    if (presignData.status === 'success') {
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('PUT', presignData.url, true);
 
-                    xhr.upload.onprogress = function(e) {
-                        if (e.lengthComputable) {
-                            let totalLoaded = (partNumber - 1) * CHUNK_SIZE + e.loaded;
-                            totalLoaded = Math.min(file.size, totalLoaded);
-                            
-                            const pct = Math.round((totalLoaded / file.size) * 100);
-                            const barEl = document.getElementById(`bar-${uploadQueueId}`);
-                            const pctEl = document.getElementById(`pct-${uploadQueueId}`);
-                            if (barEl) barEl.style.width = pct + '%';
-                            if (pctEl) pctEl.textContent = pct + '%';
+                        xhr.upload.onprogress = function (e) {
+                            if (e.lengthComputable) {
+                                let totalLoaded = (partNumber - 1) * CHUNK_SIZE + e.loaded;
+                                totalLoaded = Math.min(file.size, totalLoaded);
 
-                            const elapsed = (Date.now() - startTime) / 1000;
-                            const speed = totalLoaded / elapsed;
-                            const speedStr = speed > 1048576 
-                                ? (speed / 1048576).toFixed(1) + ' MB/s' 
-                                : (speed / 1024).toFixed(1) + ' KB/s';
-                            
-                            const remaining = file.size - totalLoaded;
-                            let etaStr = '--:--';
-                            if (speed > 0) {
-                                const etaSec = Math.round(remaining / speed);
-                                const etaMin = Math.floor(etaSec / 60);
-                                const etaSecRem = etaSec % 60;
-                                etaStr = `${etaMin}:${etaSecRem < 10 ? '0' : ''}${etaSecRem}`;
+                                const pct = Math.round((totalLoaded / file.size) * 100);
+                                const barEl = document.getElementById(`bar-${uploadQueueId}`);
+                                const pctEl = document.getElementById(`pct-${uploadQueueId}`);
+                                if (barEl) barEl.style.width = pct + '%';
+                                if (pctEl) pctEl.textContent = pct + '%';
+
+                                const elapsed = (Date.now() - startTime) / 1000;
+                                const speed = totalLoaded / elapsed;
+                                const speedStr = speed > 1048576
+                                    ? (speed / 1048576).toFixed(1) + ' MB/s'
+                                    : (speed / 1024).toFixed(1) + ' KB/s';
+
+                                const remaining = file.size - totalLoaded;
+                                let etaStr = '--:--';
+                                if (speed > 0) {
+                                    const etaSec = Math.round(remaining / speed);
+                                    const etaMin = Math.floor(etaSec / 60);
+                                    const etaSecRem = etaSec % 60;
+                                    etaStr = `${etaMin}:${etaSecRem < 10 ? '0' : ''}${etaSecRem}`;
+                                }
+
+                                const speedEl = document.getElementById(`speed-${uploadQueueId}`);
+                                const etaEl = document.getElementById(`eta-${uploadQueueId}`);
+                                if (speedEl) speedEl.textContent = speedStr;
+                                if (etaEl) etaEl.textContent = `Còn lại: ${etaStr}`;
                             }
-                            
-                            const speedEl = document.getElementById(`speed-${uploadQueueId}`);
-                            const etaEl = document.getElementById(`eta-${uploadQueueId}`);
-                            if (speedEl) speedEl.textContent = speedStr;
-                            if (etaEl) etaEl.textContent = `Còn lại: ${etaStr}`;
-                        }
-                    };
+                        };
 
-                    xhr.onload = function() {
-                        if (xhr.status >= 200 && xhr.status < 300) {
-                            const etag = xhr.getResponseHeader('ETag').replace(/"/g, '');
-                            parts.push({ PartNumber: partNumber, ETag: etag });
-                            
-                            currentPart++;
-                            uploadNext();
-                        } else {
+                        xhr.onload = function () {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                const etag = xhr.getResponseHeader('ETag').replace(/"/g, '');
+                                parts.push({ PartNumber: partNumber, ETag: etag });
+
+                                currentPart++;
+                                uploadNext();
+                            } else {
+                                abortMultipart();
+                                markUploadFailed(uploadQueueId, `Lỗi tải chunk ${partNumber} (${xhr.status})`);
+                            }
+                        };
+
+                        xhr.onerror = function () {
                             abortMultipart();
-                            markUploadFailed(uploadQueueId, `Lỗi tải chunk ${partNumber} (${xhr.status})`);
-                        }
-                    };
+                            markUploadFailed(uploadQueueId, `Lỗi mạng tải chunk ${partNumber}`);
+                        };
 
-                    xhr.onerror = function() {
+                        xhr.send(chunkBlob);
+                    } else {
                         abortMultipart();
-                        markUploadFailed(uploadQueueId, `Lỗi mạng tải chunk ${partNumber}`);
-                    };
-
-                    xhr.send(chunkBlob);
-                } else {
+                        markUploadFailed(uploadQueueId, presignData.message || 'Lỗi presign part');
+                    }
+                })
+                .catch(err => {
                     abortMultipart();
-                    markUploadFailed(uploadQueueId, presignData.message || 'Lỗi presign part');
-                }
-            })
-            .catch(err => {
-                abortMultipart();
-                markUploadFailed(uploadQueueId, 'Lỗi lấy URL part');
-            });
+                    markUploadFailed(uploadQueueId, 'Lỗi lấy URL part');
+                });
         }
 
         function abortMultipart() {
@@ -1518,12 +1606,12 @@
                 });
 
                 currPageSpan.textContent = num;
-                
+
                 // Clear and render text selection layer
                 textLayerDiv.innerHTML = '';
                 textLayerDiv.style.width = viewport.width + 'px';
                 textLayerDiv.style.height = viewport.height + 'px';
-                
+
                 page.getTextContent().then(textContent => {
                     pdfjsLib.renderTextLayer({
                         textContent: textContent,
@@ -1532,7 +1620,7 @@
                         textDivs: []
                     });
                 });
-                
+
                 // Track progress
                 savePdfProgress(num, pdfDoc.numPages);
             });
@@ -1582,7 +1670,7 @@
         function savePdfProgress(page, total) {
             if (page === pdfLastSavedPage) return;
             pdfLastSavedPage = page;
-            
+
             fetch("{{ url_for('update_video_progress') }}", {
                 method: 'POST',
                 headers: {
@@ -1597,8 +1685,8 @@
                     duration: total
                 })
             })
-            .then(res => res.json())
-            .catch(err => console.error("Error saving PDF progress:", err));
+                .then(res => res.json())
+                .catch(err => console.error("Error saving PDF progress:", err));
         }
 
         // Load document
@@ -1655,10 +1743,10 @@
                 });
                 hls.loadSource(hlsUrl);
                 hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                hls.on(Hls.Events.MANIFEST_PARSED, function () {
                     console.log("HLS manifest parsed successfully.");
                 });
-                hls.on(Hls.Events.ERROR, function(event, data) {
+                hls.on(Hls.Events.ERROR, function (event, data) {
                     console.error("HLS Error:", data);
                 });
                 video.hlsInstance = hls;
@@ -1684,7 +1772,7 @@
             hud.textContent = text;
             hud.style.display = 'block';
             hud.style.opacity = '1';
-            
+
             clearTimeout(hud.timeoutId);
             hud.timeoutId = setTimeout(() => {
                 hud.style.opacity = '0';
@@ -1749,16 +1837,16 @@
                 const hrs = Math.floor(resumeTime / 3600);
                 const mins = Math.floor((resumeTime % 3600) / 60);
                 const secs = Math.floor(resumeTime % 60);
-                const formattedTime = (hrs > 0 ? hrs + ":" : "") + 
-                                      (mins < 10 && hrs > 0 ? "0" : "") + mins + ":" + 
-                                      (secs < 10 ? "0" : "") + secs;
-                
+                const formattedTime = (hrs > 0 ? hrs + ":" : "") +
+                    (mins < 10 && hrs > 0 ? "0" : "") + mins + ":" +
+                    (secs < 10 ? "0" : "") + secs;
+
                 document.getElementById('resume-time-display').textContent = formattedTime;
                 const modal = document.getElementById('resumeModal');
                 setTimeout(() => {
                     modal.style.display = 'flex';
                 }, 300);
-                
+
                 document.getElementById('btn-resume-yes').onclick = () => {
                     video.currentTime = resumeTime;
                     furthestTime = resumeTime;
@@ -1766,7 +1854,7 @@
                     modal.style.display = 'none';
                     video.play().catch(e => console.log("Auto-play blocked: ", e));
                 };
-                
+
                 document.getElementById('btn-resume-no').onclick = () => {
                     modal.style.display = 'none';
                 };
@@ -1811,8 +1899,8 @@
                         duration: duration
                     })
                 })
-                .then(res => res.json())
-                .catch(err => console.error("Lỗi lưu tiến trình:", err));
+                    .then(res => res.json())
+                    .catch(err => console.error("Lỗi lưu tiến trình:", err));
             }
         }
 
@@ -1846,7 +1934,7 @@
                 furthestTime = video.duration;
             }
             saveProgress(furthestTime);
-            
+
             // Auto play next video track
             setTimeout(playNextTrack, 1200);
         });
@@ -1903,9 +1991,9 @@
             const h = Math.floor(secs / 3600);
             const m = Math.floor((secs % 3600) / 60);
             const s = Math.floor(secs % 60);
-            return (h > 0 ? h + ":" : "") + 
-                   (m < 10 && h > 0 ? "0" : "") + m + ":" + 
-                   (s < 10 ? "0" : "") + s;
+            return (h > 0 ? h + ":" : "") +
+                (m < 10 && h > 0 ? "0" : "") + m + ":" +
+                (s < 10 ? "0" : "") + s;
         }
 
         function setNoteTimestamp(time) {
@@ -1943,7 +2031,7 @@
         async function loadNotes() {
             if (!notesList) return;
             notesList.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 1.5rem;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải ghi chú...</div>';
-            
+
             try {
                 const params = new URLSearchParams({
                     connection_name: "{{ connection.name }}",
@@ -1952,7 +2040,7 @@
                 });
                 const res = await fetch(`/api/video/notes?${params.toString()}`);
                 const data = await res.json();
-                
+
                 if (data.status === 'success') {
                     if (data.notes.length === 0) {
                         notesList.innerHTML = `
@@ -1963,7 +2051,7 @@
                         `;
                         return;
                     }
-                    
+
                     notesList.innerHTML = '';
                     data.notes.forEach(note => {
                         const noteEl = document.createElement('div');
@@ -1974,7 +2062,7 @@
                         noteEl.style.display = 'flex';
                         noteEl.style.flexDirection = 'column';
                         noteEl.style.gap = '0.35rem';
-                        
+
                         noteEl.innerHTML = `
                             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--glass-border); padding-bottom: 0.25rem;">
                                 <button class="btn btn-secondary note-seek-btn" data-time="${note.timestamp}" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; min-height: auto; width: auto; color: var(--accent-purple); font-weight: 600; border-color: rgba(139, 92, 246, 0.3);">
@@ -2071,84 +2159,84 @@
             let vtt = "WEBVTT\n\n";
             let normalized = srtText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
             let parts = normalized.split('\n\n');
-            
+
             for (let part of parts) {
                 part = part.trim();
                 if (!part) continue;
-                
+
                 let lines = part.split('\n');
                 if (lines.length < 2) continue;
-                
+
                 let timestampLineIndex = 0;
                 if (/^\d+$/.test(lines[0].trim())) {
                     timestampLineIndex = 1;
                 }
-                
+
                 let timestampLine = lines[timestampLineIndex];
                 if (!timestampLine || !timestampLine.includes('-->')) {
                     continue;
                 }
-                
+
                 // Convert timestamp format (00:00:00,000) to WebVTT format (00:00:00.000)
                 let vttTimestamp = timestampLine.replace(/,/g, '.').trim();
                 let subtitleText = lines.slice(timestampLineIndex + 1).join('\n');
-                
+
                 vtt += vttTimestamp + "\n" + subtitleText + "\n\n";
             }
             return vtt;
         }
 
-        window.initSubtitles = function() {
+        window.initSubtitles = function () {
             if (!window.sidebarFiles || typeof currentKey === 'undefined') return;
-            
+
             const lastSlash = currentKey.lastIndexOf('/');
             const currentFolder = lastSlash !== -1 ? currentKey.substring(0, lastSlash + 1) : '';
-            
+
             const subtitleExtensions = ['.srt', '.vtt', '.ass', '.sub'];
             const subtitles = window.sidebarFiles.filter(file => {
                 const lowerName = file.name.toLowerCase();
                 const hasSubExt = subtitleExtensions.some(ext => lowerName.endsWith(ext));
                 if (!hasSubExt) return false;
-                
+
                 const fileLastSlash = file.key.lastIndexOf('/');
                 const fileFolder = fileLastSlash !== -1 ? file.key.substring(0, fileLastSlash + 1) : '';
                 return fileFolder === currentFolder;
             });
-            
+
             if (subtitles.length === 0) {
                 return;
             }
-            
+
             const panel = document.getElementById('subtitle-panel');
             const select = document.getElementById('subtitle-select');
             if (!panel || !select) return;
-            
+
             select.innerHTML = '<option value="">None (Disabled)</option>';
-            
+
             subtitles.forEach(sub => {
                 const opt = document.createElement('option');
                 opt.value = sub.key;
                 opt.textContent = sub.name;
                 select.appendChild(opt);
             });
-            
+
             panel.style.display = 'flex';
-            
+
             select.addEventListener('change', () => {
                 const selectedKey = select.value;
                 const video = document.getElementById('tracked-video');
                 if (!video) return;
-                
+
                 const existing = document.getElementById('dynamic-subtitle-track');
                 if (existing) existing.remove();
-                
+
                 if (!selectedKey) return;
-                
+
                 const statusEl = document.getElementById('sub-status');
                 if (statusEl) statusEl.style.display = 'block';
-                
+
                 const proxyUrl = `{{ url_for('proxy_s3_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}?key=${encodeURIComponent(selectedKey)}`;
-                
+
                 fetch(proxyUrl)
                     .then(res => {
                         if (!res.ok) throw new Error("Could not fetch subtitle");
@@ -2162,10 +2250,10 @@
                         } else {
                             vttContent = srtToVtt(text);
                         }
-                        
+
                         const blob = new Blob([vttContent], { type: 'text/vtt' });
                         const blobUrl = URL.createObjectURL(blob);
-                        
+
                         const track = document.createElement('track');
                         track.id = 'dynamic-subtitle-track';
                         track.kind = 'subtitles';
@@ -2173,13 +2261,13 @@
                         track.srclang = 'vi';
                         track.src = blobUrl;
                         track.default = true;
-                        
+
                         video.appendChild(track);
-                        
+
                         if (video.textTracks && video.textTracks.length > 0) {
                             video.textTracks[0].mode = 'showing';
                         }
-                        
+
                         if (statusEl) statusEl.style.display = 'none';
                     })
                     .catch(err => {
@@ -2188,7 +2276,31 @@
                         if (statusEl) statusEl.style.display = 'none';
                         select.value = "";
                     });
-            });
+            // Auto select subtitle logic
+            const lastDot = currentKey.lastIndexOf('.');
+            const currentBase = lastDot !== -1 ? currentKey.substring(0, lastDot) : currentKey;
+            const currentBaseLower = currentBase.toLowerCase();
+            
+            let autoSelectSub = null;
+            const priorities = [
+                sub => sub.key.toLowerCase() === currentBaseLower + '.srt' || sub.key.toLowerCase() === currentBaseLower + '.vtt',
+                sub => sub.key.toLowerCase() === currentBaseLower + '.vi.srt' || sub.key.toLowerCase() === currentBaseLower + '.vi.vtt',
+                sub => sub.key.toLowerCase() === currentBaseLower + '.en.srt' || sub.key.toLowerCase() === currentBaseLower + '.en.vtt',
+                sub => sub.key.toLowerCase().startsWith(currentBaseLower + '.')
+            ];
+
+            for (const check of priorities) {
+                const found = subtitles.find(check);
+                if (found) {
+                    autoSelectSub = found;
+                    break;
+                }
+            }
+
+            if (autoSelectSub) {
+                select.value = autoSelectSub.key;
+                select.dispatchEvent(new Event('change'));
+            }
         };
 
         // If sidebarFiles are already loaded, initialize subtitles
@@ -2199,235 +2311,235 @@
     {% endif %}
 
     {% if file_type == 'text' %}
-        let editor;
-        let originalContent = '';
-        let isMarkdownPreview = false;
+    let editor;
+    let originalContent = '';
+    let isMarkdownPreview = false;
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Initialize Ace Editor
-            editor = ace.edit("text-editor");
-            editor.setTheme("ace/theme/one_dark");
-            
-            editor.setOptions({
-                fontSize: "14px",
-                fontFamily: "Courier New, Courier, monospace",
-                showPrintMargin: false,
-                displayIndentGuides: true,
-                useWrapMode: true
-            });
-            editor.getSession().setUseWrapMode(true);
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Initialize Ace Editor
+        editor = ace.edit("text-editor");
+        editor.setTheme("ace/theme/one_dark");
 
-            // Determine Ace editor mode based on file name
-            const filename = "{{ filename }}".toLowerCase();
-            let mode = "ace/mode/text";
-            let displayMode = "Plain Text";
+        editor.setOptions({
+            fontSize: "14px",
+            fontFamily: "Courier New, Courier, monospace",
+            showPrintMargin: false,
+            displayIndentGuides: true,
+            useWrapMode: true
+        });
+        editor.getSession().setUseWrapMode(true);
+
+        // Determine Ace editor mode based on file name
+        const filename = "{{ filename }}".toLowerCase();
+        let mode = "ace/mode/text";
+        let displayMode = "Plain Text";
+
+        if (filename.endsWith('.json')) {
+            mode = "ace/mode/json";
+            displayMode = "JSON";
+        } else if (filename.endsWith('.csv')) {
+            mode = "ace/mode/text";
+            displayMode = "CSV";
+        } else if (filename.endsWith('.md')) {
+            mode = "ace/mode/markdown";
+            displayMode = "Markdown";
+        } else if (filename.endsWith('.html') || filename.endsWith('.htm')) {
+            mode = "ace/mode/html";
+            displayMode = "HTML";
+        } else if (filename.endsWith('.xml')) {
+            mode = "ace/mode/xml";
+            displayMode = "XML";
+        } else if (filename.endsWith('.js')) {
+            mode = "ace/mode/javascript";
+            displayMode = "JavaScript";
+        } else if (filename.endsWith('.css')) {
+            mode = "ace/mode/css";
+            displayMode = "CSS";
+        } else if (filename.endsWith('.yaml') || filename.endsWith('.yml')) {
+            mode = "ace/mode/yaml";
+            displayMode = "YAML";
+        } else if (filename.endsWith('.log')) {
+            displayMode = "Log File";
+        } else if (filename.endsWith('.ini') || filename.endsWith('.cfg') || filename.endsWith('.conf')) {
+            mode = "ace/mode/ini";
+            displayMode = "Configuration";
+        }
+
+        editor.getSession().setMode(mode);
+        document.getElementById('file-mode-badge').textContent = displayMode;
+
+        // Set read-only if user cannot edit
+        {% if not can_edit %}
+        editor.setReadOnly(true);
+        {% endif %}
+
+        // Fetch and set file content
+        try {
+            const res = await fetch("{{ presigned_url }}");
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            let text = await res.text();
 
             if (filename.endsWith('.json')) {
-                mode = "ace/mode/json";
-                displayMode = "JSON";
-            } else if (filename.endsWith('.csv')) {
-                mode = "ace/mode/text";
-                displayMode = "CSV";
-            } else if (filename.endsWith('.md')) {
-                mode = "ace/mode/markdown";
-                displayMode = "Markdown";
-            } else if (filename.endsWith('.html') || filename.endsWith('.htm')) {
-                mode = "ace/mode/html";
-                displayMode = "HTML";
-            } else if (filename.endsWith('.xml')) {
-                mode = "ace/mode/xml";
-                displayMode = "XML";
-            } else if (filename.endsWith('.js')) {
-                mode = "ace/mode/javascript";
-                displayMode = "JavaScript";
-            } else if (filename.endsWith('.css')) {
-                mode = "ace/mode/css";
-                displayMode = "CSS";
-            } else if (filename.endsWith('.yaml') || filename.endsWith('.yml')) {
-                mode = "ace/mode/yaml";
-                displayMode = "YAML";
-            } else if (filename.endsWith('.log')) {
-                displayMode = "Log File";
-            } else if (filename.endsWith('.ini') || filename.endsWith('.cfg') || filename.endsWith('.conf')) {
-                mode = "ace/mode/ini";
-                displayMode = "Configuration";
+                try {
+                    const parsed = JSON.parse(text);
+                    text = JSON.stringify(parsed, null, 4);
+                } catch (e) {
+                    console.log("Could not format JSON on load: ", e);
+                }
             }
 
-            editor.getSession().setMode(mode);
-            document.getElementById('file-mode-badge').textContent = displayMode;
+            originalContent = text;
+            editor.setValue(text, -1);
+            editor.getSession().getUndoManager().reset();
 
-            // Set read-only if user cannot edit
-            {% if not can_edit %}
-                editor.setReadOnly(true);
-            {% endif %}
+            // Track changes
+            editor.on("input", () => {
+                const currentContent = editor.getValue();
+                const isChanged = (currentContent !== originalContent);
+                const saveBtn = document.getElementById('btn-save-text');
+                const indicator = document.getElementById('edit-indicator');
 
-            // Fetch and set file content
-            try {
-                const res = await fetch("{{ presigned_url }}");
-                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                let text = await res.text();
-                
+                if (saveBtn) {
+                    saveBtn.disabled = !isChanged;
+                }
+                if (indicator) {
+                    indicator.style.display = isChanged ? 'inline-block' : 'none';
+                }
+            });
+
+        } catch (err) {
+            console.error(err);
+            editor.setValue("Unable to load file content: " + err.message, -1);
+            editor.setReadOnly(true);
+        }
+
+        // Setup buttons
+        const btnFormat = document.getElementById('btn-format-code');
+        if (btnFormat) {
+            btnFormat.addEventListener('click', () => {
+                const currentContent = editor.getValue();
                 if (filename.endsWith('.json')) {
                     try {
-                        const parsed = JSON.parse(text);
-                        text = JSON.stringify(parsed, null, 4);
+                        const parsed = JSON.parse(currentContent);
+                        editor.setValue(JSON.stringify(parsed, null, 4), -1);
                     } catch (e) {
-                        console.log("Could not format JSON on load: ", e);
+                        alert("Invalid JSON: " + e.message);
+                    }
+                } else if (filename.endsWith('.xml') || filename.endsWith('.html')) {
+                    let formatted = '';
+                    let reg = /(>)(<)(\/*)/g;
+                    let xml = currentContent.replace(reg, '$1\r\n$2$3');
+                    let pad = 0;
+                    xml.split('\r\n').forEach(node => {
+                        let indent = 0;
+                        if (node.match(/.+<\/\w[^>]*>$/)) {
+                            indent = 0;
+                        } else if (node.match(/^<\/\w/)) {
+                            if (pad != 0) {
+                                pad -= 1;
+                            }
+                        } else if (node.match(/^<\w([^>]*[^\/])?>.*$/)) {
+                            indent = 1;
+                        } else {
+                            indent = 0;
+                        }
+
+                        let padding = '';
+                        for (let i = 0; i < pad; i++) {
+                            padding += '    ';
+                        }
+
+                        formatted += padding + node + '\r\n';
+                        pad += indent;
+                    });
+                    editor.setValue(formatted.trim(), -1);
+                } else {
+                    alert("Auto-formatting is supported for JSON and XML/HTML in this viewer.");
+                }
+            });
+        }
+
+        const btnSave = document.getElementById('btn-save-text');
+        if (btnSave) {
+            btnSave.addEventListener('click', async () => {
+                const currentContent = editor.getValue();
+
+                if (filename.endsWith('.json')) {
+                    try {
+                        JSON.parse(currentContent);
+                    } catch (e) {
+                        if (!confirm("The content is not valid JSON. Are you sure you want to save anyway?\nError: " + e.message)) {
+                            return;
+                        }
                     }
                 }
-                
-                originalContent = text;
-                editor.setValue(text, -1);
-                editor.getSession().getUndoManager().reset();
 
-                // Track changes
-                editor.on("input", () => {
-                    const currentContent = editor.getValue();
-                    const isChanged = (currentContent !== originalContent);
-                    const saveBtn = document.getElementById('btn-save-text');
-                    const indicator = document.getElementById('edit-indicator');
-                    
-                    if (saveBtn) {
-                        saveBtn.disabled = !isChanged;
-                    }
-                    if (indicator) {
-                        indicator.style.display = isChanged ? 'inline-block' : 'none';
-                    }
-                });
+                btnSave.disabled = true;
+                btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
 
-            } catch (err) {
-                console.error(err);
-                editor.setValue("Unable to load file content: " + err.message, -1);
-                editor.setReadOnly(true);
-            }
+                try {
+                    const response = await fetch("{{ url_for('save_text_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            key: "{{ key }}",
+                            content: currentContent
+                        })
+                    });
 
-            // Setup buttons
-            const btnFormat = document.getElementById('btn-format-code');
-            if (btnFormat) {
-                btnFormat.addEventListener('click', () => {
-                    const currentContent = editor.getValue();
-                    if (filename.endsWith('.json')) {
-                        try {
-                            const parsed = JSON.parse(currentContent);
-                            editor.setValue(JSON.stringify(parsed, null, 4), -1);
-                        } catch (e) {
-                            alert("Invalid JSON: " + e.message);
-                        }
-                    } else if (filename.endsWith('.xml') || filename.endsWith('.html')) {
-                        let formatted = '';
-                        let reg = /(>)(<)(\/*)/g;
-                        let xml = currentContent.replace(reg, '$1\r\n$2$3');
-                        let pad = 0;
-                        xml.split('\r\n').forEach(node => {
-                            let indent = 0;
-                            if (node.match(/.+<\/\w[^>]*>$/)) {
-                                indent = 0;
-                            } else if (node.match(/^<\/\w/)) {
-                                if (pad != 0) {
-                                    pad -= 1;
-                                }
-                            } else if (node.match(/^<\w([^>]*[^\/])?>.*$/)) {
-                                indent = 1;
-                            } else {
-                                indent = 0;
-                            }
-
-                            let padding = '';
-                            for (let i = 0; i < pad; i++) {
-                                padding += '    ';
-                            }
-
-                            formatted += padding + node + '\r\n';
-                            pad += indent;
-                        });
-                        editor.setValue(formatted.trim(), -1);
+                    const resData = await response.json();
+                    if (response.ok && resData.status === 'success') {
+                        originalContent = currentContent;
+                        btnSave.disabled = true;
+                        document.getElementById('edit-indicator').style.display = 'none';
+                        alert('File saved successfully!');
                     } else {
-                        alert("Auto-formatting is supported for JSON and XML/HTML in this viewer.");
+                        throw new Error(resData.message || 'Unknown error');
                     }
-                });
-            }
-
-            const btnSave = document.getElementById('btn-save-text');
-            if (btnSave) {
-                btnSave.addEventListener('click', async () => {
-                    const currentContent = editor.getValue();
-                    
-                    if (filename.endsWith('.json')) {
-                        try {
-                            JSON.parse(currentContent);
-                        } catch (e) {
-                            if (!confirm("The content is not valid JSON. Are you sure you want to save anyway?\nError: " + e.message)) {
-                                return;
-                            }
-                        }
-                    }
-
-                    btnSave.disabled = true;
-                    btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
-
-                    try {
-                        const response = await fetch("{{ url_for('save_text_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                key: "{{ key }}",
-                                content: currentContent
-                            })
-                        });
-
-                        const resData = await response.json();
-                        if (response.ok && resData.status === 'success') {
-                            originalContent = currentContent;
-                            btnSave.disabled = true;
-                            document.getElementById('edit-indicator').style.display = 'none';
-                            alert('File saved successfully!');
-                        } else {
-                            throw new Error(resData.message || 'Unknown error');
-                        }
-                    } catch (e) {
-                        alert('Failed to save file: ' + e.message);
-                        btnSave.disabled = false;
-                    } finally {
-                        btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save';
-                    }
-                });
-            }
-
-            const btnTogglePreview = document.getElementById('btn-toggle-preview');
-            const previewContainer = document.getElementById('markdown-preview');
-            const editorContainer = document.getElementById('text-editor');
-            
-            if (btnTogglePreview && previewContainer) {
-                btnTogglePreview.addEventListener('click', () => {
-                    isMarkdownPreview = !isMarkdownPreview;
-                    if (isMarkdownPreview) {
-                        const mdContent = editor.getValue();
-                        previewContainer.innerHTML = marked.parse(mdContent);
-                        
-                        editorContainer.style.display = 'none';
-                        previewContainer.style.display = 'block';
-                        btnTogglePreview.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Mode';
-                        if (btnFormat) btnFormat.style.display = 'none';
-                    } else {
-                        previewContainer.style.display = 'none';
-                        editorContainer.style.display = 'block';
-                        btnTogglePreview.innerHTML = '<i class="fa-solid fa-eye"></i> Preview';
-                        if (btnFormat) btnFormat.style.display = 'inline-flex';
-                    }
-                });
-            }
-        });
-
-        window.copyTextContent = () => {
-            const content = editor.getValue();
-            navigator.clipboard.writeText(content).then(() => {
-                alert('Content copied to clipboard.');
-            }).catch(err => {
-                console.error('Copy error: ', err);
+                } catch (e) {
+                    alert('Failed to save file: ' + e.message);
+                    btnSave.disabled = false;
+                } finally {
+                    btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save';
+                }
             });
-        };
+        }
+
+        const btnTogglePreview = document.getElementById('btn-toggle-preview');
+        const previewContainer = document.getElementById('markdown-preview');
+        const editorContainer = document.getElementById('text-editor');
+
+        if (btnTogglePreview && previewContainer) {
+            btnTogglePreview.addEventListener('click', () => {
+                isMarkdownPreview = !isMarkdownPreview;
+                if (isMarkdownPreview) {
+                    const mdContent = editor.getValue();
+                    previewContainer.innerHTML = marked.parse(mdContent);
+
+                    editorContainer.style.display = 'none';
+                    previewContainer.style.display = 'block';
+                    btnTogglePreview.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Mode';
+                    if (btnFormat) btnFormat.style.display = 'none';
+                } else {
+                    previewContainer.style.display = 'none';
+                    editorContainer.style.display = 'block';
+                    btnTogglePreview.innerHTML = '<i class="fa-solid fa-eye"></i> Preview';
+                    if (btnFormat) btnFormat.style.display = 'inline-flex';
+                }
+            });
+        }
+    });
+
+    window.copyTextContent = () => {
+        const content = editor.getValue();
+        navigator.clipboard.writeText(content).then(() => {
+            alert('Content copied to clipboard.');
+        }).catch(err => {
+            console.error('Copy error: ', err);
+        });
+    };
     {% endif %}
 </script>
 {% endblock %}

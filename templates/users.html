@@ -39,9 +39,18 @@
                         </td>
                         <td>
                             <div style="color: var(--text-primary); font-size: 0.9rem; margin-bottom: 0.25rem;">{{ stat.user.email }}</div>
-                            <span class="badge" style="background: {% if stat.user.role == 'Admin' %}rgba(139, 92, 246, 0.2){% else %}rgba(59, 130, 246, 0.2){% endif %}; color: {% if stat.user.role == 'Admin' %}#c084fc{% else %}#93c5fd{% endif %};">
-                                {{ stat.user.role }}
-                            </span>
+                            {% if stat.user.id != g.user.id %}
+                                <form action="{{ url_for('update_user_role', user_id=stat.user.id) }}" method="POST" style="display: inline-block; margin: 0;">
+                                    <select name="role" class="form-control" onchange="this.form.submit()" style="padding: 0.35rem 0.5rem; font-size: 0.85rem; width: auto; display: inline-block; background: rgba(15, 23, 42, 0.6); color: #fff; border: 1px solid var(--glass-border); border-radius: var(--radius-md); cursor: pointer;">
+                                        <option value="Admin" {% if stat.user.role == 'Admin' %}selected{% endif %}>Admin</option>
+                                        <option value="User" {% if stat.user.role == 'User' %}selected{% endif %}>User</option>
+                                    </select>
+                                </form>
+                            {% else %}
+                                <span class="badge" style="background: rgba(139, 92, 246, 0.2); color: #c084fc;" title="Bạn không thể tự phân quyền lại chính mình">
+                                    {{ stat.user.role }} (Bạn)
+                                </span>
+                            {% endif %}
                         </td>
                         <td>
                             {% if stat.user.role == 'Admin' %}
@@ -68,7 +77,7 @@
                         </td>
                         <td>
                             <form action="{{ url_for('update_user_quota', user_id=stat.user.id) }}" method="POST" style="display: flex; gap: 0.5rem; align-items: center; max-width: 200px;">
-                                <input type="number" name="quota_gb" class="form-control" value="{{ limit_gb }}" step="0.1" min="0.1" required style="padding: 0.4rem 0.75rem; font-size: 0.875rem;">
+                                <input type="number" name="quota_gb" class="form-control" value="{{ limit_gb }}" step="0.1" min="0.1" required style="padding: 0.4rem 0.75rem; font-size: 0.875rem; width: 90px; flex-shrink: 0;">
                                 <button type="submit" class="btn btn-primary" style="padding: 0.45rem 0.75rem; font-size: 0.85rem;" title="Save Limit">
                                     <i class="fa-solid fa-save"></i>
                                 </button>
