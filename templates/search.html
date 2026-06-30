@@ -6,11 +6,11 @@
 <div class="header-actions">
     <div>
         <h1 class="page-title">Global File Search</h1>
-        <p style="color: var(--text-secondary); margin-top: 0.25rem;">Tìm kiếm tệp tin nhanh chóng trên tất cả các kết nối S3 đã được lập chỉ mục.</p>
+        <p style="color: var(--text-secondary); margin-top: 0.25rem;">Search files quickly across all indexed S3 connections.</p>
     </div>
     <div>
         <button id="syncIndexBtn" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
-            <i class="fa-solid fa-rotate"></i> Cập nhật chỉ mục tìm kiếm
+            <i class="fa-solid fa-rotate"></i> Sync Search Index
         </button>
     </div>
 </div>
@@ -19,14 +19,14 @@
     <form action="{{ url_for('global_search') }}" method="GET" style="display: flex; gap: 1rem; align-items: center; width: 100%;">
         <div style="flex-grow: 1; position: relative;">
             <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
-            <input type="text" name="q" class="form-control" placeholder="Nhập tên tệp cần tìm..." value="{{ query or '' }}" required style="padding-left: 2.75rem;">
+            <input type="text" name="q" class="form-control" placeholder="Enter file name to search..." value="{{ query or '' }}" required style="padding-left: 2.75rem;">
         </div>
-        <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem;">Tìm kiếm</button>
+        <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem;">Search</button>
     </form>
     
     {% if total_indexed > 0 %}
         <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.75rem; text-align: right;">
-            Tổng số tệp đã lập chỉ mục: <strong style="color: var(--accent-purple);">{{ total_indexed }}</strong>
+            Total indexed files: <strong style="color: var(--accent-purple);">{{ total_indexed }}</strong>
         </div>
     {% endif %}
 </div>
@@ -35,7 +35,7 @@
 <div class="glass-card">
     <h3 style="font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
         <i class="fa-solid fa-square-poll-horizontal" style="color: var(--accent-purple);"></i>
-        Kết quả tìm kiếm cho: "{{ query }}"
+        Search results for: "{{ query }}"
     </h3>
     
     <div class="data-table-container">
@@ -43,12 +43,12 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Tên Tệp</th>
+                        <th>File Name</th>
                         <th>S3 Connection</th>
                         <th>Bucket</th>
-                        <th>Kích thước</th>
-                        <th>Ngày sửa đổi</th>
-                        <th style="text-align: right;">Hành động</th>
+                        <th>File Size</th>
+                        <th>Last Modified</th>
+                        <th style="text-align: right;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -97,16 +97,16 @@
                             </td>
                             <td style="text-align: right;">
                                 <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
-                                    <a href="{{ url_for('proxy_file', connection_id=item.connection.connection_id, bucket_name=item.bucket_name) }}?key={{ item.file_key | urlencode }}" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" download title="Download">
+                                    <a href="{{ url_for('proxy_s3_file', connection_id=item.connection.connection_id, bucket_name=item.bucket_name) }}?key={{ item.file_key | urlencode }}" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" download title="Download">
                                         <i class="fa-solid fa-download"></i>
                                     </a>
                                     {% set last_slash = item.file_key.rfind('/') %}
                                     {% set folder_prefix = item.file_key[:last_slash + 1] if last_slash != -1 else '' %}
                                     <a href="{{ url_for('browse_bucket', connection_id=item.connection.connection_id, bucket_name=item.bucket_name) }}?prefix={{ folder_prefix | urlencode }}" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Browse Folder">
-                                        <i class="fa-solid fa-folder-open"></i> Thư mục
+                                        <i class="fa-solid fa-folder-open"></i> Folder
                                     </a>
                                     <a href="{{ url_for('viewer_interface', connection_id=item.connection.connection_id, bucket_name=item.bucket_name) }}?key={{ item.file_key | urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">
-                                        <i class="fa-solid fa-play"></i> Xem
+                                        <i class="fa-solid fa-play"></i> View
                                     </a>
                                 </div>
                             </td>
@@ -117,8 +117,8 @@
         {% else %}
             <div style="text-align: center; padding: 4rem 2rem; color: var(--text-muted);">
                 <i class="fa-solid fa-circle-info" style="font-size: 3rem; margin-bottom: 1rem; color: var(--text-muted);"></i>
-                <p style="font-size: 1rem; margin-bottom: 0.5rem;">Không tìm thấy tệp tin nào khớp với từ khóa tìm kiếm.</p>
-                <p style="font-size: 0.85rem; color: var(--text-muted);">Hãy thử kiểm tra lại từ khóa hoặc cập nhật chỉ mục tìm kiếm bằng nút phía trên.</p>
+                <p style="font-size: 1rem; margin-bottom: 0.5rem;">No files found matching your search query.</p>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">Try checking your keywords or update the search index using the button above.</p>
             </div>
         {% endif %}
     </div>
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         syncBtn.addEventListener('click', async () => {
             const originalHTML = syncBtn.innerHTML;
             syncBtn.disabled = true;
-            syncBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang cập nhật chỉ mục...';
+            syncBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing index...';
             
             try {
                 const response = await fetch("{{ url_for('sync_search_index') }}", {
@@ -147,11 +147,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert(data.message);
                     window.location.reload();
                 } else {
-                    alert('Lỗi: ' + (data.message || 'Không thể đồng bộ chỉ mục.'));
+                    alert('Error: ' + (data.message || 'Failed to sync search index.'));
                 }
             } catch (err) {
                 console.error(err);
-                alert('Lỗi kết nối máy chủ.');
+                alert('Connection error.');
             } finally {
                 syncBtn.disabled = false;
                 syncBtn.innerHTML = originalHTML;

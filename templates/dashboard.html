@@ -14,7 +14,7 @@
 <div class="glass-card" style="margin-bottom: 2rem; padding: 1.5rem;">
     <h2 style="font-size: 1.25rem; font-weight: 700; color: #fff; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
         <i class="fa-solid fa-chart-pie" style="color: var(--accent-purple);"></i>
-        Hệ thống Dashboard & Báo cáo trực quan
+        System Dashboard & Visual Reports
     </h2>
     
     <!-- Quick Stats Row -->
@@ -24,7 +24,7 @@
                 <i class="fa-solid fa-users"></i>
             </div>
             <div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Người Dùng</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Users</div>
                 <div style="font-size: 1.5rem; font-weight: 700; color: #fff;">{{ stats_data.total_users }}</div>
             </div>
         </div>
@@ -34,7 +34,7 @@
                 <i class="fa-solid fa-network-wired"></i>
             </div>
             <div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Kết Nối S3</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">S3 Connections</div>
                 <div style="font-size: 1.5rem; font-weight: 700; color: #fff;">{{ stats_data.total_connections }}</div>
             </div>
         </div>
@@ -44,7 +44,7 @@
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
         <!-- Provider Distribution -->
         <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; align-items: center;">
-            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; align-self: flex-start;">Loại Kết Nối S3</h4>
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; align-self: flex-start;">S3 Connection Type</h4>
             <div style="position: relative; height: 200px; width: 100%;">
                 <canvas id="providerChart"></canvas>
             </div>
@@ -52,7 +52,7 @@
 
         <!-- Audit Action Stats -->
         <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1.25rem;">
-            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem;">Thống kê Hoạt động (Logs)</h4>
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem;">Activity Statistics (Logs)</h4>
             <div style="position: relative; height: 200px; width: 100%;">
                 <canvas id="actionChart"></canvas>
             </div>
@@ -60,7 +60,7 @@
 
         <!-- Activity Trend -->
         <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1.25rem;">
-            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem;">Xu hướng Hoạt động (7 Ngày)</h4>
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem;">Activity Trend (Last 7 Days)</h4>
             <div style="position: relative; height: 200px; width: 100%;">
                 <canvas id="trendChart"></canvas>
             </div>
@@ -549,7 +549,7 @@
             data: {
                 labels: stats.action_stats.labels,
                 datasets: [{
-                    label: 'Số lượt',
+                    label: 'Count',
                     data: stats.action_stats.counts,
                     backgroundColor: 'rgba(16, 185, 129, 0.65)',
                     borderColor: '#10b981',
@@ -577,7 +577,7 @@
             data: {
                 labels: stats.activity_trend.labels.map(l => l.substring(5)), // MM-DD
                 datasets: [{
-                    label: 'Hoạt động',
+                    label: 'Activity',
                     data: stats.activity_trend.counts,
                     fill: true,
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',

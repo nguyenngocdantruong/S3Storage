@@ -47,8 +47,8 @@
                                     </select>
                                 </form>
                             {% else %}
-                                <span class="badge" style="background: rgba(139, 92, 246, 0.2); color: #c084fc;" title="Bạn không thể tự phân quyền lại chính mình">
-                                    {{ stat.user.role }} (Bạn)
+                                <span class="badge" style="background: rgba(139, 92, 246, 0.2); color: #c084fc;" title="You cannot change your own role">
+                                    {{ stat.user.role }} (You)
                                 </span>
                             {% endif %}
                         </td>
@@ -87,17 +87,17 @@
                             {% if stat.user.role != 'Admin' %}
                                 <form action="{{ url_for('toggle_user_status', user_id=stat.user.id) }}" method="POST" style="display: inline-block; margin: 0;">
                                     {% if stat.user.is_active %}
-                                        <button type="submit" class="btn btn-secondary" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.35); color: #fca5a5; padding: 0.45rem 0.75rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem;" onclick="return confirm('Bạn có chắc chắn muốn vô hiệu hóa tài khoản {{ stat.user.name }}?');">
-                                            <i class="fa-solid fa-ban"></i> Vô hiệu hóa
+                                        <button type="submit" class="btn btn-secondary" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.35); color: #fca5a5; padding: 0.45rem 0.75rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem;" onclick="return confirm('Are you sure you want to deactivate account {{ stat.user.name }}?');">
+                                            <i class="fa-solid fa-ban"></i> Deactivate
                                         </button>
                                     {% else %}
                                         <button type="submit" class="btn btn-primary" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.35); color: #a7f3d0; padding: 0.45rem 0.75rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem;">
-                                            <i class="fa-solid fa-circle-check"></i> Kích hoạt
+                                            <i class="fa-solid fa-circle-check"></i> Activate
                                         </button>
                                     {% endif %}
                                 </form>
                             {% else %}
-                                <span style="color: var(--text-muted); font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem;"><i class="fa-solid fa-shield-halved" style="color: var(--accent-purple);"></i> Đang hoạt động</span>
+                                <span style="color: var(--text-muted); font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem;"><i class="fa-solid fa-shield-halved" style="color: var(--accent-purple);"></i> Active</span>
                             {% endif %}
                         </td>
                     </tr>

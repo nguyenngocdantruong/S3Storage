@@ -944,10 +944,10 @@ def sync_search_index():
                 app.logger.error(f"Failed to list buckets for connection {conn.name}: {e}")
                 
         db.session.commit()
-        return jsonify({'status': 'success', 'message': f'Đã cập nhật chỉ mục tìm kiếm thành công! Đã quét {synced_count} tệp.'})
+        return jsonify({'status': 'success', 'message': f'Search index updated successfully! Scanned {synced_count} files.'})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': f'Lỗi khi đồng bộ chỉ mục: {str(e)}'}), 500
+        return jsonify({'status': 'error', 'message': f'Index sync error: {str(e)}'}), 500
 
 @app.route('/connection/add', methods=['POST'])
 @admin_required
@@ -2670,17 +2670,17 @@ def toggle_user_status(user_id):
 def update_user_role(user_id):
     user = db.get_or_404(User, user_id)
     if user.id == g.user.id:
-        flash('Bạn không thể tự thay đổi quyền của chính mình.', 'error')
+        flash('You cannot change your own role.', 'error')
         return redirect(url_for('manage_users'))
         
     role = request.form.get('role')
     if role not in ['Admin', 'User']:
-        flash('Quyền hạn không hợp lệ.', 'error')
+        flash('Invalid role.', 'error')
         return redirect(url_for('manage_users'))
         
     user.role = role
     db.session.commit()
-    flash(f"Đã thay đổi quyền của {user.name} thành {role}.", 'success')
+    flash(f"Role for {user.name} updated to {role}.", 'success')
     return redirect(url_for('manage_users'))
 
 @app.route('/admin/functions')
