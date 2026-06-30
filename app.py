@@ -15,11 +15,9 @@ from logging.handlers import RotatingFileHandler
 import traceback
 import threading
 import io
-import cv2
 from PIL import Image
 import uuid
 import yt_dlp
-import libtorrent as lt
 
 app = Flask(__name__)
 
@@ -357,6 +355,7 @@ def generate_and_cache_preview_task(app_to_use, connection_id, bucket_name, key,
             elif file_type == 'video':
                 import tempfile
                 import os
+                import cv2
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.tmp') as temp_file:
                     temp_file_name = temp_file.name
                 
@@ -3153,6 +3152,7 @@ def background_remote_download(app_to_use, task_id):
                     
             elif task.link_type == 'torrent':
                 # Torrent download via libtorrent
+                import libtorrent as lt
                 ses = lt.session()
                 ses.listen_on(6881, 6891)
                 
