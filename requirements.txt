@@ -5,7 +5,4 @@ python-dotenv==1.0.1
 werkzeug==3.0.3
 gunicorn==22.0.0
 Pillow==10.3.0
-yt-dlp>=2025.1.0
-torrentool>=1.2.0
-libtorrent>=2.0.13
 
