@@ -132,7 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const statusEl = document.getElementById(`task-status-${taskId}`);
                     const progressEl = document.getElementById(`task-progress-bar-${taskId}`);
-                    const pctEl = document.getElementById(`task-progress-pct-{{ task.id }}`); // wait, typo in jinja tag context, let's use dynamic string
                     const pctElement = document.getElementById(`task-progress-pct-${taskId}`);
                     const speedEl = document.getElementById(`task-speed-${taskId}`);
                     const filenameEl = document.getElementById(`task-filename-${taskId}`);
