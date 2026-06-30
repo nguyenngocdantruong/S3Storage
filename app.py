@@ -99,6 +99,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='User') # 'Admin' or 'User'
     quota_limit = db.Column(db.BigInteger, default=2147483648) # 2GB default
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, password):
@@ -417,6 +418,18 @@ with app.app_context():
             db.session.rollback()
             print(f"Migration error: {e}")
 
+    # Migration: check if user table has is_active column
+    try:
+        db.session.execute(db.text("SELECT is_active FROM user LIMIT 1")).fetchone()
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(db.text("ALTER TABLE user ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Migration error for is_active: {e}")
+
     # Migration: check if s3_connection table has connection_id column
     try:
         db.session.execute(db.text("SELECT connection_id FROM s3_connection LIMIT 1")).fetchone()
@@ -586,6 +599,10 @@ def load_logged_in_user():
         g.user = None
     else:
         g.user = db.session.get(User, user_id)
+        if g.user and not getattr(g.user, 'is_active', True):
+            session.clear()
+            g.user = None
+            flash('Tài khoản của bạn đã bị vô hiệu hóa bởi quản trị viên.', 'error')
 
 @app.context_processor
 def inject_quota():
@@ -697,6 +714,9 @@ def login():
 
         user = User.query.filter_by(email=email).first()
         if user and user.check_password(password):
+            if not getattr(user, 'is_active', True):
+                flash('Tài khoản của bạn đã bị vô hiệu hóa bởi quản trị viên.', 'error')
+                return render_template('login.html')
             session.clear()
             session['user_id'] = user.id
             if remember:
@@ -1957,7 +1977,7 @@ def view_file(connection_id, bucket_name):
  
         is_https_site = request.is_secure or request.headers.get('X-Forwarded-Proto', '').lower() == 'https'
         is_http_s3 = conn.endpoint_url and conn.endpoint_url.startswith('http://')
-        use_proxy = is_https_site and is_http_s3 and file_type in ['pdf', 'video', 'audio', 'image', 'text']
+        use_proxy = (is_https_site and is_http_s3 and file_type in ['pdf', 'video', 'audio', 'image', 'text']) or file_type == 'text'
         
         if use_proxy:
             file_url = url_for('proxy_s3_file', connection_id=connection_id, bucket_name=bucket_name, key=key)
@@ -2289,6 +2309,21 @@ def update_user_quota(user_id):
     user.quota_limit = int(quota_gb * 1024 * 1024 * 1024)
     db.session.commit()
     flash(f"Quota for {user.name} updated to {quota_gb} GB.", 'success')
+    return redirect(url_for('manage_users'))
+
+@app.route('/admin/user/<int:user_id>/toggle-status', methods=['POST'])
+@admin_required
+def toggle_user_status(user_id):
+    user = db.get_or_404(User, user_id)
+    if user.role == 'Admin':
+        flash('Không thể vô hiệu hóa tài khoản Admin.', 'error')
+        return redirect(url_for('manage_users'))
+        
+    user.is_active = not user.is_active
+    db.session.commit()
+    
+    status_str = "kích hoạt" if user.is_active else "vô hiệu hóa"
+    flash(f"Tài khoản {user.name} đã được {status_str}.", 'success')
     return redirect(url_for('manage_users'))
 
 @app.route('/admin/functions')

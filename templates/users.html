@@ -19,6 +19,7 @@
                     <th>Email / Role</th>
                     <th>Quota Space Used</th>
                     <th>Set Limit (GB)</th>
+                    <th>Status / Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -72,6 +73,23 @@
                                     <i class="fa-solid fa-save"></i>
                                 </button>
                             </form>
+                        </td>
+                        <td>
+                            {% if stat.user.role != 'Admin' %}
+                                <form action="{{ url_for('toggle_user_status', user_id=stat.user.id) }}" method="POST" style="display: inline-block; margin: 0;">
+                                    {% if stat.user.is_active %}
+                                        <button type="submit" class="btn btn-secondary" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.35); color: #fca5a5; padding: 0.45rem 0.75rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem;" onclick="return confirm('Bạn có chắc chắn muốn vô hiệu hóa tài khoản {{ stat.user.name }}?');">
+                                            <i class="fa-solid fa-ban"></i> Vô hiệu hóa
+                                        </button>
+                                    {% else %}
+                                        <button type="submit" class="btn btn-primary" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.35); color: #a7f3d0; padding: 0.45rem 0.75rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+                                            <i class="fa-solid fa-circle-check"></i> Kích hoạt
+                                        </button>
+                                    {% endif %}
+                                </form>
+                            {% else %}
+                                <span style="color: var(--text-muted); font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem;"><i class="fa-solid fa-shield-halved" style="color: var(--accent-purple);"></i> Đang hoạt động</span>
+                            {% endif %}
                         </td>
                     </tr>
                 {% endfor %}
