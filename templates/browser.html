@@ -652,11 +652,18 @@
     <!-- Upload File Modal -->
     <div id="uploadModal" class="modal-overlay">
         <div class="modal-content upload-modal-content">
-            <h2 style="font-size: 1.5rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; width: 100%;">
                 <span>Upload File</span>
                 <button onclick="closeModalAndReset()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
             </h2>
+
+            <!-- Modal Tabs -->
+            <div class="modal-tabs" style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 1.25rem; gap: 1rem; width: 100%;">
+                <button type="button" class="modal-tab-btn active" onclick="switchUploadTab('local')" style="background: none; border: none; color: #fff; padding-bottom: 0.5rem; cursor: pointer; font-weight: 500; font-size: 0.95rem; border-bottom: 2px solid var(--accent-blue);">Local Upload</button>
+                <button type="button" class="modal-tab-btn" onclick="switchUploadTab('remote')" style="background: none; border: none; color: var(--text-secondary); padding-bottom: 0.5rem; cursor: pointer; font-weight: 500; font-size: 0.95rem;">Download from Link</button>
+            </div>
             
+            <!-- Local Upload Form -->
             <form id="upload-form" style="width: 100%; display: flex; flex-direction: column;">
                 <input type="hidden" id="upload-prefix" value="{{ prefix }}">
                 
@@ -688,6 +695,26 @@
                 <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.75rem; width: 100%;">
                     <button type="button" id="btn-upload-cancel" class="btn btn-secondary" onclick="closeModalAndReset()">Cancel</button>
                     <button type="submit" id="btn-upload-submit" class="btn btn-primary" disabled><i class="fa-solid fa-upload"></i> Upload</button>
+                </div>
+            </form>
+
+            <!-- Remote Download Form -->
+            <form id="remote-download-form" style="width: 100%; display: none; flex-direction: column; gap: 1rem; text-align: left;">
+                <div>
+                    <label for="remote-link" style="display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-align: left;">URL or Magnet Link</label>
+                    <input type="text" id="remote-link" class="form-control" style="width: 100%; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border); color: #fff; padding: 0.75rem; border-radius: var(--radius-md); font-size: 0.9rem; box-sizing: border-box;" placeholder="e.g. YouTube video URL, Direct File URL, or Torrent/Magnet Link">
+                </div>
+                <div>
+                    <label for="remote-type" style="display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-align: left;">Link Type</label>
+                    <select id="remote-type" class="general-access-select" style="width: 100%; padding: 0.75rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 0.9rem; box-sizing: border-box;">
+                        <option value="direct">Direct File URL</option>
+                        <option value="video">Social Video (YouTube, TikTok, Facebook, etc.)</option>
+                        <option value="torrent">Torrent / Magnet Link</option>
+                    </select>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.25rem; width: 100%;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModalAndReset()">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-cloud-arrow-down"></i> Start Download</button>
                 </div>
             </form>
         </div>
@@ -1117,7 +1144,207 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelBtn.disabled = false;
         fileInput.disabled = false;
         folderInput.disabled = false;
+        
+        // Reset remote fields
+        const remoteLink = document.getElementById('remote-link');
+        const remoteType = document.getElementById('remote-type');
+        const remoteSubmitBtn = document.getElementById('remote-download-form').querySelector('button[type="submit"]');
+        if (remoteLink) remoteLink.value = '';
+        if (remoteType) remoteType.value = 'direct';
+        if (remoteSubmitBtn) {
+            remoteSubmitBtn.disabled = false;
+            remoteSubmitBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> Start Download';
+        }
+        switchUploadTab('local');
     };
+
+    window.switchUploadTab = (tabName) => {
+        const localForm = document.getElementById('upload-form');
+        const remoteForm = document.getElementById('remote-download-form');
+        const tabBtns = document.querySelectorAll('.modal-tab-btn');
+        
+        tabBtns.forEach(btn => btn.classList.remove('active'));
+        
+        if (tabName === 'local') {
+            localForm.style.display = 'flex';
+            remoteForm.style.display = 'none';
+            tabBtns[0].classList.add('active');
+            tabBtns[0].style.borderBottom = '2px solid var(--accent-blue)';
+            tabBtns[0].style.color = '#fff';
+            tabBtns[1].style.borderBottom = 'none';
+            tabBtns[1].style.color = 'var(--text-secondary)';
+        } else {
+            localForm.style.display = 'none';
+            remoteForm.style.display = 'flex';
+            tabBtns[1].classList.add('active');
+            tabBtns[1].style.borderBottom = '2px solid var(--accent-blue)';
+            tabBtns[1].style.color = '#fff';
+            tabBtns[0].style.borderBottom = 'none';
+            tabBtns[0].style.color = 'var(--text-secondary)';
+        }
+    };
+
+    const remoteForm = document.getElementById('remote-download-form');
+    if (remoteForm) {
+        remoteForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const link = document.getElementById('remote-link').value.trim();
+            const type = document.getElementById('remote-type').value;
+            if (!link) return;
+            
+            const submitBtnRemote = remoteForm.querySelector('button[type="submit"]');
+            submitBtnRemote.disabled = true;
+            submitBtnRemote.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+            
+            try {
+                const response = await fetch("{{ url_for('remote_download', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        link: link,
+                        type: type,
+                        prefix: "{{ prefix }}"
+                    })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    addRemoteTaskToWidget(data.task_id, link, type);
+                    closeModalAndReset();
+                } else {
+                    alert(data.message || 'Failed to submit remote download.');
+                    submitBtnRemote.disabled = false;
+                    submitBtnRemote.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> Start Download';
+                }
+            } catch (err) {
+                console.error(err);
+                alert('An error occurred during submission.');
+                submitBtnRemote.disabled = false;
+                submitBtnRemote.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> Start Download';
+            }
+        });
+    }
+
+    function addRemoteTaskToWidget(taskId, link, type) {
+        const widgetBody = document.getElementById('upload-queue-body');
+        const widget = document.getElementById('upload-queue-widget');
+        const bubble = document.getElementById('upload-queue-bubble');
+        
+        const item = document.createElement('div');
+        item.className = 'preview-item';
+        item.id = `widget-item-${taskId}`;
+        
+        let typeIcon = 'fa-cloud-arrow-down';
+        if (type === 'video') typeIcon = 'fa-youtube';
+        else if (type === 'torrent') typeIcon = 'fa-magnet';
+        
+        let displayLink = link;
+        if (link.length > 50) {
+            displayLink = link.substring(0, 47) + '...';
+        }
+        
+        item.innerHTML = `
+            <div class="preview-item-header" style="margin-bottom: 0.25rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+                <span class="preview-item-name" style="font-size:0.8rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#fff; flex-grow:1;" id="widget-name-${taskId}" title="${link}">
+                    <i class="fa-solid ${typeIcon}" style="margin-right: 0.25rem; color: var(--accent-blue);"></i>${displayLink}
+                </span>
+                <div style="display: flex; gap: 0.25rem; align-items: center;">
+                    <button type="button" class="btn-control cancel-btn" id="cancel-btn-${taskId}" style="background:none; border:none; color:var(--accent-rose); cursor:pointer; padding:2px 4px; font-size:0.75rem;" title="Cancel"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem; gap: 1rem;">
+                <div class="preview-item-progress-bar-container" style="height:4px; background:rgba(255,255,255,0.05); border-radius:99px; overflow:hidden; flex-grow:1;">
+                    <div class="preview-item-progress-bar" id="widget-progress-bar-${taskId}" style="width:0%; height:100%; background:linear-gradient(90deg, var(--accent-purple), var(--accent-blue)); transition:width 0.2s;"></div>
+                </div>
+                <span class="preview-item-status pending" id="widget-status-${taskId}" style="font-size:0.75rem; white-space:nowrap;">Pending</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted);">
+                <span id="widget-speed-${taskId}">Initializing...</span>
+                <span id="widget-eta-${taskId}">Link: ${type}</span>
+            </div>
+        `;
+        widgetBody.appendChild(item);
+        widget.style.display = 'flex';
+        bubble.style.display = 'none';
+        
+        updateQueueSummary();
+        pollRemoteTask(taskId);
+    }
+
+    async function pollRemoteTask(taskId) {
+        let isDone = false;
+        const cancelBtn = document.getElementById(`cancel-btn-${taskId}`);
+        let cancelRequested = false;
+        
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                cancelRequested = true;
+                const statusEl = document.getElementById(`widget-status-${taskId}`);
+                const speedEl = document.getElementById(`widget-speed-${taskId}`);
+                if (statusEl) {
+                    statusEl.textContent = 'Cancelled';
+                    statusEl.className = 'preview-item-status error';
+                }
+                if (speedEl) speedEl.textContent = '';
+                cancelBtn.style.display = 'none';
+                updateQueueSummary();
+            });
+        }
+        
+        while (!isDone && !cancelRequested) {
+            try {
+                const response = await fetch(`/api/tasks/${taskId}`);
+                const data = await response.json();
+                if (data.status === 'success') {
+                    const task = data.task;
+                    const progressEl = document.getElementById(`widget-progress-bar-${taskId}`);
+                    const statusEl = document.getElementById(`widget-status-${taskId}`);
+                    const speedEl = document.getElementById(`widget-speed-${taskId}`);
+                    const nameEl = document.getElementById(`widget-name-${taskId}`);
+                    const etaEl = document.getElementById(`widget-eta-${taskId}`);
+                    
+                    if (task.filename && task.filename !== 'Preparing...') {
+                        if (nameEl) {
+                            let displayName = task.filename;
+                            if (displayName.length > 35) {
+                                displayName = displayName.substring(0, 32) + '...';
+                            }
+                            nameEl.title = task.filename;
+                            const typeIcon = task.link_type === 'video' ? 'fa-youtube' : (task.link_type === 'torrent' ? 'fa-magnet' : 'fa-file');
+                            nameEl.innerHTML = `<i class="fa-solid ${typeIcon}" style="margin-right: 0.25rem; color: var(--accent-blue);"></i>${displayName}`;
+                        }
+                    }
+                    
+                    if (progressEl) progressEl.style.width = `${task.progress}%`;
+                    if (statusEl) {
+                        statusEl.textContent = task.status.charAt(0).toUpperCase() + task.status.slice(1);
+                        statusEl.className = `preview-item-status ${task.status}`;
+                    }
+                    if (speedEl) speedEl.textContent = task.speed;
+                    if (etaEl) etaEl.textContent = `Stage: ${task.status}`;
+                    
+                    if (task.status === 'completed') {
+                        isDone = true;
+                        if (progressEl) progressEl.style.background = '#10b981';
+                        if (cancelBtn) cancelBtn.style.display = 'none';
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else if (task.status === 'failed') {
+                        isDone = true;
+                        if (progressEl) progressEl.style.background = '#ef4444';
+                        if (speedEl) speedEl.textContent = task.error_message || 'Download Failed';
+                        if (cancelBtn) cancelBtn.style.display = 'none';
+                    }
+                }
+            } catch (err) {
+                console.error('Error polling remote task:', err);
+            }
+            if (!isDone && !cancelRequested) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+        }
+        updateQueueSummary();
+    }
 
     const uploadModalEl = document.getElementById('uploadModal');
     if (uploadModalEl) {

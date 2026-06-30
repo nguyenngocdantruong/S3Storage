@@ -17,6 +17,9 @@ import threading
 import io
 import cv2
 from PIL import Image
+import uuid
+import yt_dlp
+import libtorrent as lt
 
 app = Flask(__name__)
 
@@ -160,6 +163,25 @@ class UploadedFile(db.Model):
 
     user = db.relationship('User', backref=db.backref('uploaded_files', lazy=True))
     connection = db.relationship('S3Connection', backref=db.backref('uploaded_files', lazy=True))
+
+class RemoteTask(db.Model):
+    id = db.Column(db.String(50), primary_key=True) # UUID
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    connection_id = db.Column(db.Integer, db.ForeignKey('s3_connection.id'), nullable=False)
+    bucket_name = db.Column(db.String(100), nullable=False)
+    prefix = db.Column(db.String(255), default='')
+    link = db.Column(db.Text, nullable=False)
+    link_type = db.Column(db.String(20)) # 'video', 'direct', 'torrent'
+    status = db.Column(db.String(20), default='pending') # 'pending', 'downloading', 'uploading', 'completed', 'failed'
+    progress = db.Column(db.Integer, default=0)
+    speed = db.Column(db.String(50), default='')
+    filename = db.Column(db.String(255), default='')
+    error_message = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('remote_tasks', lazy=True))
+    connection = db.relationship('S3Connection', backref=db.backref('remote_tasks', lazy=True))
+
 
 # Helper: Fix S3 URL for Mixed Content issues (HTTPS -> HTTPS)
 def fix_s3_url(url):
@@ -392,6 +414,16 @@ def log_action(actor_id, target_user_id, connection_name, bucket_name, action_ty
 with app.app_context():
     db_exists = os.path.exists(db_path)
     db.create_all()
+    # Migration: check if remote_task table exists, if not create all
+    try:
+        db.session.execute(db.text("SELECT id FROM remote_task LIMIT 1")).fetchone()
+    except Exception:
+        db.session.rollback()
+        try:
+            db.create_all()
+        except Exception as e:
+            print(f"Migration error for remote_task: {e}")
+
     # Migration: check if user table has quota_limit column
     try:
         db.session.execute(db.text("SELECT quota_limit FROM user LIMIT 1")).fetchone()
@@ -2981,6 +3013,337 @@ def delete_video_note(note_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+# --- Remote Link Download Background Handler and Routes ---
+
+def background_remote_download(app_to_use, task_id):
+    import time
+    import tempfile
+    import requests
+    from botocore.exceptions import ClientError
+    
+    with app_to_use.app_context():
+        task = db.session.get(RemoteTask, task_id)
+        if not task:
+            return
+        
+        conn = db.session.get(S3Connection, task.connection_id)
+        if not conn:
+            task.status = 'failed'
+            task.error_message = 'S3 Connection not found.'
+            db.session.commit()
+            return
+            
+        temp_dir = tempfile.gettempdir()
+        local_filename = None
+        
+        try:
+            task.status = 'downloading'
+            db.session.commit()
+            
+            # Phase 1: Download
+            if task.link_type == 'direct':
+                # Direct file download
+                r_head = requests.head(task.link, allow_redirects=True, timeout=15)
+                content_len = int(r_head.headers.get('content-length', 0))
+                
+                filename_header = r_head.headers.get('content-disposition', '')
+                if 'filename=' in filename_header:
+                    filename = filename_header.split('filename=')[-1].strip('"\'')
+                else:
+                    filename = task.link.split('/')[-1].split('?')[0]
+                
+                if not filename:
+                    filename = f"download_{int(time.time())}"
+                
+                filename_secured = secure_filename(filename)
+                task.filename = filename_secured
+                db.session.commit()
+                
+                local_filename = os.path.join(temp_dir, f"{task_id}_{filename_secured}")
+                
+                r = requests.get(task.link, stream=True, timeout=30)
+                r.raise_for_status()
+                
+                downloaded = 0
+                start_time = time.time()
+                
+                with open(local_filename, 'wb') as f:
+                    for chunk in r.iter_content(chunk_size=1024*1024):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            
+                            elapsed = time.time() - start_time
+                            speed_val = downloaded / (elapsed if elapsed > 0 else 0.001)
+                            speed_str = f"{round(speed_val / (1024*1024), 2)} MB/s" if speed_val > 1024*1024 else f"{round(speed_val / 1024, 1)} KB/s"
+                            
+                            pct = int((downloaded / content_len) * 100) if content_len > 0 else 50
+                            
+                            task.progress = min(pct, 99)
+                            task.speed = speed_str
+                            db.session.commit()
+                            
+            elif task.link_type == 'video':
+                # Video download via yt-dlp
+                def yt_progress_hook(d):
+                    if d['status'] == 'downloading':
+                        speed_val = d.get('speed', 0)
+                        if speed_val:
+                            speed_str = f"{round(speed_val / (1024*1024), 2)} MB/s" if speed_val > 1024*1024 else f"{round(speed_val / 1024, 1)} KB/s"
+                        else:
+                            speed_str = 'Calculating...'
+                        
+                        total_bytes = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
+                        downloaded = d.get('downloaded_bytes', 0)
+                        pct = int((downloaded / total_bytes) * 100) if total_bytes > 0 else 0
+                        
+                        task.progress = min(pct, 99)
+                        task.speed = speed_str
+                        db.session.commit()
+                        
+                outtmpl = os.path.join(temp_dir, f"{task_id}_%(title)s.%(ext)s")
+                ydl_opts = {
+                    'outtmpl': outtmpl,
+                    'progress_hooks': [yt_progress_hook],
+                    'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                    'quiet': True,
+                    'no_warnings': True
+                }
+                
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(task.link, download=True)
+                    temp_filepath = ydl.prepare_filename(info)
+                    
+                    if not os.path.exists(temp_filepath):
+                        files = os.listdir(temp_dir)
+                        matching = [f for f in files if f.startswith(task_id)]
+                        if matching:
+                            temp_filepath = os.path.join(temp_dir, matching[0])
+                        else:
+                            raise Exception("Could not find downloaded file.")
+                    
+                    local_filename = temp_filepath
+                    task.filename = os.path.basename(temp_filepath).replace(f"{task_id}_", "")
+                    db.session.commit()
+                    
+            elif task.link_type == 'torrent':
+                # Torrent download via libtorrent
+                ses = lt.session()
+                ses.listen_on(6881, 6891)
+                
+                if task.link.startswith('magnet:'):
+                    params = lt.parse_magnet_uri(task.link)
+                    params.save_path = temp_dir
+                    handle = ses.add_torrent(params)
+                    
+                    task.speed = "Downloading Metadata..."
+                    db.session.commit()
+                    
+                    while not handle.has_metadata():
+                        time.sleep(1)
+                        task_chk = db.session.get(RemoteTask, task_id)
+                        if not task_chk or task_chk.status == 'failed':
+                            return
+                else:
+                    r_torrent = requests.get(task.link, timeout=20)
+                    r_torrent.raise_for_status()
+                    info = lt.torrent_info(lt.bdecode(r_torrent.content))
+                    params = {
+                        'ti': info,
+                        'save_path': temp_dir
+                    }
+                    handle = ses.add_torrent(params)
+                
+                torrent_info = handle.get_torrent_info()
+                torrent_name = torrent_info.name()
+                task.filename = torrent_name
+                db.session.commit()
+                
+                while not handle.status().is_seeding:
+                    s = handle.status()
+                    pct = int(s.progress * 100)
+                    
+                    speed_val = s.download_rate
+                    speed_str = f"{round(speed_val / (1024*1024), 2)} MB/s" if speed_val > 1024*1024 else f"{round(speed_val / 1024, 1)} KB/s"
+                    
+                    task.progress = min(pct, 99)
+                    task.speed = speed_str
+                    db.session.commit()
+                    
+                    time.sleep(1.5)
+                    
+                    task_chk = db.session.get(RemoteTask, task_id)
+                    if not task_chk or task_chk.status == 'failed':
+                        return
+                
+                local_filename = os.path.join(temp_dir, torrent_name)
+                
+            else:
+                raise Exception(f"Unsupported link type: {task.link_type}")
+                
+            # Phase 2: Upload to S3
+            if not local_filename or not os.path.exists(local_filename):
+                raise Exception("Downloaded file not found on server.")
+                
+            task.status = 'uploading'
+            task.progress = 0
+            task.speed = 'Uploading to S3...'
+            db.session.commit()
+            
+            is_dir = os.path.isdir(local_filename)
+            endpoint_url = conn.upload_endpoint if (conn.upload_endpoint and conn.upload_endpoint.strip()) else conn.endpoint_url
+            s3 = get_s3_client(conn, endpoint_url=endpoint_url)
+            
+            def upload_file_to_s3(local_path, s3_key):
+                file_size = os.path.getsize(local_path)
+                
+                class ProgressPercentage(object):
+                    def __init__(self, filename):
+                        self._filename = filename
+                        self._size = file_size
+                        self._seen_so_far = 0
+                        self._lock = threading.Lock()
+                    def __call__(self, bytes_amount):
+                        with self._lock:
+                            self._seen_so_far += bytes_amount
+                            pct = int((self._seen_so_far / self._size) * 100) if self._size > 0 else 0
+                            task.progress = min(pct, 99)
+                            db.session.commit()
+                            
+                s3.upload_file(
+                    local_path,
+                    task.bucket_name,
+                    s3_key,
+                    Callback=ProgressPercentage(local_path)
+                )
+                
+                existing_upload = UploadedFile.query.filter_by(
+                    connection_id=conn.id,
+                    bucket_name=task.bucket_name,
+                    file_key=s3_key
+                ).first()
+                if existing_upload:
+                    existing_upload.user_id = task.user_id
+                    existing_upload.created_at = datetime.utcnow()
+                else:
+                    uploaded_file = UploadedFile(
+                        connection_id=conn.id,
+                        bucket_name=task.bucket_name,
+                        file_key=s3_key,
+                        user_id=task.user_id
+                    )
+                    db.session.add(uploaded_file)
+                db.session.commit()
+                
+                ext = s3_key.split('.')[-1].lower() if '.' in s3_key else ''
+                is_previewable = ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv']
+                if is_previewable:
+                    file_cat = 'image' if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] else 'video'
+                    try:
+                        threading.Thread(
+                            target=generate_and_cache_preview_task,
+                            args=(app_to_use, conn.id, task.bucket_name, s3_key, file_cat)
+                        ).start()
+                    except Exception:
+                        pass
+            
+            if is_dir:
+                uploaded_something = False
+                base_dir = os.path.dirname(local_filename)
+                for root, dirs, files in os.walk(local_filename):
+                    for file in files:
+                        full_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(full_path, base_dir).replace('\\', '/')
+                        s3_key = task.prefix + rel_path
+                        upload_file_to_s3(full_path, s3_key)
+                        uploaded_something = True
+                if not uploaded_something:
+                    raise Exception("No files found inside torrent directory to upload.")
+            else:
+                s3_key = task.prefix + task.filename
+                upload_file_to_s3(local_filename, s3_key)
+                
+            task.status = 'completed'
+            task.progress = 100
+            task.speed = ''
+            db.session.commit()
+            
+        except Exception as e:
+            task.status = 'failed'
+            task.error_message = str(e)
+            db.session.commit()
+            app_to_use.logger.error(f"Error in remote download task {task_id}: {e}\n{traceback.format_exc()}")
+            
+        finally:
+            if local_filename and os.path.exists(local_filename):
+                try:
+                    if os.path.isdir(local_filename):
+                        import shutil
+                        shutil.rmtree(local_filename)
+                    else:
+                        os.remove(local_filename)
+                except Exception as ex:
+                    print(f"Warning: Cleanup failed for {local_filename}: {ex}")
+
+@app.route('/connection/<connection_id>/bucket/<bucket_name>/remote-download', methods=['POST'])
+@login_required
+def remote_download(connection_id, bucket_name):
+    conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
+    if not check_bucket_edit_access(g.user, conn, bucket_name):
+        return jsonify({'status': 'error', 'message': 'Permission Denied.'}), 403
+
+    data = request.get_json() or {}
+    link = data.get('link', '').strip()
+    link_type = data.get('type', 'direct')
+    prefix = data.get('prefix', '')
+
+    if not link:
+        return jsonify({'status': 'error', 'message': 'Download link cannot be empty.'}), 400
+
+    task_id = str(uuid.uuid4())
+    task = RemoteTask(
+        id=task_id,
+        user_id=g.user.id,
+        connection_id=conn.id,
+        bucket_name=bucket_name,
+        prefix=prefix,
+        link=link,
+        link_type=link_type,
+        status='pending'
+    )
+    db.session.add(task)
+    db.session.commit()
+
+    from flask import current_app
+    threading.Thread(
+        target=background_remote_download,
+        args=(current_app._get_current_object(), task_id)
+    ).start()
+
+    return jsonify({
+        'status': 'success',
+        'task_id': task_id,
+        'message': 'Download started in background.'
+    })
+
+@app.route('/api/tasks/<task_id>', methods=['GET'])
+@login_required
+def get_task_status(task_id):
+    task = RemoteTask.query.filter_by(id=task_id, user_id=g.user.id).first_or_404()
+    return jsonify({
+        'status': 'success',
+        'task': {
+            'id': task.id,
+            'link_type': task.link_type,
+            'status': task.status,
+            'progress': task.progress,
+            'speed': task.speed,
+            'filename': task.filename or 'Preparing...',
+            'error_message': task.error_message
+        }
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=7090, debug=True)

@@ -1193,3 +1193,12 @@ input[type=number] {
     background: rgba(16, 185, 129, 0.4);
 }
 
+/* Modal Tab Button styles */
+.modal-tab-btn {
+    transition: all 0.2s ease;
+}
+.modal-tab-btn:hover {
+    color: #fff !important;
+}
+
+
