@@ -1233,9 +1233,9 @@ document.addEventListener('DOMContentLoaded', () => {
         item.className = 'preview-item';
         item.id = `widget-item-${taskId}`;
         
-        let typeIcon = 'fa-cloud-arrow-down';
-        if (type === 'video') typeIcon = 'fa-youtube';
-        else if (type === 'torrent') typeIcon = 'fa-magnet';
+        let typeIcon = 'fa-solid fa-cloud-arrow-down';
+        if (type === 'video') typeIcon = 'fa-brands fa-youtube';
+        else if (type === 'torrent') typeIcon = 'fa-solid fa-magnet';
         
         let displayLink = link;
         if (link.length > 50) {
@@ -1245,7 +1245,7 @@ document.addEventListener('DOMContentLoaded', () => {
         item.innerHTML = `
             <div class="preview-item-header" style="margin-bottom: 0.25rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
                 <span class="preview-item-name" style="font-size:0.8rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#fff; flex-grow:1;" id="widget-name-${taskId}" title="${link}">
-                    <i class="fa-solid ${typeIcon}" style="margin-right: 0.25rem; color: var(--accent-blue);"></i>${displayLink}
+                    <i class="${typeIcon}" style="margin-right: 0.25rem; color: var(--accent-blue);"></i>${displayLink}
                 </span>
                 <div style="display: flex; gap: 0.25rem; align-items: center;">
                     <button type="button" class="btn-control cancel-btn" id="cancel-btn-${taskId}" style="background:none; border:none; color:var(--accent-rose); cursor:pointer; padding:2px 4px; font-size:0.75rem;" title="Cancel"><i class="fa-solid fa-xmark"></i></button>
@@ -1309,8 +1309,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 displayName = displayName.substring(0, 32) + '...';
                             }
                             nameEl.title = task.filename;
-                            const typeIcon = task.link_type === 'video' ? 'fa-youtube' : (task.link_type === 'torrent' ? 'fa-magnet' : 'fa-file');
-                            nameEl.innerHTML = `<i class="fa-solid ${typeIcon}" style="margin-right: 0.25rem; color: var(--accent-blue);"></i>${displayName}`;
+                            const typeIcon = task.link_type === 'video' ? 'fa-brands fa-youtube' : (task.link_type === 'torrent' ? 'fa-solid fa-magnet' : 'fa-solid fa-file');
+                            nameEl.innerHTML = `<i class="${typeIcon}" style="margin-right: 0.25rem; color: var(--accent-blue);"></i>${displayName}`;
                         }
                     }
                     
