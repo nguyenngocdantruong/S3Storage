@@ -323,52 +323,6 @@ def check_bucket_edit_access(user, connection, bucket_name):
         return True
     return False
 
-def generate_and_cache_preview_task(app_to_use, connection_id, bucket_name, key, file_type):
-    import urllib.request
-    with app_to_use.app_context():
-        try:
-            conn = db.session.get(S3Connection, connection_id)
-            if not conn:
-                return
-            s3 = get_s3_client(conn)
-            
-            preview_bucket = 'preview-image'
-            try:
-                s3.head_bucket(Bucket=preview_bucket)
-            except ClientError as e:
-                # Bucket doesn't exist, create it
-                error_code = e.response.get('Error', {}).get('Code')
-                if error_code in ['404', 'NoSuchBucket']:
-                    kwargs = {'Bucket': preview_bucket}
-                    if conn.region_name and conn.region_name != 'us-east-1' and 'amazonaws.com' in conn.endpoint_url:
-                        kwargs['CreateBucketConfiguration'] = {'LocationConstraint': conn.region_name}
-                    s3.create_bucket(**kwargs)
-                    configure_bucket_cors(s3, preview_bucket)
-                else:
-                    app_to_use.logger.error(f"Error checking/creating preview bucket: {e}")
-                    return
-            
-            preview_key = f"{bucket_name}/{key}.jpg"
-            
-            if file_type == 'image':
-                response = s3.get_object(Bucket=bucket_name, Key=key)
-                img_data = response['Body'].read()
-                img = Image.open(io.BytesIO(img_data))
-                img.thumbnail((480, 480))
-                if img.mode != 'RGB':
-                    img = img.convert('RGB')
-                output = io.BytesIO()
-                img.save(output, format='JPEG', quality=85)
-                output.seek(0)
-                s3.put_object(
-                    Bucket=preview_bucket,
-                    Key=preview_key,
-                    Body=output,
-                    ContentType='image/jpeg'
-                )
-
-        except Exception as ex:
-            app_to_use.logger.error(f"Error in generate_and_cache_preview_task for connection {connection_id}, bucket {bucket_name}, key {key}: {ex}\n{traceback.format_exc()}")
 
 def log_action(actor_id, target_user_id, connection_name, bucket_name, action_type, details):
     try:
@@ -1319,18 +1273,6 @@ def multipart_complete(connection_id, bucket_name):
             )
             db.session.add(uploaded_file)
         db.session.commit()
-        
-        # Trigger background preview generation
-        ext = key.split('.')[-1].lower() if '.' in key else ''
-        is_previewable = ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv']
-        if is_previewable:
-            file_cat = 'image' if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] else 'video'
-            from flask import current_app
-            threading.Thread(
-                target=generate_and_cache_preview_task,
-                args=(current_app._get_current_object(), conn.id, bucket_name, key, file_cat)
-            ).start()
-        
         return jsonify({'status': 'success', 'size': actual_size})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -1481,18 +1423,6 @@ def confirm_upload(connection_id, bucket_name):
             )
             db.session.add(uploaded_file)
         db.session.commit()
-        
-        # Trigger background preview generation
-        ext = key.split('.')[-1].lower() if '.' in key else ''
-        is_previewable = ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv']
-        if is_previewable:
-            file_cat = 'image' if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] else 'video'
-            from flask import current_app
-            threading.Thread(
-                target=generate_and_cache_preview_task,
-                args=(current_app._get_current_object(), conn.id, bucket_name, key, file_cat)
-            ).start()
-        
         return jsonify({'status': 'success', 'size': actual_size})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
