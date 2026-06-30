@@ -414,6 +414,11 @@ def log_action(actor_id, target_user_id, connection_name, bucket_name, action_ty
 with app.app_context():
     db_exists = os.path.exists(db_path)
     db.create_all()
+    try:
+        db.session.execute(db.text("PRAGMA journal_mode=WAL;"))
+        db.session.commit()
+    except Exception as e:
+        print(f"Failed to set WAL mode: {e}")
     # Migration: check if remote_task table exists, if not create all
     try:
         db.session.execute(db.text("SELECT id FROM remote_task LIMIT 1")).fetchone()
@@ -3024,21 +3029,22 @@ def background_remote_download(app_to_use, task_id):
     from botocore.exceptions import ClientError
     
     with app_to_use.app_context():
-        task = db.session.get(RemoteTask, task_id)
-        if not task:
-            return
-        
-        conn = db.session.get(S3Connection, task.connection_id)
-        if not conn:
-            task.status = 'failed'
-            task.error_message = 'S3 Connection not found.'
-            db.session.commit()
-            return
-            
         temp_dir = tempfile.gettempdir()
         local_filename = None
+        task = None
         
         try:
+            task = db.session.get(RemoteTask, task_id)
+            if not task:
+                return
+            
+            conn = db.session.get(S3Connection, task.connection_id)
+            if not conn:
+                task.status = 'failed'
+                task.error_message = 'S3 Connection not found.'
+                db.session.commit()
+                return
+                
             task.status = 'downloading'
             db.session.commit()
             
@@ -3271,9 +3277,13 @@ def background_remote_download(app_to_use, task_id):
             db.session.commit()
             
         except Exception as e:
-            task.status = 'failed'
-            task.error_message = str(e)
-            db.session.commit()
+            if task:
+                task.status = 'failed'
+                task.error_message = str(e)
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
             app_to_use.logger.error(f"Error in remote download task {task_id}: {e}\n{traceback.format_exc()}")
             
         finally:
