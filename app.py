@@ -34,12 +34,43 @@ logging.getLogger('werkzeug').addHandler(file_handler)
 logging.getLogger().addHandler(file_handler)
 logging.getLogger().setLevel(logging.INFO)
 
+@app.errorhandler(400)
+def bad_request(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'status': 'error', 'message': 'Bad Request'}), 400
+    return render_template('error.html', code=400, title="Bad Request", message="The request could not be understood or is missing required parameters."), 400
+
+@app.errorhandler(403)
+def forbidden(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'status': 'error', 'message': 'Permission Denied'}), 403
+    return render_template('error.html', code=403, title="Forbidden", message="You do not have permission to access this resource."), 403
+
+@app.errorhandler(404)
+def page_not_found(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'status': 'error', 'message': 'Not Found'}), 404
+    return render_template('error.html', code=404, title="Page Not Found", message="The page or resource you are looking for does not exist or has been moved."), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'status': 'error', 'message': 'Internal Server Error'}), 500
+    return render_template('error.html', code=500, title="Internal Server Error", message="An unexpected error occurred on the server. Please try again later."), 500
+
 @app.errorhandler(Exception)
 def handle_exception(e):
     app.logger.error("System Exception: %s\n%s", str(e), traceback.format_exc())
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        if request.path.startswith('/api/'):
+            return jsonify({'status': 'error', 'message': e.description}), e.code
+        return render_template('error.html', code=e.code, title=e.name, message=e.description), e.code
+
     if request.path.startswith('/api/'):
         return jsonify({'status': 'error', 'message': str(e)}), 500
-    return e
+    return render_template('error.html', code=500, title="Internal Server Error", message="An unexpected error occurred. Please contact the administrator."), 500
+
 
 
 secret_key_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), '.secret_key')

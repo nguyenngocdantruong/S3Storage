@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ code }} - {{ title }} | S3 Storage</title>
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-secondary: rgba(20, 27, 45, 0.7);
+            --bg-card: rgba(30, 41, 67, 0.45);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --font-sans: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+            --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            
+            /* Status Colors */
+            --color-404: #3b82f6; /* Blue */
+            --color-403: #f59e0b; /* Amber */
+            --color-400: #eab308; /* Yellow */
+            --color-500: #ef4444; /* Red */
+            --color-default: #10b981; /* Emerald */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            overflow: hidden;
+        }
+
+        /* Ambient floating glow circles */
+        .ambient-glow {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: -1;
+            opacity: 0.6;
+            animation: pulse 8s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1) translate(0, 0); opacity: 0.4; }
+            100% { transform: scale(1.2) translate(20px, -20px); opacity: 0.7; }
+        }
+
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 520px;
+            padding: 3rem 2.5rem;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1;
+            animation: floatIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes floatIn {
+            0% {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .error-code {
+            font-size: 8rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.05em;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .error-icon-wrapper {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            font-size: 2.25rem;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .error-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+        }
+
+        .error-message {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            transition: var(--transition-smooth);
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .actions-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ambient glows tailored dynamically to the error code family -->
+    {% if code == 404 %}
+        <!-- Blue theme -->
+        <div class="ambient-glow" style="background: var(--color-404); top: 10%; left: 10%;"></div>
+        <div class="ambient-glow" style="background: #1e40af; bottom: 10%; right: 10%;"></div>
+    {% elif code in [400, 401, 403] %}
+        <!-- Amber theme -->
+        <div class="ambient-glow" style="background: var(--color-403); top: 10%; left: 10%;"></div>
+        <div class="ambient-glow" style="background: #b45309; bottom: 10%; right: 10%;"></div>
+    {% else %}
+        <!-- Red/Server Error theme -->
+        <div class="ambient-glow" style="background: var(--color-500); top: 10%; left: 10%;"></div>
+        <div class="ambient-glow" style="background: #991b1b; bottom: 10%; right: 10%;"></div>
+    {% endif %}
+
+    <div class="glass-card">
+        <!-- Icon logic -->
+        {% set icon = "fa-triangle-exclamation" %}
+        {% set accent_color = "var(--color-default)" %}
+        
+        {% if code == 404 %}
+            {% set icon = "fa-compass" %}
+            {% set accent_color = "var(--color-404)" %}
+        {% elif code == 403 %}
+            {% set icon = "fa-ban" %}
+            {% set accent_color = "var(--color-403)" %}
+        {% elif code == 400 %}
+            {% set icon = "fa-circle-xmark" %}
+            {% set accent_color = "var(--color-400)" %}
+        {% elif code == 500 or code > 500 %}
+            {% set icon = "fa-bug" %}
+            {% set accent_color = "var(--color-500)" %}
+        {% endif %}
+
+        <div class="error-icon-wrapper" style="background: rgba({{ '59, 130, 246' if code == 404 else '245, 158, 11' if code in [400, 403] else '239, 68, 68' }}, 0.15); color: {{ accent_color }};">
+            <i class="fa-solid {{ icon }}"></i>
+        </div>
+
+        <h1 class="error-code" style="background-image: linear-gradient(135deg, #ffffff, {{ accent_color }});">{{ code }}</h1>
+        <h2 class="error-title">{{ title }}</h2>
+        <p class="error-message">{{ message }}</p>
+
+        <div class="actions-group">
+            <a href="/" class="btn btn-primary">
+                <i class="fa-solid fa-house"></i> Go to Homepage
+            </a>
+            <button onclick="window.history.back()" class="btn btn-secondary">
+                <i class="fa-solid fa-arrow-left"></i> Go Back
+            </button>
+        </div>
+    </div>
+
+</body>
+</html>
