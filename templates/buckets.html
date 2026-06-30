@@ -166,6 +166,7 @@
                         <select id="general-access-select" class="general-access-select">
                             <option value="restricted">Hạn chế</option>
                             <option value="public_view">Bất kỳ ai đều có thể xem</option>
+                            <option value="public_upload">Bất kỳ ai cũng có thể tải lên</option>
                             <option value="public_edit">Bất kỳ ai đều có thể chỉnh sửa</option>
                         </select>
                     </div>
@@ -348,6 +349,10 @@ document.addEventListener('DOMContentLoaded', () => {
             generalDesc.textContent = 'Bất kỳ ai đã đăng nhập có đường liên kết đều có thể chỉnh sửa';
             generalIcon.className = 'general-access-icon public-edit';
             generalIcon.innerHTML = '<i class="fa-solid fa-earth-americas"></i>';
+        } else if (access === 'public_upload') {
+            generalDesc.textContent = 'Bất kỳ ai đã đăng nhập đều có thể xem và tải lên. Sửa/xóa chỉ thực hiện trên file của chính họ.';
+            generalIcon.className = 'general-access-icon public-upload';
+            generalIcon.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i>';
         } else {
             generalDesc.textContent = 'Chỉ những người có quyền truy cập mới có thể mở bằng đường liên kết này';
             generalIcon.className = 'general-access-icon';

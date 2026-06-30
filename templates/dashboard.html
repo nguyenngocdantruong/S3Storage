@@ -55,14 +55,25 @@
                 </div>
                 
                 <div style="font-size: 0.875rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem;">
-                    <div style="display: flex; gap: 0.5rem;">
-                        <i class="fa-solid fa-link" style="width: 16px;"></i>
-                        <span style="word-break: break-all;">{{ conn.endpoint_url or 'Default AWS S3' }}</span>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <i class="fa-solid fa-key" style="width: 16px;"></i>
-                        <span>{{ conn.access_key[:8] }}...</span>
-                    </div>
+                    {% if g.user.role == 'Admin' or conn.owner_id == g.user.id %}
+                        <div style="display: flex; gap: 0.5rem;">
+                            <i class="fa-solid fa-link" style="width: 16px;"></i>
+                            <span style="word-break: break-all;">{{ conn.endpoint_url or 'Default AWS S3' }}</span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <i class="fa-solid fa-key" style="width: 16px;"></i>
+                            <span>{{ conn.access_key[:8] }}...</span>
+                        </div>
+                    {% else %}
+                        <div style="display: flex; gap: 0.5rem;">
+                            <i class="fa-solid fa-user" style="width: 16px;"></i>
+                            <span>Người sở hữu: {{ conn.owner.name if conn.owner else 'Hệ thống' }}</span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <i class="fa-solid fa-calendar-days" style="width: 16px;"></i>
+                            <span>Ngày tạo: {{ conn.created_at.strftime('%d/%m/%Y') if conn.created_at else 'N/A' }}</span>
+                        </div>
+                    {% endif %}
                 </div>
                 
                 <a href="{{ url_for('view_connection', connection_id=conn.connection_id) }}" class="btn btn-secondary" style="width: 100%;">

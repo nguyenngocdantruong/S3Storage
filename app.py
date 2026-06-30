@@ -117,6 +117,9 @@ class S3Connection(db.Model):
     region_name = db.Column(db.String(100), default='us-east-1')
     upload_endpoint = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    owner = db.relationship('User', backref=db.backref('owned_connections', lazy=True))
 
     def __repr__(self):
         return f'<S3Connection {self.name}>'
@@ -281,7 +284,7 @@ def get_user_storage_used(user):
 def check_bucket_access(user, connection, bucket_name):
     # Check if bucket is public (Anyone with the link)
     mapping = UserBucket.query.filter_by(connection_id=connection.id, bucket_name=bucket_name).first()
-    if mapping and mapping.access_type in ['public', 'public_view', 'public_edit']:
+    if mapping and mapping.access_type in ['public', 'public_view', 'public_edit', 'public_upload']:
         return True
         
     if not user:
@@ -310,8 +313,8 @@ def check_bucket_edit_access(user, connection, bucket_name):
     mapping = UserBucket.query.filter_by(connection_id=connection.id, bucket_name=bucket_name).first()
     if mapping and mapping.user_id == user.id:
         return True
-    # If bucket general access is set to public_edit, any logged-in user can edit
-    if mapping and mapping.access_type == 'public_edit':
+    # If bucket general access is set to public_edit or public_upload, any logged-in user can edit/upload
+    if mapping and mapping.access_type in ['public_edit', 'public_upload']:
         return True
     # Check shared access mapping with role 'Editor'
     shared = BucketAccess.query.filter_by(
@@ -321,6 +324,51 @@ def check_bucket_edit_access(user, connection, bucket_name):
     ).first()
     if shared and shared.role == 'Editor':
         return True
+    return False
+
+def check_file_edit_access(user, connection, bucket_name, file_key):
+    if not user:
+        return False
+    if user.role == 'Admin':
+        return True
+    mapping = UserBucket.query.filter_by(connection_id=connection.id, bucket_name=bucket_name).first()
+    if mapping and mapping.user_id == user.id:
+        return True
+    if mapping and mapping.access_type == 'public_edit':
+        return True
+    
+    # Check shared access mapping with role 'Editor'
+    shared = BucketAccess.query.filter_by(
+        user_id=user.id,
+        connection_id=connection.id,
+        bucket_name=bucket_name
+    ).first()
+    if shared and shared.role == 'Editor':
+        return True
+        
+    if mapping and mapping.access_type == 'public_upload':
+        if not file_key:
+            return False
+        if file_key.endswith('/'):
+            # If checking access for a folder prefix, check if all uploaded files under this prefix belong to the user
+            uploaded_by_others = UploadedFile.query.filter(
+                UploadedFile.connection_id == connection.id,
+                UploadedFile.bucket_name == bucket_name,
+                UploadedFile.file_key.startswith(file_key),
+                UploadedFile.user_id != user.id
+            ).first()
+            if uploaded_by_others:
+                return False
+            return True
+        else:
+            uploaded_file = UploadedFile.query.filter_by(
+                connection_id=connection.id,
+                bucket_name=bucket_name,
+                file_key=file_key
+            ).first()
+            if uploaded_file:
+                return uploaded_file.user_id == user.id
+            return False
     return False
 
 
@@ -400,6 +448,24 @@ with app.app_context():
         except Exception as e:
             db.session.rollback()
             print(f"Migration error for upload_endpoint: {e}")
+
+    # Migration: check if s3_connection table has owner_id column
+    try:
+        db.session.execute(db.text("SELECT owner_id FROM s3_connection LIMIT 1")).fetchone()
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(db.text("ALTER TABLE s3_connection ADD COLUMN owner_id INTEGER REFERENCES user(id)"))
+            db.session.commit()
+            
+            # Default existing connections to the first admin
+            admin_user = User.query.filter_by(role='Admin').first()
+            if admin_user:
+                db.session.execute(db.text(f"UPDATE s3_connection SET owner_id = {admin_user.id}"))
+                db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Migration error for owner_id: {e}")
 
     # Migration: check if user_bucket table has access_type column
     try:
@@ -721,7 +787,8 @@ def add_connection():
             name=name, endpoint_url=endpoint_url,
             access_key=access_key, secret_key=secret_key,
             region_name=region_name,
-            upload_endpoint=upload_endpoint
+            upload_endpoint=upload_endpoint,
+            owner_id=g.user.id if g.user else None
         )
         s3 = get_s3_client(conn_temp)
         
@@ -850,7 +917,7 @@ def view_connection(connection_id):
                     mappings = UserBucket.query.filter_by(connection_id=conn.id, user_id=g.user.id).all()
                     shared = BucketAccess.query.filter_by(connection_id=conn.id, user_id=g.user.id).all()
                 else:
-                    mappings = UserBucket.query.filter_by(connection_id=conn.id).filter(UserBucket.access_type.in_(['public', 'public_view', 'public_edit'])).all()
+                    mappings = UserBucket.query.filter_by(connection_id=conn.id).filter(UserBucket.access_type.in_(['public', 'public_view', 'public_edit', 'public_upload'])).all()
                     shared = []
                 
                 mapped_names = set([m.bucket_name for m in mappings] + [s.bucket_name for s in shared])
@@ -991,7 +1058,7 @@ def browse_bucket(connection_id, bucket_name):
     direction = request.args.get('direction', 'asc')
     
     mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
-    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit', 'public_upload']
     
     # Require login if the bucket is not public
     if not is_public and g.user is None:
@@ -1566,6 +1633,9 @@ def rename_object(connection_id, bucket_name):
     old_key = data.get('old_key')
     new_name = data.get('new_name')
     
+    if not check_file_edit_access(g.user, conn, bucket_name, old_key):
+        return jsonify({'status': 'error', 'message': 'Permission Denied. Bạn chỉ có thể sửa file/thư mục do chính mình tải lên.'}), 403
+    
     if not old_key or not new_name:
         return jsonify({'status': 'error', 'message': 'Missing parameters.'}), 400
         
@@ -1666,6 +1736,14 @@ def rename_object(connection_id, bucket_name):
             ).first()
             if uploaded_file:
                 uploaded_file.file_key = new_key
+            else:
+                new_uf = UploadedFile(
+                    connection_id=conn.id,
+                    bucket_name=bucket_name,
+                    file_key=new_key,
+                    user_id=g.user.id if g.user else 1
+                )
+                db.session.add(new_uf)
                 
             progress_record = VideoProgress.query.filter_by(
                 connection_name=conn.name,
@@ -1704,12 +1782,16 @@ def delete_object(connection_id, bucket_name):
         flash('Permission Denied.', 'error')
         return redirect(url_for('browse_bucket', connection_id=connection_id, bucket_name=bucket_name, prefix=prefix))
         
-    mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
-    owner_id = mapping.user_id if mapping else None
-
     if not key:
         flash('No object key specified.', 'error')
         return redirect(url_for('browse_bucket', connection_id=connection_id, bucket_name=bucket_name, prefix=prefix))
+
+    if not check_file_edit_access(g.user, conn, bucket_name, key):
+        flash('Permission Denied. Bạn chỉ có thể xóa file/thư mục do chính mình tải lên.', 'error')
+        return redirect(url_for('browse_bucket', connection_id=connection_id, bucket_name=bucket_name, prefix=prefix))
+
+    mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
+    owner_id = mapping.user_id if mapping else None
 
     try:
         s3 = get_s3_client(conn)
@@ -1758,6 +1840,10 @@ def delete_objects_bulk(connection_id, bucket_name):
     if not keys:
         return jsonify({'status': 'error', 'message': 'No object keys specified.'}), 400
 
+    for key in keys:
+        if not check_file_edit_access(g.user, conn, bucket_name, key):
+            return jsonify({'status': 'error', 'message': 'Permission Denied. Bạn chỉ có thể xóa những file do chính mình tải lên.'}), 403
+
     try:
         s3 = get_s3_client(conn)
         objects_to_delete = [{'Key': key} for key in keys]
@@ -1792,7 +1878,7 @@ def view_file(connection_id, bucket_name):
     key = request.args.get('key')
     
     mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
-    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit', 'public_upload']
     
     if not is_public and g.user is None:
         flash('Please log in to continue.', 'error')
@@ -1896,7 +1982,7 @@ def proxy_s3_file(connection_id, bucket_name):
     key = request.args.get('key')
     
     mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
-    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit', 'public_upload']
     
     if not is_public and g.user is None:
         return "Authentication required", 401
@@ -1948,7 +2034,7 @@ def office_to_pdf(connection_id, bucket_name):
     key = request.args.get('key')
     
     mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
-    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit', 'public_upload']
     
     if not is_public and g.user is None:
         return "Authentication required", 401
@@ -2019,7 +2105,7 @@ def flv_to_mp4(connection_id, bucket_name):
     key = request.args.get('key')
     
     mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
-    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit', 'public_upload']
     
     if not is_public and g.user is None:
         return "Authentication required", 401
@@ -2212,7 +2298,7 @@ def flv_hls_playlist(connection_id, bucket_name):
     key = request.args.get('key')
     
     mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
-    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit', 'public_upload']
     
     if not is_public and g.user is None:
         return "Authentication required", 401
@@ -2303,7 +2389,7 @@ def flv_hls_segment(connection_id, bucket_name):
     duration = request.args.get('duration', type=float)
     
     mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
-    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit', 'public_upload']
     
     if not is_public and g.user is None:
         return "Authentication required", 401
@@ -2703,7 +2789,7 @@ def update_bucket_general_access():
     if not all([connection_id, bucket_name, access_type]):
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
         
-    if access_type not in ['restricted', 'public', 'public_view', 'public_edit']:
+    if access_type not in ['restricted', 'public', 'public_view', 'public_edit', 'public_upload']:
         return jsonify({'status': 'error', 'message': 'Invalid access type'}), 400
         
     conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
@@ -2737,7 +2823,7 @@ def api_bucket_files(connection_id, bucket_name):
     conn = S3Connection.query.filter_by(connection_id=connection_id).first_or_404()
     
     mapping = UserBucket.query.filter_by(connection_id=conn.id, bucket_name=bucket_name).first()
-    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit']
+    is_public = mapping and mapping.access_type in ['public', 'public_view', 'public_edit', 'public_upload']
     
     if not is_public and g.user is None:
         return jsonify({'status': 'error', 'message': 'Authentication required'}), 401
@@ -3057,6 +3143,11 @@ def paste_selected_items():
             src_conn = S3Connection.query.filter_by(connection_id=src_conn_id).first()
             if not src_conn:
                 continue
+                
+            if action == 'move':
+                if not check_file_edit_access(g.user, src_conn, src_bucket, src_key):
+                    return jsonify({'status': 'error', 'message': 'Permission Denied. Bạn chỉ có quyền di chuyển những file/thư mục do chính mình tải lên.'}), 403
+            
             src_s3 = get_s3_client(src_conn)
             
             # Skip if user tried pasting folder inside itself
@@ -3170,6 +3261,15 @@ def paste_single_file(src_conn, src_bucket, src_key, dest_conn, dest_bucket, des
             uf.connection_id = dest_conn.id
             uf.bucket_name = dest_bucket
             uf.file_key = dest_key
+        else:
+            # If the source file did not have uploader metadata, create one under current user
+            new_uf = UploadedFile(
+                connection_id=dest_conn.id,
+                bucket_name=dest_bucket,
+                file_key=dest_key,
+                user_id=g.user.id if g.user else 1
+            )
+            db.session.add(new_uf)
             
         # Update VideoProgress references
         vp = VideoProgress.query.filter_by(connection_name=src_conn.name, bucket_name=src_bucket, file_key=src_key).first()
@@ -3184,6 +3284,23 @@ def paste_single_file(src_conn, src_bucket, src_key, dest_conn, dest_bucket, des
             note.connection_name = dest_conn.name
             note.bucket_name = dest_bucket
             note.file_key = dest_key
+    else:
+        # Find the source file's uploader
+        src_uf = UploadedFile.query.filter_by(connection_id=src_conn.id, bucket_name=src_bucket, file_key=src_key).first()
+        creator_id = src_uf.user_id if src_uf else (g.user.id if g.user else 1)
+        
+        existing_uf = UploadedFile.query.filter_by(connection_id=dest_conn.id, bucket_name=dest_bucket, file_key=dest_key).first()
+        if existing_uf:
+            existing_uf.user_id = creator_id
+            existing_uf.created_at = datetime.utcnow()
+        else:
+            new_uf = UploadedFile(
+                connection_id=dest_conn.id,
+                bucket_name=dest_bucket,
+                file_key=dest_key,
+                user_id=creator_id
+            )
+            db.session.add(new_uf)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=7090, debug=True)
