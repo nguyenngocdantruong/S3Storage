@@ -3727,15 +3727,29 @@ def check_existing_files(connection_id, bucket_name):
     data = request.get_json() or {}
     keys = data.get('keys', [])
     
-    existing_keys = []
     if not keys:
         return jsonify({'status': 'success', 'existing': []})
         
     try:
         s3 = get_s3_client(conn)
+        
+        # Extract unique folder prefixes from keys
+        prefixes = set()
         for key in keys:
-            if s3_key_exists(s3, bucket_name, key):
-                existing_keys.append(key)
+            last_slash = key.rfind('/')
+            prefix = key[:last_slash + 1] if last_slash != -1 else ''
+            prefixes.add(prefix)
+            
+        # Bulk query directories on S3
+        existing_set = set()
+        for prefix in prefixes:
+            paginator = s3.get_paginator('list_objects_v2')
+            page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter='/')
+            for page in page_iterator:
+                for obj in page.get('Contents', []):
+                    existing_set.add(obj['Key'])
+                    
+        existing_keys = [key for key in keys if key in existing_set]
         return jsonify({'status': 'success', 'existing': existing_keys})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -3756,9 +3770,26 @@ def resolve_unique_keys(connection_id, bucket_name):
         
     try:
         s3 = get_s3_client(conn)
+        
+        # Extract unique folder prefixes
+        prefixes = set()
+        for key in keys:
+            last_slash = key.rfind('/')
+            prefix = key[:last_slash + 1] if last_slash != -1 else ''
+            prefixes.add(prefix)
+            
+        # Bulk query directories on S3
+        existing_set = set()
+        for prefix in prefixes:
+            paginator = s3.get_paginator('list_objects_v2')
+            page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter='/')
+            for page in page_iterator:
+                for obj in page.get('Contents', []):
+                    existing_set.add(obj['Key'])
+                    
         for key in keys:
             resolved_key = key
-            if s3_key_exists(s3, bucket_name, key):
+            if key in existing_set:
                 is_dir = key.endswith('/')
                 if is_dir:
                     base = key.rstrip('/')
@@ -3768,8 +3799,9 @@ def resolve_unique_keys(connection_id, bucket_name):
                 counter = 1
                 while True:
                     candidate = f"{base}_{counter}{ext}"
-                    if not s3_key_exists(s3, bucket_name, candidate):
+                    if candidate not in existing_set:
                         resolved_key = candidate
+                        existing_set.add(candidate)  # Add resolved key to local set to prevent batch conflicts
                         break
                     counter += 1
             resolved[key] = resolved_key
