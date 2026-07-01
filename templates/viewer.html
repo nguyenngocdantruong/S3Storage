@@ -463,7 +463,7 @@
 <div class="breadcrumbs">
     <a href="/">Dashboard</a>
     <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
-    <a href="{{ url_for('view_connection', connection_id=connection.connection_id) }}">{{ connection.name }}</a>
+    <a href="{{ url_for('connections.view_connection', connection_id=connection.connection_id) }}">{{ connection.name }}</a>
     <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
     {% set prefix = '/'.join(key.split('/')[:-1]) %}
     {% if prefix %}
@@ -472,7 +472,7 @@
     {% set prefix_param = '' %}
     {% endif %}
     <a
-        href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix_param) }}">{{
+        href="{{ url_for('buckets.browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix_param) }}">{{
         bucket_name }}</a>
     <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
     <span>{{ filename }}</span>
@@ -528,7 +528,7 @@
             {% if file_type == 'video' %}
             <div class="media-viewer" style="position: relative;">
                 {% if filename.lower().endswith('.flv') or key.lower().endswith('.flv') %}
-                {% set flv_hls_url = url_for('flv_hls_playlist', connection_id=connection.connection_id,
+                {% set flv_hls_url = url_for('viewer.flv_hls_playlist', connection_id=connection.connection_id,
                 bucket_name=bucket_name, key=key) %}
                 <video id="tracked-video" data-hls="true" data-src="{{ flv_hls_url }}" controls autoplay
                     style="width: 100%; height: 100%; object-fit: contain;"></video>
@@ -1072,7 +1072,7 @@
             const item = document.createElement('a');
             item.className = 'sidebar-file-item' + (file.key === currentKey ? ' active' : '');
 
-            const url = `{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}?key=${encodeURIComponent(file.key)}`;
+            const url = `{{ url_for('viewer.view_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}?key=${encodeURIComponent(file.key)}`;
             item.href = url;
 
             let progressHtml = '';
@@ -1156,7 +1156,7 @@
             const item = document.createElement('a');
             item.className = 'sidebar-file-item' + (file.key === currentKey ? ' active' : '');
 
-            const url = `{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}?key=${encodeURIComponent(file.key)}`;
+            const url = `{{ url_for('viewer.view_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}?key=${encodeURIComponent(file.key)}`;
             item.href = url;
 
             let progressHtml = '';
@@ -1246,7 +1246,7 @@
         const currentIndex = window.sidebarFiles.findIndex(f => f.key === currentKey);
         if (currentIndex !== -1 && currentIndex < window.sidebarFiles.length - 1) {
             const nextFile = window.sidebarFiles[currentIndex + 1];
-            const url = `{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}?key=${encodeURIComponent(nextFile.key)}`;
+            const url = `{{ url_for('viewer.view_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}?key=${encodeURIComponent(nextFile.key)}`;
             window.location.href = url;
         }
     }
@@ -1562,7 +1562,7 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
         {% if file_type in ['powerpoint', 'docx'] %}
-        const pdfUrl = "{{ url_for('office_to_pdf', connection_id=connection.connection_id, bucket_name=bucket_name, key=key) | safe }}";
+        const pdfUrl = "{{ url_for('viewer.office_to_pdf', connection_id=connection.connection_id, bucket_name=bucket_name, key=key) | safe }}";
         {% else %}
         const pdfUrl = "{{ presigned_url | safe }}";
         {% endif %}
@@ -1671,7 +1671,7 @@
             if (page === pdfLastSavedPage) return;
             pdfLastSavedPage = page;
 
-            fetch("{{ url_for('update_video_progress') }}", {
+            fetch("{{ url_for('progress.update_video_progress') }}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1885,7 +1885,7 @@
 
             if (Math.abs(timeToSave - lastSavedTime) >= 1 || timeToSave === duration) {
                 lastSavedTime = timeToSave;
-                fetch("{{ url_for('update_video_progress') }}", {
+                fetch("{{ url_for('progress.update_video_progress') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -2235,7 +2235,7 @@
                 const statusEl = document.getElementById('sub-status');
                 if (statusEl) statusEl.style.display = 'block';
 
-                const proxyUrl = `{{ url_for('proxy_s3_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}?key=${encodeURIComponent(selectedKey)}`;
+                const proxyUrl = `{{ url_for('viewer.proxy_s3_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}?key=${encodeURIComponent(selectedKey)}`;
 
                 fetch(proxyUrl)
                     .then(res => {
@@ -2480,7 +2480,7 @@
                 btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
 
                 try {
-                    const response = await fetch("{{ url_for('save_text_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                    const response = await fetch("{{ url_for('files.save_text_file', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'

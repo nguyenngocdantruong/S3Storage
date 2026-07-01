@@ -16,7 +16,7 @@
 </div>
 
 <div class="glass-card" style="margin-bottom: 2rem; padding: 1.5rem;">
-    <form action="{{ url_for('global_search') }}" method="GET" style="display: flex; gap: 1rem; align-items: center; width: 100%;">
+    <form action="{{ url_for('main.global_search') }}" method="GET" style="display: flex; gap: 1rem; align-items: center; width: 100%;">
         <div style="flex-grow: 1; position: relative;">
             <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
             <input type="text" name="q" class="form-control" placeholder="Enter file name to search..." value="{{ query or '' }}" required style="padding-left: 2.75rem;">
@@ -97,15 +97,15 @@
                             </td>
                             <td style="text-align: right;">
                                 <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
-                                    <a href="{{ url_for('proxy_s3_file', connection_id=item.connection.connection_id, bucket_name=item.bucket_name) }}?key={{ item.file_key | urlencode }}" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" download title="Download">
+                                    <a href="{{ url_for('viewer.proxy_s3_file', connection_id=item.connection.connection_id, bucket_name=item.bucket_name) }}?key={{ item.file_key | urlencode }}" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" download title="Download">
                                         <i class="fa-solid fa-download"></i>
                                     </a>
                                     {% set last_slash = item.file_key.rfind('/') %}
                                     {% set folder_prefix = item.file_key[:last_slash + 1] if last_slash != -1 else '' %}
-                                    <a href="{{ url_for('browse_bucket', connection_id=item.connection.connection_id, bucket_name=item.bucket_name) }}?prefix={{ folder_prefix | urlencode }}" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Browse Folder">
+                                    <a href="{{ url_for('buckets.browse_bucket', connection_id=item.connection.connection_id, bucket_name=item.bucket_name) }}?prefix={{ folder_prefix | urlencode }}" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Browse Folder">
                                         <i class="fa-solid fa-folder-open"></i> Folder
                                     </a>
-                                    <a href="{{ url_for('view_file', connection_id=item.connection.connection_id, bucket_name=item.bucket_name) }}?key={{ item.file_key | urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">
+                                    <a href="{{ url_for('viewer.view_file', connection_id=item.connection.connection_id, bucket_name=item.bucket_name) }}?key={{ item.file_key | urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">
                                         <i class="fa-solid fa-play"></i> View
                                     </a>
                                 </div>
@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
             syncBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing index...';
             
             try {
-                const response = await fetch("{{ url_for('sync_search_index') }}", {
+                const response = await fetch("{{ url_for('main.sync_search_index') }}", {
                     method: 'POST',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'

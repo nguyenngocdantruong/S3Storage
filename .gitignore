@@ -156,7 +156,12 @@ cython_debug/
 # Project database
 s3player.db
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
+
+# Local tooling
+.serena/
 
 # Application Configuration
 config.conf

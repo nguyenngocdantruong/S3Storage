@@ -7,7 +7,7 @@
 <div class="breadcrumbs">
     <a href="/">Dashboard</a>
     <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
-    <a href="{{ url_for('view_connection', connection_id=connection.connection_id) }}">{{ connection.name }}</a>
+    <a href="{{ url_for('connections.view_connection', connection_id=connection.connection_id) }}">{{ connection.name }}</a>
     <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
     <span>{{ bucket_name }}</span>
 </div>
@@ -21,13 +21,13 @@
         </h1>
         <p style="color: var(--text-secondary); margin-top: 0.25rem; display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap;">
             <span>Path:</span>
-            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix='', sort=sort_by, direction=direction) }}" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">Root</a>
+            <a href="{{ url_for('buckets.browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix='', sort=sort_by, direction=direction) }}" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">Root</a>
             {% if prefix %}
                 {% set accum = namespace(path='') %}
                 {% for part in prefix.rstrip('/').split('/') %}
                     {% set accum.path = accum.path + part + '/' %}
                     <span style="color: var(--text-muted); font-size: 0.8rem;">/</span>
-                    <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=accum.path, sort=sort_by, direction=direction) }}" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">{{ part }}</a>
+                    <a href="{{ url_for('buckets.browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=accum.path, sort=sort_by, direction=direction) }}" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">{{ part }}</a>
                 {% endfor %}
             {% endif %}
         </p>
@@ -41,7 +41,7 @@
             {% else %}
                 {% set parent_prefix = '' %}
             {% endif %}
-            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=parent_prefix, sort=sort_by, direction=direction) }}" class="btn btn-secondary">
+            <a href="{{ url_for('buckets.browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=parent_prefix, sort=sort_by, direction=direction) }}" class="btn btn-secondary">
                 <i class="fa-solid fa-arrow-left"></i> Up one folder
             </a>
         {% endif %}
@@ -109,7 +109,7 @@
                             <th style="width: 45px; text-align: center;"><input type="checkbox" id="select-all-files" style="cursor: pointer;"></th>
                         {% endif %}
                         <th>
-                            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix, sort='name', direction='desc' if sort_by == 'name' and direction == 'asc' else 'asc') }}" style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem;">
+                            <a href="{{ url_for('buckets.browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix, sort='name', direction='desc' if sort_by == 'name' and direction == 'asc' else 'asc') }}" style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem;">
                                 Name
                                 {% if sort_by == 'name' %}
                                     <i class="fa-solid fa-sort-{{ 'up' if direction == 'asc' else 'down' }}"></i>
@@ -119,7 +119,7 @@
                             </a>
                         </th>
                         <th>
-                            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix, sort='size', direction='desc' if sort_by == 'size' and direction == 'asc' else 'asc') }}" style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem;">
+                            <a href="{{ url_for('buckets.browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix, sort='size', direction='desc' if sort_by == 'size' and direction == 'asc' else 'asc') }}" style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem;">
                                 Size
                                 {% if sort_by == 'size' %}
                                     <i class="fa-solid fa-sort-{{ 'up' if direction == 'asc' else 'down' }}"></i>
@@ -131,7 +131,7 @@
                         <th>Progress</th>
                         <th>Created by</th>
                         <th>
-                            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix, sort='last_modified', direction='desc' if sort_by == 'last_modified' and direction == 'asc' else 'asc') }}" style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem;">
+                            <a href="{{ url_for('buckets.browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=prefix, sort='last_modified', direction='desc' if sort_by == 'last_modified' and direction == 'asc' else 'asc') }}" style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem;">
                                 Last Modified
                                 {% if sort_by == 'last_modified' %}
                                     <i class="fa-solid fa-sort-{{ 'up' if direction == 'asc' else 'down' }}"></i>
@@ -154,7 +154,7 @@
                                 </td>
                             {% endif %}
                             <td>
-                                <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="file-item-name">
+                                <a href="{{ url_for('buckets.browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="file-item-name">
                                     <i class="fa-solid fa-folder file-icon folder"></i>
                                     {{ folder_name }}
                                 </a>
@@ -168,7 +168,7 @@
                                     <button class="btn btn-secondary btn-like-item" data-key="{{ folder }}" style="padding: 0.35rem 0.6rem; border-radius: var(--radius-md); font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.25rem; background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.2); color: #fda4af;" title="Like Folder">
                                         <i class="fa-solid fa-heart"></i> <span class="like-count-display" data-key="{{ folder }}">{{ likes_map.get(folder, 0) }}</span>
                                     </button>
-                                    <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
+                                    <a href="{{ url_for('buckets.browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
                                         Open
                                     </a>
                                     {% if can_edit %}
@@ -204,7 +204,7 @@
                                 </td>
                             {% endif %}
                             <td>
-                                <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="file-item-name" title="{{ file.name }}">
+                                <a href="{{ url_for('viewer.view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="file-item-name" title="{{ file.name }}">
                                     {% if ext in ['mp4', 'webm', 'ogg', 'mkv', 'mov', 'flv'] %}
                                         <i class="fa-solid fa-film file-icon video"></i>
                                     {% elif ext in ['mp3', 'wav', 'aac', 'flac'] %}
@@ -265,11 +265,11 @@
                                         <i class="fa-solid fa-heart"></i> <span class="like-count-display" data-key="{{ file.key }}">{{ likes_map.get(file.key, 0) }}</span>
                                     </button>
                                     {% if is_viewable %}
-                                        <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem; border-radius: var(--radius-md); background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); color: #93c5fd;" title="Play/View">
+                                        <a href="{{ url_for('viewer.view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem; border-radius: var(--radius-md); background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); color: #93c5fd;" title="Play/View">
                                             <i class="fa-solid fa-play"></i>
                                         </a>
                                     {% else %}
-                                        <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem; border-radius: var(--radius-md);" title="Download">
+                                        <a href="{{ url_for('viewer.view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem; border-radius: var(--radius-md);" title="Download">
                                             <i class="fa-solid fa-download"></i>
                                         </a>
                                     {% endif %}
@@ -277,7 +277,7 @@
                                         <button class="btn btn-secondary btn-rename" style="padding: 0.35rem; border-radius: var(--radius-md);" data-key="{{ file.key }}" data-name="{{ file.name }}" title="Rename File">
                                             <i class="fa-solid fa-pen-to-square"></i>
                                         </button>
-                                        <form action="{{ url_for('delete_object', connection_id=connection.connection_id, bucket_name=bucket_name) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete &quot;{{ file.name }}&quot;?');" style="display: inline;">
+                                        <form action="{{ url_for('files.delete_object', connection_id=connection.connection_id, bucket_name=bucket_name) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete &quot;{{ file.name }}&quot;?');" style="display: inline;">
                                             <input type="hidden" name="key" value="{{ file.key }}">
                                             <input type="hidden" name="prefix" value="{{ prefix }}">
                                             <button class="btn btn-danger" style="padding: 0.35rem; border-radius: var(--radius-md);" title="Delete File">
@@ -306,7 +306,7 @@
                         <i class="fa-solid fa-folder grid-card-icon folder" style="color: #fbbf24;"></i>
                     </div>
                     <div class="grid-card-info">
-                        <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="grid-card-name" title="{{ folder_name }}">
+                        <a href="{{ url_for('buckets.browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="grid-card-name" title="{{ folder_name }}">
                             {{ folder_name }}
                         </a>
                         <div class="grid-card-meta">
@@ -316,7 +316,7 @@
                             <button class="btn btn-secondary btn-like-item" data-key="{{ folder }}" style="padding: 0.35rem 0.6rem; border-radius: var(--radius-md); font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.25rem; background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.2); color: #fda4af; margin-right: auto;" title="Like Folder">
                                 <i class="fa-solid fa-heart"></i> <span class="like-count-display" data-key="{{ folder }}">{{ likes_map.get(folder, 0) }}</span>
                             </button>
-                            <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
+                            <a href="{{ url_for('buckets.browse_bucket', connection_id=connection.connection_id, bucket_name=bucket_name, prefix=folder, sort=sort_by, direction=direction) }}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
                                 Open
                             </a>
                             {% if can_edit %}
@@ -377,7 +377,7 @@
                     </div>
                     
                     <div class="grid-card-info">
-                        <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="grid-card-name" title="{{ file.name }}">
+                        <a href="{{ url_for('viewer.view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="grid-card-name" title="{{ file.name }}">
                             {{ file.name }}
                         </a>
                         <div class="grid-card-meta">
@@ -409,11 +409,11 @@
                                 <i class="fa-solid fa-heart"></i> <span class="like-count-display" data-key="{{ file.key }}">{{ likes_map.get(file.key, 0) }}</span>
                             </button>
                             {% if is_viewable %}
-                                <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem; border-radius: var(--radius-md); background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); color: #93c5fd;" title="Play/View">
+                                <a href="{{ url_for('viewer.view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem; border-radius: var(--radius-md); background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); color: #93c5fd;" title="Play/View">
                                     <i class="fa-solid fa-play"></i>
                                 </a>
                             {% else %}
-                                <a href="{{ url_for('view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem; border-radius: var(--radius-md);" title="Download">
+                                <a href="{{ url_for('viewer.view_file', connection_id=connection.connection_id, bucket_name=bucket_name, key=file.key) }}" class="btn btn-secondary" style="padding: 0.35rem; border-radius: var(--radius-md);" title="Download">
                                     <i class="fa-solid fa-download"></i>
                                 </a>
                             {% endif %}
@@ -421,7 +421,7 @@
                                 <button class="btn btn-secondary btn-rename" style="padding: 0.35rem; border-radius: var(--radius-md);" data-key="{{ file.key }}" data-name="{{ file.name }}" title="Rename File">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                 </button>
-                                <form action="{{ url_for('delete_object', connection_id=connection.connection_id, bucket_name=bucket_name) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete &quot;{{ file.name }}&quot;?');" style="display: inline;">
+                                <form action="{{ url_for('files.delete_object', connection_id=connection.connection_id, bucket_name=bucket_name) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete &quot;{{ file.name }}&quot;?');" style="display: inline;">
                                     <input type="hidden" name="key" value="{{ file.key }}">
                                     <input type="hidden" name="prefix" value="{{ prefix }}">
                                     <button class="btn btn-danger" style="padding: 0.35rem; border-radius: var(--radius-md);" title="Delete File">
@@ -1006,7 +1006,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (state.uploadId && state.key) {
                     try {
-                        fetch("{{ url_for('multipart_abort', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                        fetch("{{ url_for('files.multipart_abort', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ uploadId: state.uploadId, key: state.key })
@@ -1041,7 +1041,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusEl.textContent = 'Initiating...';
                 const uploadName = file.customName || file.relativePath || file.name;
                 
-                const initRes = await fetch("{{ url_for('multipart_initiate', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                const initRes = await fetch("{{ url_for('files.multipart_initiate', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1067,7 +1067,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const endByte = Math.min(file.size, startByte + CHUNK_SIZE);
                 const chunkBlob = file.slice(startByte, endByte);
                 
-                const presignRes = await fetch("{{ url_for('multipart_presign_part', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                const presignRes = await fetch("{{ url_for('files.multipart_presign_part', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ uploadId: state.uploadId, key: state.key, partNumber: partNumber })
@@ -1181,7 +1181,7 @@ document.addEventListener('DOMContentLoaded', () => {
             pauseBtn.style.display = 'none';
             cancelBtn.style.display = 'none';
             
-            const completeRes = await fetch("{{ url_for('multipart_complete', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+            const completeRes = await fetch("{{ url_for('files.multipart_complete', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ uploadId: state.uploadId, key: state.key, parts: state.parts })
@@ -1211,7 +1211,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cancelBtn.style.display = 'none';
             if (state.uploadId && state.key) {
                 try {
-                    fetch("{{ url_for('multipart_abort', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                    fetch("{{ url_for('files.multipart_abort', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ uploadId: state.uploadId, key: state.key })
@@ -1837,7 +1837,7 @@ document.addEventListener('DOMContentLoaded', () => {
             submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Renaming...';
 
             try {
-                const response = await fetch("{{ url_for('rename_object', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                const response = await fetch("{{ url_for('files.rename_object', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ old_key: oldKey, new_name: newName })
@@ -1869,7 +1869,7 @@ document.addEventListener('DOMContentLoaded', () => {
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating...';
             try {
-                const response = await fetch("{{ url_for('create_folder', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+                const response = await fetch("{{ url_for('files.create_folder', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ folder_name: folderName, prefix: "{{ prefix }}" })
@@ -1909,7 +1909,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bulkDeleteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
 
         try {
-            const response = await fetch("{{ url_for('delete_objects_bulk', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
+            const response = await fetch("{{ url_for('files.delete_objects_bulk', connection_id=connection.connection_id, bucket_name=bucket_name) }}", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ keys: keys })
@@ -2323,7 +2323,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     const destConnectionId = "{{ connection.connection_id }}";
                     const destBucketName = "{{ bucket_name }}";
-                    const response = await fetch(`/connection/${destConnectionId}/bucket/${destBucketName}/download-zip`, {
+                    const response = await fetch(`{{ url_for('files.download_zip', connection_id='__CID__', bucket_name='__BID__') }}`.replace('__CID__', destConnectionId).replace('__BID__', destBucketName), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ items: items })

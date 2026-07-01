@@ -18,7 +18,7 @@
             Grant Access Permission
         </h3>
         
-        <form action="{{ url_for('bucket_access_grant') }}" method="POST">
+        <form action="{{ url_for('admin.bucket_access_grant') }}" method="POST">
             <div class="form-group">
                 <label for="user_id">Select User</label>
                 <select name="user_id" id="user_id" class="form-control" required style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--glass-border); color: #fff;">
@@ -87,7 +87,7 @@
                                     {{ access.created_at.strftime('%Y-%m-%d %H:%M') }}
                                 </td>
                                 <td style="text-align: right;">
-                                    <form action="{{ url_for('bucket_access_revoke', access_id=access.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Bạn có chắc muốn thu hồi quyền truy cập bucket {{ access.bucket_name }} của {{ access.user.name }}?');">
+                                    <form action="{{ url_for('admin.bucket_access_revoke', access_id=access.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Bạn có chắc muốn thu hồi quyền truy cập bucket {{ access.bucket_name }} của {{ access.user.name }}?');">
                                         <button type="submit" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-color: rgba(239, 68, 68, 0.3); color: #f87171; min-height: auto;">
                                             <i class="fa-solid fa-ban" style="margin-right: 0.25rem;"></i> Revoke
                                         </button>

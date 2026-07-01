@@ -36,7 +36,7 @@
                     {% for bucket in buckets %}
                         <tr>
                             <td>
-                                <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket.Name) }}" style="display: flex; align-items: center; gap: 0.75rem; color: #fff; text-decoration: none; font-weight: 500;">
+                                <a href="{{ url_for('buckets.browse_bucket', connection_id=connection.connection_id, bucket_name=bucket.Name) }}" style="display: flex; align-items: center; gap: 0.75rem; color: #fff; text-decoration: none; font-weight: 500;">
                                     <i class="fa-solid fa-bucket" style="color: var(--accent-blue); font-size: 1.25rem;"></i>
                                     {{ bucket.Name }}
                                 </a>
@@ -69,7 +69,7 @@
                             </td>
                             <td style="text-align: right;">
                                 <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
-                                    <a href="{{ url_for('browse_bucket', connection_id=connection.connection_id, bucket_name=bucket.Name) }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                                    <a href="{{ url_for('buckets.browse_bucket', connection_id=connection.connection_id, bucket_name=bucket.Name) }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
                                         <i class="fa-solid fa-folder-open"></i> Browse
                                     </a>
                                     {% if g.user.role == 'Admin' or (bucket.owner and bucket.owner.id == g.user.id) %}
@@ -80,7 +80,7 @@
                                                 title="Share Bucket">
                                             <i class="fa-solid fa-share-nodes"></i>
                                         </button>
-                                        <form action="{{ url_for('delete_bucket', connection_id=connection.connection_id, bucket_name=bucket.Name) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete the bucket &quot;{{ bucket.Name }}&quot;?');" style="display: inline;">
+                                        <form action="{{ url_for('buckets.delete_bucket', connection_id=connection.connection_id, bucket_name=bucket.Name) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete the bucket &quot;{{ bucket.Name }}&quot;?');" style="display: inline;">
                                             <button class="btn btn-danger" style="padding: 0.5rem; border-radius: var(--radius-md);" title="Delete Bucket">
                                                 <i class="fa-solid fa-trash-can"></i>
                                             </button>
@@ -115,7 +115,7 @@
             <button onclick="closeModal('createBucketModal')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
         </h2>
         
-        <form action="{{ url_for('create_bucket', connection_id=connection.connection_id) }}" method="POST">
+        <form action="{{ url_for('buckets.create_bucket', connection_id=connection.connection_id) }}" method="POST">
             <div class="form-group">
                 <label for="bucket_name">Bucket Name (Lowercase, numbers, and hyphens only)</label>
                 <input type="text" id="bucket_name" name="bucket_name" class="form-control" placeholder="my-new-media-bucket" pattern="[a-z0-9.-]+" required>
