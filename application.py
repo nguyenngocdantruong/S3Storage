@@ -65,7 +65,7 @@ def get_bucket_size(s3_client, bucket_name):
 
 
 
-def create_app():
+def create_app(test_config=None):
     app = Flask(__name__)
     project_root = os.path.abspath(os.path.dirname(__file__))
 
@@ -83,6 +83,9 @@ def create_app():
     logging.getLogger().setLevel(logging.INFO)
 
     Config(project_root).apply(app)
+    if test_config:
+        app.config.update(test_config)
+        
     db.init_app(app)
 
     @app.errorhandler(400)
@@ -113,6 +116,39 @@ def create_app():
     def handle_exception(e):
         app.logger.error('System Exception: %s\n%s', str(e), traceback.format_exc())
         from werkzeug.exceptions import HTTPException
+        
+        # Log unexpected system exceptions to AuditLog
+        is_http_exception = isinstance(e, HTTPException)
+        if not is_http_exception or (hasattr(e, 'code') and e.code and e.code >= 500):
+            try:
+                from flask import g
+                from extensions import db
+                from infrastructure.persistence.models import User
+                from use_cases.audit import log_action
+                
+                actor_id = None
+                if hasattr(g, 'user') and g.user:
+                    actor_id = g.user.id
+                else:
+                    # Fallback to the first available user to satisfy foreign key constraint
+                    first_user = db.session.query(User.id).first()
+                    if first_user:
+                        actor_id = first_user[0]
+                
+                if actor_id is not None:
+                    tb = traceback.format_exc()
+                    log_action(
+                        actor_id=actor_id,
+                        target_user_id=None,
+                        connection_name=None,
+                        bucket_name=None,
+                        action_type='EXCEPTION',
+                        details=f"System Exception: {str(e)}\n\n{tb}",
+                        db_session=db.session
+                    )
+            except Exception as log_ex:
+                app.logger.error('Failed to log exception to database: %s', str(log_ex))
+
         if isinstance(e, HTTPException):
             if request.path.startswith('/api/'):
                 return jsonify({'status': 'error', 'message': e.description}), e.code

@@ -114,6 +114,25 @@
                     </p>
                 </div>
             </div>
+            
+            <div class="func-card">
+                <div>
+                    <div class="func-header">
+                        <div class="func-icon-wrapper" style="background: rgba(139, 92, 246, 0.15); border-color: rgba(139, 92, 246, 0.3); color: var(--accent-purple);">
+                            <i class="fa-solid fa-database"></i>
+                        </div>
+                        <h3 class="func-title" style="color: #fff;">Commit Database (WAL)</h3>
+                    </div>
+                    <p class="func-desc">
+                        Merge temporary write-ahead log data (.db-wal and .db-shm files) into the main SQLite database file (.db).
+                    </p>
+                </div>
+                <form action="{{ url_for('admin.commit_wal') }}" method="POST" style="margin: 0;">
+                    <button type="submit" class="btn btn-primary" style="width: 100%; min-height: 2.5rem; justify-content: center; display: inline-flex; align-items: center; gap: 0.5rem; background: var(--accent-purple); border-color: var(--accent-purple);">
+                        <i class="fa-solid fa-arrow-down-up-lock"></i> Commit Data
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </div>

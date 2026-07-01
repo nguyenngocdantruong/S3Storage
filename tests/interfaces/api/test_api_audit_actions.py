@@ -1,4 +1,4 @@
-﻿import unittest
+import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -10,8 +10,7 @@ from interfaces.api import views as api_views
 
 class ApiAuditActionTests(unittest.TestCase):
     def setUp(self):
-        self.app = create_app()
-        self.app.config.update(TESTING=True)
+        self.app = create_app({'TESTING': True})
 
     def _run_paste(self, action):
         dest_conn = SimpleNamespace(id=10, name='dest-conn')

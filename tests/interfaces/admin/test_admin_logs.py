@@ -1,4 +1,4 @@
-﻿import unittest
+import unittest
 
 from application import create_app
 from extensions import db
@@ -7,12 +7,11 @@ from infrastructure.persistence.models import AuditLog, User
 
 class AdminSystemLogsTests(unittest.TestCase):
     def setUp(self):
-        self.app = create_app()
-        self.app.config.update(
-            TESTING=True,
-            SQLALCHEMY_DATABASE_URI='sqlite:///:memory:',
-            WTF_CSRF_ENABLED=False,
-        )
+        self.app = create_app({
+            'TESTING': True,
+            'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
+            'WTF_CSRF_ENABLED': False,
+        })
         with self.app.app_context():
             db.drop_all()
             db.create_all()

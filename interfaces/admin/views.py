@@ -93,6 +93,22 @@ def admin_functions():
     return render_template('admin_functions.html')
 
 
+@bp.route('/admin/functions/commit-wal', methods=['POST'])
+@admin_required
+def commit_wal():
+    try:
+        from sqlalchemy import text
+        result = db.session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)")).fetchone()
+        busy, log, checkpointed = result
+        if busy:
+            flash("SQLite WAL checkpoint is busy (active connections). Try again later.", "warning")
+        else:
+            flash("Successfully committed and checkpointed SQLite database WAL data.", "success")
+    except Exception as e:
+        flash(f"Error committing database WAL: {str(e)}", "error")
+    return redirect(url_for('admin.admin_functions'))
+
+
 @bp.route('/admin/bucket-access')
 @admin_required
 def bucket_access_list():
@@ -142,7 +158,7 @@ def bucket_access_revoke(access_id):
 @login_required
 def view_logs():
     page = request.args.get('page', 1, type=int)
-    pagination = AuditLog.query.order_by(AuditLog.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
+    pagination = AuditLog.query.order_by(AuditLog.timestamp.desc()).paginate(page=page, per_page=20, error_out=False)
     return render_template('logs.html', pagination=pagination, logs=pagination.items)
 
 

@@ -54,7 +54,7 @@ class RouteSmokeAuditTests(unittest.TestCase):
         if bad:
             self.fail(f'Route smoke failures: {bad}')
 
-        self.assertEqual(len(results), 61)
+        self.assertEqual(len(results), 62)
 
 
 if __name__ == '__main__':
