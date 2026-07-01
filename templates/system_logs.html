@@ -4,76 +4,6 @@
 
 {% block extra_head %}
 <style>
-    .terminal-window {
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-        border: 1px solid var(--glass-border);
-        box-shadow: 0 15px 35px rgba(0,0,0,0.6);
-        background: #090c10;
-        margin-top: 1rem;
-    }
-    
-    .terminal-header {
-        background: #161b22;
-        padding: 0.75rem 1.25rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-    
-    .terminal-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        display: inline-block;
-    }
-    .dot-red { background: #ff5f56; }
-    .dot-yellow { background: #ffbd2e; }
-    .dot-green { background: #27c93f; }
-    
-    .console-container {
-        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-        font-size: 0.85rem;
-        line-height: 1.6;
-        padding: 1.5rem;
-        height: 600px;
-        overflow-y: auto;
-        color: #c9d1d9;
-        text-align: left !important;
-        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
-    }
-    
-    .log-line {
-        white-space: pre-wrap;
-        word-break: break-all;
-        margin-bottom: 0.4rem;
-        padding-bottom: 0.4rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.02);
-        text-align: left !important;
-    }
-
-    .log-info {
-        color: #79c0ff; /* elegant blue */
-    }
-
-    .log-warning {
-        color: #e3b341; /* clean warning color */
-    }
-
-    .log-error {
-        color: #ff7b72; /* beautiful glowing red */
-        font-weight: 500;
-        background: rgba(255, 123, 114, 0.05);
-        padding-left: 8px;
-        border-left: 3px solid #ff7b72;
-    }
-
-    .log-traceback {
-        color: #8b949e; /* muted gray-slate for clean reading */
-        padding-left: 1.5rem;
-    }
-
     .filters-wrapper {
         display: flex;
         justify-content: space-between;
@@ -87,20 +17,20 @@
         display: flex;
         gap: 1rem;
         align-items: center;
+        flex-wrap: wrap;
     }
 
-    .log-level-badge {
+    .action-badge {
         display: inline-block;
-        padding: 0.1rem 0.4rem;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: bold;
-        margin-right: 0.5rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        background: rgba(59, 130, 246, 0.15);
+        color: #93c5fd;
     }
-
-    .badge-info { background: rgba(121, 192, 255, 0.15); color: #79c0ff; }
-    .badge-warning { background: rgba(227, 179, 65, 0.15); color: #e3b341; }
-    .badge-error { background: rgba(255, 123, 114, 0.15); color: #ff7b72; }
 </style>
 {% endblock %}
 
@@ -109,15 +39,15 @@
     <div>
         <h1 class="page-title">System Logs</h1>
         <p style="color: var(--text-secondary); margin-top: 0.25rem;">
-            Real-time Flask server logging, debugging information, and system exception traces.
+            Audit trail of user activity such as login, upload, move, copy, share, and delete actions.
         </p>
     </div>
-    
+
     <div style="display: flex; gap: 0.75rem;">
         <button class="btn btn-secondary" onclick="window.location.reload();">
             <i class="fa-solid fa-arrows-rotate"></i> Refresh
         </button>
-        <form action="{{ url_for('clear_system_logs') }}" method="POST" onsubmit="return confirm('Are you sure you want to clear all server log entries? This action cannot be undone.');">
+        <form action="{{ url_for('admin.clear_system_logs') }}" method="POST" onsubmit="return confirm('Are you sure you want to clear all audit activity logs? This action cannot be undone.');">
             <button type="submit" class="btn btn-danger">
                 <i class="fa-solid fa-trash-can"></i> Clear Logs
             </button>
@@ -127,83 +57,107 @@
 
 <div class="glass-card">
     <div class="filters-wrapper">
-        <form id="logFilterForm" method="GET" action="{{ url_for('view_system_logs') }}" class="filter-controls">
+        <form id="logFilterForm" method="GET" action="{{ url_for('admin.view_system_logs') }}" class="filter-controls">
             <div>
-                <label for="level" style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 0.35rem;">Log Level</label>
-                <select name="level" id="level" class="form-control" onchange="this.form.submit()" style="background: rgba(20, 25, 35, 0.6); padding: 0.4rem 2rem 0.4rem 1rem; font-size: 0.85rem; width: 140px;">
-                    <option value="ALL" {% if current_level == 'ALL' %}selected{% endif %}>All Levels</option>
-                    <option value="INFO" {% if current_level == 'INFO' %}selected{% endif %}>INFO</option>
-                    <option value="WARNING" {% if current_level == 'WARNING' %}selected{% endif %}>WARNING</option>
-                    <option value="ERROR" {% if current_level == 'ERROR' %}selected{% endif %}>ERROR</option>
+                <label for="action" style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 0.35rem;">Action</label>
+                <select name="action" id="action" class="form-control" onchange="this.form.submit()" style="background: rgba(20, 25, 35, 0.6); padding: 0.4rem 2rem 0.4rem 1rem; font-size: 0.85rem; width: 180px;">
+                    <option value="">All Actions</option>
+                    {% for action_name in available_actions %}
+                        <option value="{{ action_name }}" {% if selected_action == action_name %}selected{% endif %}>{{ action_name.replace('_', ' ') }}</option>
+                    {% endfor %}
                 </select>
             </div>
-            
+
             <div>
-                <label for="limit" style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 0.35rem;">Max Lines</label>
-                <select name="limit" id="limit" class="form-control" onchange="this.form.submit()" style="background: rgba(20, 25, 35, 0.6); padding: 0.4rem 2rem 0.4rem 1rem; font-size: 0.85rem; width: 100px;">
-                    <option value="50" {% if current_limit == 50 %}selected{% endif %}>50</option>
-                    <option value="100" {% if current_limit == 100 %}selected{% endif %}>100</option>
-                    <option value="200" {% if current_limit == 200 %}selected{% endif %}>200</option>
-                    <option value="500" {% if current_limit == 500 %}selected{% endif %}>500</option>
-                    <option value="1000" {% if current_limit == 1000 %}selected{% endif %}>1000</option>
-                </select>
+                <label for="q" style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 0.35rem;">Search</label>
+                <input id="q" name="q" value="{{ query }}" class="form-control" placeholder="Actor, action, bucket, metadata..." style="min-width: 260px;">
+            </div>
+
+            <div style="padding-top: 1.45rem;">
+                <button type="submit" class="btn btn-secondary">
+                    <i class="fa-solid fa-filter"></i> Filter
+                </button>
             </div>
         </form>
-        
+
         <div style="font-size: 0.85rem; color: var(--text-secondary);">
-            Showing last <strong>{{ log_lines|length }}</strong> lines (newest on top)
+            Showing <strong>{{ logs|length }}</strong> records on this page
         </div>
     </div>
 
-    <div class="terminal-window">
-        <div class="terminal-header">
-            <span class="terminal-dot dot-red"></span>
-            <span class="terminal-dot dot-yellow"></span>
-            <span class="terminal-dot dot-green"></span>
-            <span style="margin-left: 0.5rem; font-family: monospace; font-size: 0.8rem; color: var(--text-secondary);">server_output.log</span>
+    {% if logs %}
+        <div class="data-table-container">
+            <table class="data-table" style="font-size: 0.9rem;">
+                <thead>
+                    <tr>
+                        <th>Action</th>
+                        <th>Created Time</th>
+                        <th>Triggered By</th>
+                        <th>Target</th>
+                        <th>Metadata</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                        <tr>
+                            <td>
+                                <span class="action-badge">{{ log.action_type.replace('_', ' ') if log.action_type else 'UNKNOWN' }}</span>
+                            </td>
+                            <td style="white-space: nowrap; color: var(--text-secondary);">
+                                {{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else '?' }}
+                            </td>
+                            <td>
+                                <div style="font-weight: 600;">{{ log.actor.name if log.actor else 'System' }}</div>
+                                <div style="font-size: 0.78rem; color: var(--text-muted);">
+                                    {{ log.actor.email if log.actor else 'system@local' }}
+                                </div>
+                            </td>
+                            <td style="color: var(--text-secondary);">
+                                <div>{{ log.connection_name or 'No connection' }}</div>
+                                <div style="font-size: 0.78rem; color: var(--text-muted);">
+                                    {{ log.bucket_name or 'No bucket' }}
+                                </div>
+                            </td>
+                            <td style="min-width: 280px; color: var(--text-primary);">
+                                {{ log.details or '?' }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        <div class="console-container" id="consoleContainer">
-            {% if log_lines %}
-                {% for line in log_lines %}
-                    {% set css_class = "" %}
-                    {% if ' INFO ' in line %}
-                        {% set css_class = "log-info" %}
-                    {% elif ' WARNING ' in line %}
-                        {% set css_class = "log-warning" %}
-                    {% elif ' ERROR ' in line or ' CRITICAL ' in line %}
-                        {% set css_class = "log-error" %}
-                    {% elif line.startswith('Traceback') or line.startswith('  File') or line.startswith('    ') %}
-                        {% set css_class = "log-traceback" %}
-                    {% endif %}
-                    
-                    <div class="log-line {{ css_class }}">
-                        {# Parse timestamps and formats for better inline styling #}
-                        {% if ' INFO ' in line %}
-                            <span class="log-level-badge badge-info">INFO</span>
-                        {% elif ' WARNING ' in line %}
-                            <span class="log-level-badge badge-warning">WARN</span>
-                        {% elif ' ERROR ' in line %}
-                            <span class="log-level-badge badge-error">ERR</span>
-                        {% endif %}
-                        {{ line }}
-                    </div>
-                {% endfor %}
-            {% else %}
-                <div style="color: var(--text-muted); text-align: center; padding-top: 5rem;">
-                    No matching logs found.
-                </div>
-            {% endif %}
+
+        {% if pagination and pagination.pages > 1 %}
+            <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 2rem; align-items: center;">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('admin.view_system_logs', page=pagination.prev_num, action=selected_action, q=query) }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                        <i class="fa-solid fa-angle-left"></i> Previous
+                    </a>
+                {% else %}
+                    <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem; opacity: 0.5; cursor: not-allowed;" disabled>
+                        <i class="fa-solid fa-angle-left"></i> Previous
+                    </button>
+                {% endif %}
+
+                <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                    Page <strong>{{ pagination.page }}</strong> / {{ pagination.pages }}
+                </span>
+
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('admin.view_system_logs', page=pagination.next_num, action=selected_action, q=query) }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                        Next <i class="fa-solid fa-angle-right"></i>
+                    </a>
+                {% else %}
+                    <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem; opacity: 0.5; cursor: not-allowed;" disabled>
+                        Next <i class="fa-solid fa-angle-right"></i>
+                    </button>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% else %}
+        <div style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
+            No matching audit actions found.
         </div>
-    </div>
+    {% endif %}
 </div>
-
-<script>
-    // Keep console scroll at top (since newest is on top) or let users scroll naturally.
-    document.addEventListener('DOMContentLoaded', () => {
-        const consoleBox = document.getElementById('consoleContainer');
-        if (consoleBox) {
-            consoleBox.scrollTop = 0;
-        }
-    });
-</script>
 {% endblock %}

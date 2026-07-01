@@ -67,52 +67,52 @@
                         </a>
                     </li>
                     <li class="nav-item {% if request.path == '/search' %}active{% endif %}">
-                        <a href="{{ url_for('global_search') }}">
+                        <a href="{{ url_for('main.global_search') }}">
                             <i class="fa-solid fa-magnifying-glass"></i>
                             <span>Global Search</span>
                         </a>
                     </li>
                     <li class="nav-item {% if request.path == '/progress' %}active{% endif %}">
-                        <a href="{{ url_for('list_progress') }}">
+                        <a href="{{ url_for('progress.list_progress') }}">
                             <i class="fa-solid fa-chart-line"></i>
                             <span>Video Progress</span>
                         </a>
                     </li>
                     <li class="nav-item {% if request.path == '/logs' %}active{% endif %}">
-                        <a href="{{ url_for('view_logs') }}">
+                        <a href="{{ url_for('admin.view_logs') }}">
                             <i class="fa-solid fa-receipt"></i>
                             <span>Audit Logs</span>
                         </a>
                     </li>
                     {% if g.user.role == 'Admin' %}
                         <li class="nav-item {% if request.path == '/admin/users' %}active{% endif %}">
-                            <a href="{{ url_for('manage_users') }}">
+                            <a href="{{ url_for('admin.manage_users') }}">
                                 <i class="fa-solid fa-users-gear"></i>
                                 <span>Manage Users</span>
                             </a>
                         </li>
                         <li class="nav-item {% if request.path == '/admin/bucket-access' %}active{% endif %}">
-                            <a href="{{ url_for('bucket_access_list') }}">
+                            <a href="{{ url_for('admin.bucket_access_list') }}">
                                 <i class="fa-solid fa-key"></i>
                                 <span>Bucket Access</span>
                             </a>
                         </li>
                         <li class="nav-item {% if request.path == '/admin/system-logs' %}active{% endif %}">
-                            <a href="{{ url_for('view_system_logs') }}">
+                            <a href="{{ url_for('admin.view_system_logs') }}">
                                 <i class="fa-solid fa-terminal"></i>
                                 <span>System Logs</span>
                             </a>
                         </li>
                     {% endif %}
                     <li class="nav-item {% if request.path == '/profile' %}active{% endif %}">
-                        <a href="{{ url_for('profile') }}">
+                        <a href="{{ url_for('auth.profile') }}">
                             <i class="fa-solid fa-user-gear"></i>
                             <span>My Profile</span>
                         </a>
                     </li>
                     {% if g.user.role == 'Admin' %}
                     <li class="nav-item {% if request.path == '/admin/functions' %}active{% endif %}">
-                        <a href="{{ url_for('admin_functions') }}">
+                        <a href="{{ url_for('admin.admin_functions') }}">
                             <i class="fa-solid fa-screwdriver-wrench"></i>
                             <span>Admin Function</span>
                         </a>
@@ -120,13 +120,13 @@
                     {% endif %}
                 {% else %}
                     <li class="nav-item {% if request.path == '/login' %}active{% endif %}">
-                        <a href="{{ url_for('login') }}">
+                        <a href="{{ url_for('auth.login') }}">
                             <i class="fa-solid fa-right-to-bracket"></i>
                             <span>Login</span>
                         </a>
                     </li>
                     <li class="nav-item {% if request.path == '/register' %}active{% endif %}">
-                        <a href="{{ url_for('register') }}">
+                        <a href="{{ url_for('auth.register') }}">
                             <i class="fa-solid fa-user-plus"></i>
                             <span>Register</span>
                         </a>
@@ -169,7 +169,7 @@
                         <span style="font-size: 0.75rem; color: var(--text-muted);">{{ g.user.role }}</span>
                     </div>
                 </div>
-                <a href="{{ url_for('logout') }}" class="btn btn-secondary" style="width: 100%; font-size: 0.85rem; padding: 0.5rem 1rem;">
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-secondary" style="width: 100%; font-size: 0.85rem; padding: 0.5rem 1rem;">
                     <i class="fa-solid fa-right-from-bracket"></i> Log Out
                 </a>
             </div>

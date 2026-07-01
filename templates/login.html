@@ -11,7 +11,7 @@
             <p style="color: var(--text-secondary); margin-top: 0.25rem;">Log in to access S3 Storage</p>
         </div>
 
-        <form action="{{ url_for('login') }}" method="POST">
+        <form action="{{ url_for('auth.login') }}" method="POST">
             <div class="form-group">
                 <label for="email">Email Address</label>
                 <input type="email" id="email" name="email" class="form-control" placeholder="name@example.com" required>
@@ -33,7 +33,7 @@
         </form>
 
         <div style="text-align: center; margin-top: 1.5rem; font-size: 0.875rem; color: var(--text-secondary);">
-            Don't have an account? <a href="{{ url_for('register') }}" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">Register here</a>
+            Don't have an account? <a href="{{ url_for('auth.register') }}" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">Register here</a>
         </div>
     </div>
 </div>

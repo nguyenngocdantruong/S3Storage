@@ -40,7 +40,7 @@
                         <td>
                             <div style="color: var(--text-primary); font-size: 0.9rem; margin-bottom: 0.25rem;">{{ stat.user.email }}</div>
                             {% if stat.user.id != g.user.id %}
-                                <form action="{{ url_for('update_user_role', user_id=stat.user.id) }}" method="POST" style="display: inline-block; margin: 0;">
+                                <form action="{{ url_for('admin.update_user_role', user_id=stat.user.id) }}" method="POST" style="display: inline-block; margin: 0;">
                                     <select name="role" class="form-control" onchange="this.form.submit()" style="padding: 0.35rem 0.5rem; font-size: 0.85rem; width: auto; display: inline-block; background: rgba(15, 23, 42, 0.6); color: #fff; border: 1px solid var(--glass-border); border-radius: var(--radius-md); cursor: pointer;">
                                         <option value="Admin" {% if stat.user.role == 'Admin' %}selected{% endif %}>Admin</option>
                                         <option value="User" {% if stat.user.role == 'User' %}selected{% endif %}>User</option>
@@ -76,7 +76,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <form action="{{ url_for('update_user_quota', user_id=stat.user.id) }}" method="POST" style="display: flex; gap: 0.5rem; align-items: center; max-width: 200px;">
+                            <form action="{{ url_for('admin.update_user_quota', user_id=stat.user.id) }}" method="POST" style="display: flex; gap: 0.5rem; align-items: center; max-width: 200px;">
                                 <input type="number" name="quota_gb" class="form-control" value="{{ limit_gb }}" step="0.1" min="0.1" required style="padding: 0.4rem 0.75rem; font-size: 0.875rem; width: 90px; flex-shrink: 0;">
                                 <button type="submit" class="btn btn-primary" style="padding: 0.45rem 0.75rem; font-size: 0.85rem;" title="Save Limit">
                                     <i class="fa-solid fa-save"></i>
@@ -85,7 +85,7 @@
                         </td>
                         <td>
                             {% if stat.user.role != 'Admin' %}
-                                <form action="{{ url_for('toggle_user_status', user_id=stat.user.id) }}" method="POST" style="display: inline-block; margin: 0;">
+                                <form action="{{ url_for('admin.toggle_user_status', user_id=stat.user.id) }}" method="POST" style="display: inline-block; margin: 0;">
                                     {% if stat.user.is_active %}
                                         <button type="submit" class="btn btn-secondary" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.35); color: #fca5a5; padding: 0.45rem 0.75rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem;" onclick="return confirm('Are you sure you want to deactivate account {{ stat.user.name }}?');">
                                             <i class="fa-solid fa-ban"></i> Deactivate
