@@ -45,7 +45,11 @@ class Boto3StorageProvider(StorageProvider):
     def delete_object(self, bucket: str, key: str):
         return self._client.delete_object(Bucket=bucket, Key=key)
 
-    def generate_presigned_url(self, operation: str, *args, params: dict | None = None, expires_in: int = 3600, **kwargs):
+    def generate_presigned_url(self, operation: str = None, *args, params: dict | None = None, expires_in: int = 3600, **kwargs):
+        if operation is None:
+            operation = kwargs.pop('ClientMethod', None)
+        if not operation:
+            raise TypeError("generate_presigned_url() missing 1 required positional argument: 'operation' or 'ClientMethod'")
         if params is not None and 'Params' not in kwargs:
             kwargs['Params'] = params
         if 'ExpiresIn' not in kwargs:

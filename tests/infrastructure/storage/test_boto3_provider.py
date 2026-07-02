@@ -1,4 +1,4 @@
-﻿import unittest
+import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -49,6 +49,13 @@ class StorageProviderTests(unittest.TestCase):
             provider = boto3_provider.get_storage_provider(conn)
             provider.generate_presigned_url('get_object', params={'Bucket': 'b', 'Key': 'k'}, expires_in=321)
         boto_client.return_value.generate_presigned_url.assert_called_once_with('get_object', Params={'Bucket': 'b', 'Key': 'k'}, ExpiresIn=321)
+
+    def test_generate_presigned_url_supports_client_method_keyword(self):
+        conn = SimpleNamespace(endpoint_url='http://s3.local', access_key='ak', secret_key='sk', region_name='us-east-1')
+        with patch('infrastructure.storage.boto3_provider.boto3.client', return_value=MagicMock()) as boto_client:
+            provider = boto3_provider.get_storage_provider(conn)
+            provider.generate_presigned_url(ClientMethod='upload_part', Params={'Bucket': 'b', 'Key': 'k'}, ExpiresIn=123)
+        boto_client.return_value.generate_presigned_url.assert_called_once_with('upload_part', Params={'Bucket': 'b', 'Key': 'k'}, ExpiresIn=123)
 
 
 if __name__ == '__main__':
